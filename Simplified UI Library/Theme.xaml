@@ -628,12 +628,19 @@
                     <Border x:Name="Chrome" Background="Transparent" CornerRadius="4"
                             Margin="3,1" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
-                        <!-- A TextBlock the template owns, for the reason the chips
-                             have one: a ContentPresenter builds its own, which the
-                             implicit TextBlock style then repaints. -->
-                        <TextBlock Text="{TemplateBinding Content}"
-                                   Foreground="{TemplateBinding Foreground}"
-                                   VerticalAlignment="Center"/>
+                        <!-- A presenter, unlike the chips, which own their TextBlock
+                             so they can paint it differently. Here the implicit
+                             TextBlock style repaints it TextPrimary, which is what
+                             the item wanted anyway.
+
+                             It has to be a presenter. A TextBlock bound with
+                             TemplateBinding takes only a string, and TemplateBinding
+                             runs no converter — so an item bound through
+                             DisplayMemberPath, whose Content is the object, failed
+                             silently and drew nothing at all. The presenter also
+                             honours ItemTemplate, so what shows is the bound
+                             property rather than ToString(). -->
+                        <ContentPresenter VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
