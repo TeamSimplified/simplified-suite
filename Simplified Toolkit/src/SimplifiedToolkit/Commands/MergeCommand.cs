@@ -1,4 +1,5 @@
 using System.CommandLine;
+using SimplifiedToolkit.Core.Operations;
 using EgoEngineLibrary.Archive.Erp;
 using SimplifiedToolkit.Core.Util;
 
@@ -34,30 +35,9 @@ internal static class MergeCommand
             var target = ErpFileIO.Load(targetPath);
             Console.WriteLine($"Target:   {targetPath}  ({target.Resources.Count} resources, v{target.Version})");
 
-            foreach (var srcPath in sources)
+            foreach (var tally in ErpOperations.Merge(target, sources, overwrite))
             {
-                var src = ErpFileIO.Load(srcPath);
-                int added = 0, replaced = 0, skipped = 0;
-                foreach (var res in src.Resources)
-                {
-                    var existing = target.Resources.Find(r => r.Identifier == res.Identifier);
-                    if (existing is not null)
-                    {
-                        if (overwrite)
-                        {
-                            target.Resources.Remove(existing);
-                            RepointAndAdd(target, res);
-                            replaced++;
-                        }
-                        else skipped++;
-                    }
-                    else
-                    {
-                        RepointAndAdd(target, res);
-                        added++;
-                    }
-                }
-                Console.WriteLine($"  + {srcPath}: {added} added, {replaced} replaced, {skipped} skipped");
+                Console.WriteLine($"  + {tally.Source}: {tally.Added} added, {tally.Replaced} replaced, {tally.Skipped} skipped");
             }
 
             target.UpdateOffsets();
@@ -67,18 +47,5 @@ internal static class MergeCommand
         });
 
         return cmd;
-    }
-
-    /// <summary>
-    /// Repoint a merged-in resource (and its fragments) to the target ERP so that
-    /// version-dependent size math in UpdateOffsets uses the target's version.
-    /// (Fixes the latent bug in the EEA GUI implementation.)
-    /// </summary>
-    private static void RepointAndAdd(ErpFile target, ErpResource resource)
-    {
-        resource.ParentFile = target;
-        foreach (var frag in resource.Fragments)
-            frag.ParentFile = target;
-        target.Resources.Add(resource);
     }
 }

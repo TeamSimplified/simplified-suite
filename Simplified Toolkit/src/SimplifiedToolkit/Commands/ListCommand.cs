@@ -1,4 +1,5 @@
 using System.CommandLine;
+using SimplifiedToolkit.Core.Operations;
 using System.Text.RegularExpressions;
 using SimplifiedToolkit.Core.Util;
 
@@ -21,21 +22,16 @@ internal static class ListCommand
             var idFilter = p.GetValue(filterOpt);
             var erp = ErpFileIO.Load(path);
 
-            Regex? rx = idFilter is null ? null : new Regex(idFilter, RegexOptions.IgnoreCase);
-            var resources = erp.Resources
-                .Where(r => typeFilter is null || string.Equals(r.ResourceType, typeFilter, StringComparison.OrdinalIgnoreCase))
-                .Where(r => rx is null || rx.IsMatch(r.Identifier))
-                .ToList();
+            var result = ErpOperations.List(erp, typeFilter, idFilter);
 
             Console.WriteLine($"File:        {path}");
-            Console.WriteLine($"Version:     {erp.Version}");
-            Console.WriteLine($"Resources:   {erp.Resources.Count} total, {resources.Count} shown");
+            Console.WriteLine($"Version:     {result.Version}");
+            Console.WriteLine($"Resources:   {result.Total} total, {result.Shown.Count} shown");
             Console.WriteLine();
 
-            for (var i = 0; i < resources.Count; i++)
+            foreach (var r in result.Shown)
             {
-                var r = resources[i];
-                Console.WriteLine($"#{i,-4} [{r.ResourceType,-20}] {r.Fragments.Count}f {r.PackedSize,10:N0}b  {r.Identifier}");
+                Console.WriteLine($"#{r.Index,-4} [{r.ResourceType,-20}] {r.FragmentCount}f {r.PackedSize,10:N0}b  {r.Identifier}");
             }
             return 0;
         });

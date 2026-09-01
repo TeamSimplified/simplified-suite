@@ -1,4 +1,5 @@
 using System.CommandLine;
+using SimplifiedToolkit.Core.Operations;
 using EgoEngineLibrary.Archive.Erp;
 using SimplifiedToolkit.Core.Util;
 

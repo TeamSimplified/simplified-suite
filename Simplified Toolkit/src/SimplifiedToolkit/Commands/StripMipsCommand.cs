@@ -1,4 +1,5 @@
 using System.CommandLine;
+using SimplifiedToolkit.Core.Operations;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Graphics;
@@ -50,75 +51,15 @@ internal static class StripMipsCommand
             }
 
             var erp = ErpFileIO.Load(path);
-            var regex = filter is null ? null : new System.Text.RegularExpressions.Regex(filter);
-
-            // Snapshot first: the rewrite below mutates resources as it goes.
-            var textures = erp.Resources
-                .Where(r => r.ResourceType == "GfxSRVResource")
-                .Where(r => regex is null || regex.IsMatch(r.Identifier))
-                .ToList();
-
-            int embedded = 0, noMips = 0, unreachable = 0, failed = 0;
-
-            foreach (var res in textures)
-            {
-                try
-                {
-                    var srv = new ErpGfxSRVResource();
-                    srv.FromResource(res);
-
-                    if (!srv.SurfaceRes.HasMips) { noMips++; continue; }
-
-                    var mipFileName = srv.SurfaceRes.Frag2.MipMapFileName;
-                    var mipPath = string.IsNullOrEmpty(mipFileName)
-                        ? null
-                        : Path.Combine(gameDir, mipFileName);
-
-                    if (!srv.SurfaceRes.HasValidMips || mipPath is null || !File.Exists(mipPath))
-                    {
-                        Console.WriteLine($"MISS {res.FileName}  ({mipFileName ?? "no mip file named"})");
-                        unreachable++;
-                        continue;
-                    }
-
-                    // Tex arrays have to round-trip whole: a single slice can't
-                    // reconstruct the array layout.
-                    var isArray = srv.SurfaceRes.Fragment0.ArraySize > 1;
-
-                    DdsFile dds;
-                    using (var mipStream = File.Open(mipPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                        dds = srv.ToDdsFile(mipStream, exportTexArray: isArray, texArrayIndex: 0);
-
-                    // Drop the mips descriptor from the linked surface (.image) resource.
-                    var surfaceRes = erp.FindResource(srv.Fragment0.SurfaceResourceName);
-                    if (surfaceRes.Fragments.Count == 3) surfaceRes.Fragments.RemoveAt(2);
-                    else if (surfaceRes.Fragments.Count != 2)
-                        throw new InvalidOperationException(
-                            $"expected 2 or 3 fragments on the surface resource, found {surfaceRes.Fragments.Count}");
-
-                    // Re-read so HasMips is false, then write the full chain inline.
-                    var newSrv = new ErpGfxSRVResource();
-                    newSrv.FromResource(res);
-                    dds.ToErpGfxSRVResource(newSrv, mipMapsStream: null!, importTexArray: isArray, texArrayIndex: 0);
-                    newSrv.ToResource(res);
-
-                    Console.WriteLine($"OK   {res.FileName}");
-                    embedded++;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"FAIL {res.FileName}  {ex.Message}");
-                    failed++;
-                }
-            }
+            var result = ErpOperations.StripMips(erp, gameDir, filter, Console.WriteLine);
 
             erp.UpdateOffsets();
             ErpFileIO.Save(erp, outPath);
 
-            Console.WriteLine($"{embedded} embedded, {noMips} already inline, " +
-                              $"{unreachable} unreachable, {failed} failed");
+            Console.WriteLine($"{result.Embedded} embedded, {result.AlreadyInline} already inline, " +
+                              $"{result.Unreachable} unreachable, {result.Failed} failed");
             Console.WriteLine($"Wrote {outPath}");
-            return failed > 0 ? 1 : 0;
+            return result.Failed > 0 ? 1 : 0;
         });
 
         return cmd;
