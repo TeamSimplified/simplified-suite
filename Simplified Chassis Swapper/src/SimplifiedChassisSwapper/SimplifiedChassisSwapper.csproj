@@ -34,7 +34,7 @@
        the release. -->
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
   </ItemGroup>
 
 </Project>

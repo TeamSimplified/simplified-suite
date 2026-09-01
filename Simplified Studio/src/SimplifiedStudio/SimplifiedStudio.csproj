@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SimplifiedStudio.Core\SimplifiedStudio.Core.csproj" />
-    <ProjectReference Include="..\..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
   </ItemGroup>
 
   <!-- Ship icon.ico beside the published EXE and texconv.exe in runtime\,

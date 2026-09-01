@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
 </Project>

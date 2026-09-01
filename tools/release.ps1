@@ -68,9 +68,8 @@ $ClosedByUser = 1000
 
 # Every app, and only the apps.
 #
-#   Folder   top level folder in the suite
-#   Source   the tree holding Directory.Build.props, relative to Folder
-#   Project  the app's .csproj, relative to Source
+#   Folder   top level folder in the suite, which is also the source tree
+#   Project  the app's .csproj, relative to Folder
 #   Exe      what the publish produces
 #   Package  what the release folder and zip are called
 #   Tag      prefix; Studio keeps the bare "v" it has always had
@@ -78,31 +77,31 @@ $ClosedByUser = 1000
 #   Ships    what may appear in the package. Anything else stops the release.
 $Apps = @(
     [pscustomobject]@{
-        Short = 'Studio'; Folder = 'Simplified Studio'; Source = 'Simplified Studio - Source'
+        Short = 'Studio'; Folder = 'Simplified Studio'
         Project = 'src\SimplifiedStudio\SimplifiedStudio.csproj'
         Exe = 'Simplified Studio'; Package = 'Simplified Studio'
         Tag = 'v'; Kind = 'window'; Ships = @('*.exe', '*.ico', 'runtime\*')
     }
     [pscustomobject]@{
-        Short = 'ERP'; Folder = 'Simplified ERP'; Source = 'Simplified ERP - Source'
+        Short = 'ERP'; Folder = 'Simplified ERP'
         Project = 'src\SimplifiedStudio\SimplifiedStudio.csproj'
         Exe = 'Simplified ERP'; Package = 'Simplified ERP'
         Tag = 'erp-v'; Kind = 'window'; Ships = @('*.exe', '*.ico', 'runtime\*')
     }
     [pscustomobject]@{
-        Short = 'Toolkit'; Folder = 'Simplified Toolkit'; Source = '.'
+        Short = 'Toolkit'; Folder = 'Simplified Toolkit'
         Project = 'src\SimplifiedToolkit\SimplifiedToolkit.csproj'
         Exe = 'stk'; Package = 'Simplified Toolkit'
         Tag = 'stk-v'; Kind = 'cli'; Ships = @('stk.exe', 'tools\*')
     }
     [pscustomobject]@{
-        Short = 'Chassis'; Folder = 'Simplified Chassis Swapper'; Source = 'Simplified Chassis Swapper - Source'
+        Short = 'Chassis'; Folder = 'Simplified Chassis Swapper'
         Project = 'src\SimplifiedChassisSwapper\SimplifiedChassisSwapper.csproj'
         Exe = 'Simplified Chassis Swapper'; Package = 'Simplified Chassis Swapper'
         Tag = 'chassis-v'; Kind = 'window'; Ships = @('*.exe')
     }
     [pscustomobject]@{
-        Short = 'Driverwear'; Folder = 'Simplified Driverwear Swapper'; Source = 'Simplified Driverwear Swapper - Source'
+        Short = 'Driverwear'; Folder = 'Simplified Driverwear Swapper'
         Project = 'src\SimplifiedDriverwearSwapper\SimplifiedDriverwearSwapper.csproj'
         Exe = 'Simplified Driverwear Swapper'; Package = 'Simplified Driverwear Swapper'
         Tag = 'driverwear-v'; Kind = 'window'; Ships = @('*.exe')
@@ -158,11 +157,12 @@ function Test-Ships {
 function Invoke-Release {
     param([object] $Target, [string] $Head)
 
-    $tree    = if ($Target.Source -eq '.') { Join-Path $Suite $Target.Folder }
-               else { Join-Path (Join-Path $Suite $Target.Folder) $Target.Source }
+    $tree    = Join-Path $Suite $Target.Folder
     $version = Get-DeclaredVersion $tree
     $tag     = "$($Target.Tag)$version"
-    $release = Join-Path (Join-Path $Suite $Target.Folder) "$($Target.Package) - Release"
+    # Every package under one folder, beside the sources rather than inside
+    # them: what someone downloads is not part of what builds it.
+    $release = Join-Path (Join-Path $Suite 'Release') $Target.Package
     $project = Join-Path $tree $Target.Project
     $publish = Join-Path (Split-Path $project -Parent) 'bin\Release\net10.0-windows\win-x64\publish'
     $short   = $Head.Substring(0, 7)

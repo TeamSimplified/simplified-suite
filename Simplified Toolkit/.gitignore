@@ -18,8 +18,3 @@ publish/
 TestResults/
 .DS_Store
 Thumbs.db
-
-# Packaged release artifacts — built on demand, not tracked
-/Simplified Toolkit - Release/stk.exe
-/Simplified Toolkit - Release/*.zip
-/Simplified Toolkit - Release/tools/

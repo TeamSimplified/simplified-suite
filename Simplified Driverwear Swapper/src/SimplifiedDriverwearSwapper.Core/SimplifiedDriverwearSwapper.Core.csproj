@@ -12,7 +12,7 @@
        one place across the suite — anything missing gets added to the Toolkit
        rather than reimplemented here. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Simplified Toolkit\src\SimplifiedToolkit.Core\SimplifiedToolkit.Core.csproj" />
+    <ProjectReference Include="..\..\..\Simplified Toolkit\src\SimplifiedToolkit.Core\SimplifiedToolkit.Core.csproj" />
   </ItemGroup>
 
 </Project>
