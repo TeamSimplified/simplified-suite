@@ -2,7 +2,7 @@ using System.IO;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Graphics;
 using EgoEngineLibrary.Graphics.Dds;
-using SimplifiedStudio.Core.Texconv;
+using EgoEngineLibrary.Texconv;
 
 namespace SimplifiedStudio.Model;
 

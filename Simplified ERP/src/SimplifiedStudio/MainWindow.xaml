@@ -11,7 +11,6 @@
         AllowDrop="True"
         Drop="Window_Drop"
         PreviewKeyDown="Window_PreviewKeyDown"
-        StateChanged="Window_StateChanged"
         Closing="Window_Closing">
 
     <!-- Our own title bar, but still a real window: WindowChrome keeps the

@@ -9,7 +9,7 @@ namespace EgoEngineLibrary.Texconv;
 /// Resolution order for the binary:
 ///   1. <see cref="TexconvPath"/> set explicitly
 ///   2. <c>TEXCONV</c> environment variable
-///   3. <c>tools/texconv.exe</c> next to the entry assembly (shipped bundle)
+///   3. <c>runtime/texconv.exe</c> or <c>tools/texconv.exe</c> beside the app
 ///   4. <c>texconv</c> on PATH
 /// </summary>
 public sealed class TexconvRunner
@@ -48,10 +48,18 @@ public sealed class TexconvRunner
         if (!string.IsNullOrEmpty(env) && File.Exists(env))
             return env;
 
-        var entryDir = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location) ?? AppContext.BaseDirectory;
-        var bundled = Path.Combine(entryDir, "tools", "texconv.exe");
-        if (File.Exists(bundled))
-            return bundled;
+        // AppContext.BaseDirectory rather than Assembly.Location: the latter is
+        // "" in a single-file build (IL3000), which is every packaged app here.
+        //
+        // Two folders because the packagings differ and both are right: the
+        // windowed apps keep everything the user should not touch in runtime\,
+        // the Toolkit ships a tools\ folder beside the exe.
+        foreach (var folder in new[] { "runtime", "tools" })
+        {
+            var bundled = Path.Combine(AppContext.BaseDirectory, folder, "texconv.exe");
+            if (File.Exists(bundled))
+                return bundled;
+        }
 
         return "texconv";
     }

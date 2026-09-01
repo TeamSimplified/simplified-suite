@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using SimplifiedStudio.Core.Config;
-using SimplifiedStudio.Core.Texconv;
+using EgoEngineLibrary.Texconv;
 using SimplifiedStudio.Core.Util;
 using SimplifiedStudio.Model;
 using SimplifiedStudio.Util;
@@ -1258,15 +1258,6 @@ public partial class MainWindow
         ShowPreview(vm);
     }
 
-    protected override void OnSourceInitialized(EventArgs e)
-    {
-        base.OnSourceInitialized(e);
-        DialogChrome.RoundCorners(this);
-
-        if (PresentationSource.FromVisual(this) is System.Windows.Interop.HwndSource source)
-            source.AddHook(WindowProc);
-    }
-
     private void PrevSlice_Click(object sender, RoutedEventArgs e)
     {
         var vm = TextureList.SelectedItem as TextureVm;
@@ -1512,56 +1503,12 @@ public partial class MainWindow
         catch { xml = null; return false; }
     }
 
-    private void WindowMaximize_Click(object sender, RoutedEventArgs e) =>
-        WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
-
-    private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg != WmGetMinMaxInfo) return IntPtr.Zero;
-
-        try
-        {
-            var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
-            if (monitor == IntPtr.Zero) return IntPtr.Zero;
-
-            var info = new MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf<MonitorInfo>() };
-            if (!GetMonitorInfo(monitor, ref info)) return IntPtr.Zero;
-
-            var mmi = System.Runtime.InteropServices.Marshal.PtrToStructure<MinMaxInfo>(lParam);
-
-            // Position and size are relative to the monitor, not the desktop,
-            // which is why the monitor rect is subtracted — on a secondary
-            // screen the work area's absolute origin is not zero.
-            mmi.MaxPosition.X = info.Work.Left - info.Monitor.Left;
-            mmi.MaxPosition.Y = info.Work.Top  - info.Monitor.Top;
-            mmi.MaxSize.X     = info.Work.Right  - info.Work.Left;
-            mmi.MaxSize.Y     = info.Work.Bottom - info.Work.Top;
-            mmi.MaxTrackSize  = mmi.MaxSize;
-
-            System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, fDeleteOld: true);
-            handled = true;
-        }
-        catch
-        {
-            // Leave the default sizing rather than fail the message.
-        }
-        return IntPtr.Zero;
-    }
-
     /// <summary>
-    /// Keep the middle button showing what it will do. Double-clicking the title
-    /// bar maximises too — that's WindowChrome's doing, not ours — so the glyph
-    /// has to follow the state rather than the click.
+    /// The bar at the top is ours, so this is too. Everything native that a
+    /// frameless window still needs — rounded corners, a maximise that respects
+    /// the taskbar, and a glyph that follows the state rather than the click —
+    /// is in SimplifiedUi.FramelessWindow, which each app attaches on the way up.
     /// </summary>
-    private void Window_StateChanged(object sender, EventArgs e)
-    {
-        var maximized = WindowState == WindowState.Maximized;
-        // Escapes rather than pasted glyphs: these are Segoe MDL2 private-use
-        // codepoints, which render as tofu in most editors and don't survive
-        // every re-encode.
-        WindowMaximizeButton.Content = maximized ? "\uE923" : "\uE922";
-        WindowMaximizeButton.ToolTip = maximized ? "Restore" : "Maximize";
-    }
+    private void WindowMaximize_Click(object sender, RoutedEventArgs e) =>
+        FramelessWindow.ToggleMaximize(this);
 }

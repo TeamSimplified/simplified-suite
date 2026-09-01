@@ -20,7 +20,11 @@
   <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Off, as the apps have it. Turning it on embeds the native libraries in
+         the single file and the host then extracts them to %TEMP%\.net at
+         startup: about 100 MB, once per build, never cleaned up, and outside the
+         folder the tool was run from. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>embedded</DebugType>
   </PropertyGroup>

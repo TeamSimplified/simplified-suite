@@ -16,6 +16,9 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>SimplifiedUi</RootNamespace>
     <AssemblyName>SimplifiedUi</AssemblyName>
+    <!-- Four apps depend on this, so a change here reaches all of them. Say
+         which build it is, the way the apps already do. -->
+    <Version>1.0</Version>
   </PropertyGroup>
 
 </Project>

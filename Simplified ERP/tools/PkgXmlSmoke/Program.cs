@@ -6,11 +6,16 @@ using SimplifiedStudio.Core.Util;
 // Walk both reference ERPs and classify every fragment as PKG / XML / other,
 // confirming the ported codecs work without surprises.
 
-string[] erps = args.Length > 0 ? args : new[]
+// Archives are given, not assumed: the two this used to default to lived in a
+// References folder outside the repository, under a suite name that no longer
+// exists. SwapVerify next door already takes everything as arguments.
+if (args.Length == 0)
 {
-    @"F:\Claude Code\Simplified 26 Suite\References\ferrari_pkg.erp",
-    @"F:\Claude Code\Simplified 26 Suite\References\f1_performance.erp",
-};
+    Console.Error.WriteLine("usage: PkgXmlSmoke <erp> [<erp> ...]");
+    return;
+}
+
+string[] erps = args;
 
 foreach (var path in erps)
 {

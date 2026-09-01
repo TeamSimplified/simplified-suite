@@ -2,7 +2,7 @@ using System.IO;
 using System.Windows.Media.Imaging;
 using EgoEngineLibrary.Graphics;
 using EgoEngineLibrary.Graphics.Dds;
-using SimplifiedStudio.Core.Texconv;
+using EgoEngineLibrary.Texconv;
 
 namespace SimplifiedStudio.Model;
 

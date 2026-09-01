@@ -9,7 +9,7 @@ using EgoEngineLibrary.Archive.Erp;
 using Microsoft.Win32;
 using SimplifiedStudio.Core.Config;
 using SimplifiedStudio.Core.Project;
-using SimplifiedStudio.Core.Texconv;
+using EgoEngineLibrary.Texconv;
 using SimplifiedStudio.Core.Util;
 using SimplifiedStudio.Model;
 using SimplifiedStudio.Util;
@@ -113,6 +113,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Rounded corners, a taskbar-aware maximise, and a glyph that
+        // follows the window state rather than the click.
+        FramelessWindow.Attach(this, WindowMaximizeButton);
 
         ApplyThemeToBackdrop();
 
@@ -548,35 +551,6 @@ public partial class MainWindow : Window
     // maximised — means guessing the border width, which is DPI-dependent and
     // wrong on any secondary monitor at a different scale.
 
-    private const int WmGetMinMaxInfo = 0x0024;
-    private const int MonitorDefaultToNearest = 0x00000002;
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct Point32 { public int X; public int Y; }
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct MinMaxInfo
-    {
-        public Point32 Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize;
-    }
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct Rect32 { public int Left, Top, Right, Bottom; }
-
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct MonitorInfo
-    {
-        public int Size;
-        public Rect32 Monitor;
-        public Rect32 Work;
-        public int Flags;
-    }
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
 
     private void WindowMinimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;

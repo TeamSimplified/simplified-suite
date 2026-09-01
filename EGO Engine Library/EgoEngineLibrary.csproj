@@ -15,6 +15,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>EgoEngineLibrary</RootNamespace>
     <AssemblyName>EgoEngineLibrary</AssemblyName>
+    <!-- Four apps depend on this, so a change here reaches all of them. Say
+         which build it is, the way the apps already do. -->
+    <Version>1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
