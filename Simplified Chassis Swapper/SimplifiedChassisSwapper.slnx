@@ -3,4 +3,8 @@
     <Project Path="src/SimplifiedChassisSwapper.Core/SimplifiedChassisSwapper.Core.csproj" />
     <Project Path="src/SimplifiedChassisSwapper/SimplifiedChassisSwapper.csproj" />
   </Folder>
+  <Folder Name="/shared/">
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+    <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
+  </Folder>
 </Solution>

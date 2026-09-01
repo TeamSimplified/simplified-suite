@@ -3,4 +3,7 @@
     <Project Path="src/SimplifiedToolkit.Core/SimplifiedToolkit.Core.csproj" />
     <Project Path="src/SimplifiedToolkit/SimplifiedToolkit.csproj" />
   </Folder>
+  <Folder Name="/shared/">
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+  </Folder>
 </Solution>

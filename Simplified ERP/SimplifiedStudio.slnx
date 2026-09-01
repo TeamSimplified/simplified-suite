@@ -4,4 +4,8 @@
     <Project Path="src/SimplifiedStudio.UvEngine/SimplifiedStudio.UvEngine.csproj" />
     <Project Path="src/SimplifiedStudio/SimplifiedStudio.csproj" />
   </Folder>
+  <Folder Name="/shared/">
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+    <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
+  </Folder>
 </Solution>
