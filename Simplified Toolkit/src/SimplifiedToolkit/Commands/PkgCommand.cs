@@ -2,7 +2,7 @@ using System.CommandLine;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Data.Pkg;
 using EgoEngineLibrary.Formats.Erp;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Util;
 
 namespace SimplifiedToolkit.Cli.Commands;
 

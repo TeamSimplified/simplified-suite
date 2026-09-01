@@ -1,7 +1,7 @@
 using System.CommandLine;
-using SimplifiedToolkit.Core.Operations;
+using EgoEngineLibrary.Operations;
 using EgoEngineLibrary.Archive.Erp;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Util;
 
 namespace SimplifiedToolkit.Cli.Commands;
 

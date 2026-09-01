@@ -1,6 +1,4 @@
-using System.Reflection;
-using SimplifiedToolkit.Core.Operations;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Operations;
 
 namespace SimplifiedDriverwearSwapper.Core.Toolkit;
 
@@ -8,14 +6,14 @@ namespace SimplifiedDriverwearSwapper.Core.Toolkit;
 /// The ERP operations this app performs, as methods.
 ///
 /// These used to build a command line and start <c>stk.exe</c>. They call the
-/// Toolkit's library directly now: the operations moved out of its commands, so
-/// there is nothing left that only a process could reach. That took about 230ms
-/// of startup off every call - measured, and nearly all of what a call cost -
-/// and removed a regex that read resource listings out of console text.
+/// shared library directly now, which took about 230ms of process startup off
+/// every call — measured, and nearly all of what a call cost — and removed a
+/// regex that read resource listings out of console text.
 ///
-/// This app still owns no ERP format code. It owns no ERP code at all; it just
-/// says what it wants done. Anything missing is added to the Toolkit rather
-/// than reimplemented here, exactly as before.
+/// This app owns no ERP code. Everything below passes paths and reads numbers
+/// back; nothing here opens an archive, holds one, or knows that offsets have
+/// to be fixed before it is written. Anything missing is added to the library
+/// rather than reimplemented here.
 ///
 /// Each call runs on a background thread and reports failure the way the
 /// process version did, so the callers around them did not have to change
@@ -54,13 +52,6 @@ public static class Erp
         public string Name => Identifier[(Identifier.LastIndexOf('/') + 1)..];
     }
 
-    /// <summary>The Toolkit library's version, for the status line.</summary>
-    public static string Version =>
-        typeof(ErpOperations).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-        ?? typeof(ErpOperations).Assembly.GetName().Version?.ToString()
-        ?? "unknown";
-
     /// <summary>
     /// The archive's resources, optionally narrowed by resource type or an
     /// identifier regex — both applied before anything comes back, so a large
@@ -68,13 +59,9 @@ public static class Erp
     /// </summary>
     public static Task<List<ErpResource>> ListAsync(
         string erpPath, string? type = null, string? filter = null, CancellationToken cancel = default) =>
-        Task.Run(() =>
-        {
-            var erp = ErpFileIO.Load(erpPath);
-            return ErpOperations.List(erp, type, filter).Shown
-                .Select(r => new ErpResource(r.Index, r.ResourceType, r.FragmentCount, (long)r.PackedSize, r.Identifier))
-                .ToList();
-        }, cancel);
+        Task.Run(() => ErpFiles.List(erpPath, type, filter).Shown
+            .Select(r => new ErpResource(r.Index, r.ResourceType, r.FragmentCount, (long)r.PackedSize, r.Identifier))
+            .ToList(), cancel);
 
     /// <summary>
     /// Copy the resources whose identifier matches into a new ERP at
@@ -84,8 +71,7 @@ public static class Erp
         string sourceErp, string outputErp, string filter, CancellationToken cancel = default) =>
         Run(() =>
         {
-            var erp = ErpFileIO.Load(sourceErp);
-            var taken = ErpOperations.ExtractToErp(erp, outputErp, filter);
+            var taken = ErpFiles.ExtractTo(sourceErp, outputErp, filter);
             return new ExtractResult(true, "", taken.Taken, taken.OutOf);
         }, ex => new ExtractResult(false, ex.Message, 0, 0), cancel);
 
@@ -98,45 +84,25 @@ public static class Erp
         bool overwrite = false, CancellationToken cancel = default) =>
         Run(() =>
         {
-            var target = ErpFileIO.Load(targetErp);
-            var tallies = ErpOperations.Merge(target, sourceErps, overwrite);
-            target.UpdateOffsets();
-            ErpFileIO.Save(target, outputPath ?? targetErp);
-            return new MergeResult(true, "", tallies.Sum(t => t.Skipped), target.Resources.Count);
+            var merged = ErpFiles.Merge(targetErp, sourceErps, outputPath, overwrite);
+            return new MergeResult(true, "", merged.Skipped, merged.Total);
         }, ex => new MergeResult(false, ex.Message, 0, 0), cancel);
 
     /// <summary>Substring find/replace across every resource identifier.</summary>
     public static Task<OpResult> RenameAllAsync(
         string erpPath, string find, string replace, CancellationToken cancel = default) =>
-        Run(() =>
-        {
-            var erp = ErpFileIO.Load(erpPath);
-            ErpOperations.RenameAll(erp, find, replace);
-            erp.UpdateOffsets();
-            ErpFileIO.Save(erp, erpPath);
-        }, cancel);
+        Run(() => ErpFiles.RenameAll(erpPath, find, replace), cancel);
 
     /// <summary>Pull each texture's external mip chain into the archive.</summary>
     public static Task<OpResult> StripMipsAsync(
         string erpPath, string gameDir, Action<string>? log = null, CancellationToken cancel = default) =>
-        Run(() =>
-        {
-            var erp = ErpFileIO.Load(erpPath);
-            ErpOperations.StripMips(erp, gameDir, null, log);
-            erp.UpdateOffsets();
-            ErpFileIO.Save(erp, erpPath);
-        }, cancel);
+        Run(() => ErpFiles.StripMips(erpPath, gameDir, log: log), cancel);
 
     /// <summary>Export every texture as DDS, resolving external mips when asked.</summary>
     public static Task<OpResult> ExportTexturesAsync(
         string erpPath, string outDir, bool withMips = false, string? gameDir = null,
         Action<string>? log = null, CancellationToken cancel = default) =>
-        Run(() =>
-        {
-            var erp = ErpFileIO.Load(erpPath);
-            Directory.CreateDirectory(outDir);
-            ErpTextureOperations.Export(erp, outDir, png: false, withMips: withMips, gameDir: gameDir, log: log);
-        }, cancel);
+        Run(() => ErpFiles.ExportTextures(erpPath, outDir, withMips: withMips, gameDir: gameDir, log: log), cancel);
 
     /// <summary>Re-import textures from a folder laid out the way export writes it.</summary>
     public static Task<TextureImportResult> ImportTexturesAsync(
@@ -144,15 +110,12 @@ public static class Erp
         Action<string>? log = null, CancellationToken cancel = default) =>
         Run(() =>
         {
-            var erp = ErpFileIO.Load(erpPath);
-            var tally = ErpTextureOperations.Import(erp, inDir, png: false, gameDir: gameDir, log: log);
-            erp.UpdateOffsets();
-            ErpFileIO.Save(erp, erpPath);
+            var tally = ErpFiles.ImportTextures(erpPath, inDir, gameDir: gameDir, log: log);
             return new TextureImportResult(true, "", tally.Imported);
         }, ex => new TextureImportResult(false, ex.Message, 0), cancel);
 
     /// <summary>
-    /// Off the UI thread, with anything thrown turned into a failed result -
+    /// Off the UI thread, with anything thrown turned into a failed result —
     /// which is how these read when each one was its own process.
     /// </summary>
     private static Task<OpResult> Run(Action work, CancellationToken cancel) =>

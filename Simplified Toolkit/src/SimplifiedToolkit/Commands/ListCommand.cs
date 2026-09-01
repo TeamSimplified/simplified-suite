@@ -1,7 +1,7 @@
 using System.CommandLine;
-using SimplifiedToolkit.Core.Operations;
+using EgoEngineLibrary.Operations;
 using System.Text.RegularExpressions;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Util;
 
 namespace SimplifiedToolkit.Cli.Commands;
 

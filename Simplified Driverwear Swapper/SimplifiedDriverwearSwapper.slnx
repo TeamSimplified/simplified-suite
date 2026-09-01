@@ -2,7 +2,6 @@
   <Project Path="src/SimplifiedDriverwearSwapper/SimplifiedDriverwearSwapper.csproj" />
   <Project Path="src/SimplifiedDriverwearSwapper.Core/SimplifiedDriverwearSwapper.Core.csproj" />
   <Folder Name="/shared/">
-    <Project Path="../Simplified Toolkit/src/SimplifiedToolkit.Core/SimplifiedToolkit.Core.csproj" />
     <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
     <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
   </Folder>

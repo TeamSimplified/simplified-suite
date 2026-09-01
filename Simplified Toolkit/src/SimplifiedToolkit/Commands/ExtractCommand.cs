@@ -1,9 +1,9 @@
 using System.CommandLine;
-using SimplifiedToolkit.Core.Operations;
+using EgoEngineLibrary.Operations;
 using System.Text.RegularExpressions;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Formats.Erp;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Util;
 
 namespace SimplifiedToolkit.Cli.Commands;
 

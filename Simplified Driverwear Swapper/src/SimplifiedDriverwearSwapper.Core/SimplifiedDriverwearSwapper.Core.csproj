@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <!-- No ERP code of its own: every game file is read and written by the
-       Toolkit, which is linked in rather than launched. That keeps the format in
-       one place across the suite — anything missing gets added to the Toolkit
+       shared library, whose operations this app calls with paths. That keeps the
+       format in one place across the suite — anything missing gets added there
        rather than reimplemented here. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Simplified Toolkit\src\SimplifiedToolkit.Core\SimplifiedToolkit.Core.csproj" />
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
 </Project>

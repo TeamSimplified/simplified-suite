@@ -2,9 +2,9 @@ using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Graphics;
 using EgoEngineLibrary.Graphics.Dds;
-using SimplifiedToolkit.Core.Texconv;
+using EgoEngineLibrary.Texconv;
 
-namespace SimplifiedToolkit.Core.Operations;
+namespace EgoEngineLibrary.Operations;
 
 /// <summary>
 /// Bulk texture export and import, lifted out of the <c>textures</c> command so

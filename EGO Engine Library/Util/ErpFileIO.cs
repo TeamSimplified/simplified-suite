@@ -1,6 +1,6 @@
 using EgoEngineLibrary.Archive.Erp;
 
-namespace SimplifiedToolkit.Core.Util;
+namespace EgoEngineLibrary.Util;
 
 public static class ErpFileIO
 {

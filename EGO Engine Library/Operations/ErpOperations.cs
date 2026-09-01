@@ -4,10 +4,10 @@ using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Formats.Erp;
 using EgoEngineLibrary.Graphics;
 using EgoEngineLibrary.Graphics.Dds;
-using SimplifiedToolkit.Core.Texconv;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Texconv;
+using EgoEngineLibrary.Util;
 
-namespace SimplifiedToolkit.Core.Operations;
+namespace EgoEngineLibrary.Operations;
 
 /// <summary>
 /// What the <c>stk erp</c> commands do, as methods.

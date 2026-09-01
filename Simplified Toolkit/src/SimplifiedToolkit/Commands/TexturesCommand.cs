@@ -1,12 +1,12 @@
 using System.CommandLine;
-using SimplifiedToolkit.Core.Operations;
+using EgoEngineLibrary.Operations;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Graphics;
 using EgoEngineLibrary.Graphics.Dds;
 using SimplifiedToolkit.Core.Config;
-using SimplifiedToolkit.Core.Texconv;
-using SimplifiedToolkit.Core.Util;
+using EgoEngineLibrary.Texconv;
+using EgoEngineLibrary.Util;
 
 namespace SimplifiedToolkit.Cli.Commands;
 

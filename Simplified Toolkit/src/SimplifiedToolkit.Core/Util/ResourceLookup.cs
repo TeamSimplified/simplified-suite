@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using EgoEngineLibrary.Archive.Erp;
 
-namespace SimplifiedToolkit.Core.Util;
+namespace EgoEngineLibrary.Util;
 
 /// <summary>
 /// Flexible resource lookup that accepts:

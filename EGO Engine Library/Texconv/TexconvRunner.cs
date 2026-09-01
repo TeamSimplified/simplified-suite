@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using EgoEngineLibrary.Archive.Erp.Data;
 
-namespace SimplifiedToolkit.Core.Texconv;
+namespace EgoEngineLibrary.Texconv;
 
 /// <summary>
 /// Thin wrapper around Microsoft DirectXTex texconv.exe for DDS &lt;-&gt; PNG conversion.

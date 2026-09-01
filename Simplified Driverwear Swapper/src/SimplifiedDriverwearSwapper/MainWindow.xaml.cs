@@ -22,7 +22,6 @@ public partial class MainWindow : Window
     private List<DriverwearCatalogue.DriverwearEntry> _suits = new();
 
     /// <summary>The Toolkit version, once confirmed working; null until then.</summary>
-    private readonly string _toolkitVersion = SimplifiedDriverwearSwapper.Core.Toolkit.Erp.Version;
 
     public MainWindow()
     {
@@ -163,7 +162,7 @@ public partial class MainWindow : Window
         var gameDir = _config.GameDir;
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
-            SetStatus($"Toolkit {_toolkitVersion} ready. Set your game folder in Settings to begin.", HintBrush);
+            SetStatus("Set your game folder in Settings to begin.", HintBrush);
             return;
         }
 
