@@ -26,4 +26,8 @@
     <EmbeddedResource Include="Embedded\serps.erp" LogicalName="serps.erp" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Simplified Format\SimplifiedFormat.csproj" />
+  </ItemGroup>
+
 </Project>

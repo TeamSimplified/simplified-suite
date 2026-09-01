@@ -16,4 +16,8 @@
     <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Simplified Format\SimplifiedFormat.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -14,4 +14,8 @@
     <PackageReference Include="System.IO.Packaging" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Simplified Format\SimplifiedFormat.csproj" />
+  </ItemGroup>
+
 </Project>

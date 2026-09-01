@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Ego Engine file formats - ERP archives, PKG and binary XML payloads,
+    DDS surfaces, and .lng language files - as one library for the whole suite.
+
+    Every app here used to carry its own copy. They agreed almost exactly, which
+    is the problem: a fix went into one and the others kept the bug until
+    somebody noticed. Namespaces are unchanged (EgoEngineLibrary.*), so nothing
+    that consumes this needed a using rewritten.
+
+    net10.0 rather than net10.0-windows: the WPF apps and the CLI both take it.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>EgoEngineLibrary</RootNamespace>
+    <AssemblyName>SimplifiedFormat</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZstdSharp.Port" />
+    <PackageReference Include="K4os.Compression.LZ4" />
+    <PackageReference Include="CommunityToolkit.HighPerformance" />
+    <PackageReference Include="System.IO.Packaging" />
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+</Project>
