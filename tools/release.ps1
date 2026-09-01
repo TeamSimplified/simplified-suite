@@ -98,13 +98,13 @@ $Apps = @(
         Short = 'Chassis'; Folder = 'Simplified Chassis Swapper'
         Project = 'src\SimplifiedChassisSwapper\SimplifiedChassisSwapper.csproj'
         Exe = 'Simplified Chassis Swapper'; Package = 'Simplified Chassis Swapper'
-        Tag = 'chassis-v'; Kind = 'window'; Ships = @('*.exe')
+        Tag = 'chassis-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Driverwear'; Folder = 'Simplified Driverwear Swapper'
         Project = 'src\SimplifiedDriverwearSwapper\SimplifiedDriverwearSwapper.csproj'
         Exe = 'Simplified Driverwear Swapper'; Package = 'Simplified Driverwear Swapper'
-        Tag = 'driverwear-v'; Kind = 'window'; Ships = @('*.exe')
+        Tag = 'driverwear-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
     }
 )
 

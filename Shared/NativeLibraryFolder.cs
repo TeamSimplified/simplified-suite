@@ -3,7 +3,10 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
-namespace SimplifiedStudio;
+// No app's namespace: this is compiled into each of them rather than
+// referenced, because a module initializer runs when its own assembly loads
+// and that timing is the whole point. Nothing refers to it by name.
+namespace Simplified.Native;
 
 /// <summary>
 /// Lets the app's native libraries live in a <c>runtime</c> folder beside the

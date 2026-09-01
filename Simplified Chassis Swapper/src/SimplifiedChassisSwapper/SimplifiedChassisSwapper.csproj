@@ -18,7 +18,7 @@
   <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>embedded</DebugType>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -35,6 +35,23 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
+  <!-- The native libraries as files rather than embedded. Bundling them inside
+       the single-file exe means the host extracts them to %TEMP%\.net at
+       startup: outside the app folder, once per build, and never cleaned up.
+       MoveNativesIntoRuntimeFolder tidies them into one folder afterwards, and
+       Shared\NativeLibraryFolder.cs is the other half - nothing looks in a
+       subfolder by default, so the app has to say where they went. -->
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+  </Target>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
   </ItemGroup>
 
 </Project>
