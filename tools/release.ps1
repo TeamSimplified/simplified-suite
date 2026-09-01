@@ -298,9 +298,13 @@ function Test-Starts {
     param([object] $Target, [string] $Exe)
 
     if ($Target.Kind -eq 'cli') {
-        $reported = (& $Exe --version 2>&1 | Select-Object -First 1)
-        if ($LASTEXITCODE -ne 0) { return "EXITED $LASTEXITCODE" }
-        if (-not $reported) { return 'no version' }
+        # Collected whole, not piped into Select-Object: taking the first line
+        # from a live pipeline closes it, which kills the process and reports
+        # -1 for an exe that answered perfectly well.
+        $output = & $Exe --version
+        $code = $LASTEXITCODE
+        if ($code -ne 0) { return "EXITED $code" }
+        if (-not @($output)[0]) { return 'no version' }
         return 'ok'
     }
 
@@ -349,3 +353,7 @@ if ($results.Count -gt 0) {
     Write-Head 'Released'
     $results | Format-Table App, Tag, Commit, ExeKB, ZipKB, Files, Run -AutoSize
 }
+
+# Explicit, so the script's own status is not whatever the last native command
+# happened to leave in $LASTEXITCODE.
+exit 0
