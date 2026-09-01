@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SimplifiedStudio.Core\SimplifiedStudio.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
     <ProjectReference Include="..\SimplifiedStudio.UvEngine\SimplifiedStudio.UvEngine.csproj" />
   </ItemGroup>
 

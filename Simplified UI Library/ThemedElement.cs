@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace SimplifiedStudio.Util;
+namespace SimplifiedUi;
 
 /// <summary>
 /// Painting code-built UI from the palette in a way that keeps following it.

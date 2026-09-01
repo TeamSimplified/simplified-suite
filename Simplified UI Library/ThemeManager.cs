@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace SimplifiedStudio.Util;
+namespace SimplifiedUi;
 
 /// <summary>
 /// Which palette the app is wearing, and how to change it while it runs.
@@ -37,7 +37,8 @@ public static class ThemeManager
 
         var palette = new ResourceDictionary
         {
-            Source = new Uri($"Palette.{wanted}.xaml", UriKind.Relative),
+            Source = new Uri($"pack://application:,,,/SimplifiedUi;component/Palette.{wanted}.xaml",
+                             UriKind.Absolute),
         };
 
         // Replace in place rather than clear-and-add: the palette has to stay

@@ -1,4 +1,5 @@
-﻿using System.Configuration;
+using SimplifiedUi;
+using System.Configuration;
 using System.Linq;
 using System.Data;
 using System.Windows;
@@ -35,7 +36,7 @@ public partial class App : Application
 
         try
         {
-            Util.ThemeManager.Apply(Core.Config.UserConfig.Load().Theme);
+            ThemeManager.Apply(Core.Config.UserConfig.Load().Theme);
         }
         catch
         {

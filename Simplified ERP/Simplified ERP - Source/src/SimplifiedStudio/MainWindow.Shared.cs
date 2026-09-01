@@ -1,3 +1,4 @@
+using SimplifiedUi;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -835,7 +836,7 @@ public partial class MainWindow
     private void ApplyThemeToBackdrop()
     {
         if (BackdropSlider is null) return;
-        BackdropSlider.Value = Util.ThemeManager.IsDark ? 1 : 0;
+        BackdropSlider.Value = ThemeManager.IsDark ? 1 : 0;
     }
 
     private void Backdrop_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

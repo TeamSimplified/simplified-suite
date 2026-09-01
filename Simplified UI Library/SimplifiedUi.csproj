@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The suite's look: the control styles, the three palettes, the theme switch,
+    and the frameless dialog chrome.
+
+    Studio and ERP each carried a copy. They agreed on everything except the
+    wordmark, which stays with each app as its own Brand.xaml - so this is the
+    styles, and nothing that is one app's.
+
+    net10.0-windows with WPF, because resource dictionaries and Window chrome
+    are WPF types, and everything that consumes this is a WPF app.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedUi</RootNamespace>
+    <AssemblyName>SimplifiedUi</AssemblyName>
+  </PropertyGroup>
+
+</Project>

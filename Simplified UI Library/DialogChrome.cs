@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shell;
 
-namespace SimplifiedStudio;
+namespace SimplifiedUi;
 
 /// <summary>
 /// Gives a code-built dialog the same frameless look as the main window: no
@@ -15,7 +15,7 @@ namespace SimplifiedStudio;
 /// initialisers — one call after the initialiser leaves them exactly as they
 /// were in every other respect.
 /// </summary>
-internal static class DialogChrome
+public static class DialogChrome
 {
     private const double CaptionHeight = 38;
 

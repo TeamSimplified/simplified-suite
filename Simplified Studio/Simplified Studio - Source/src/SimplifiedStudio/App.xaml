@@ -1,4 +1,4 @@
-﻿<Application x:Class="SimplifiedStudio.App"
+<Application x:Class="SimplifiedStudio.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SimplifiedStudio"
@@ -6,20 +6,17 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- The starting palette. ThemeManager swaps this entry at startup
-                     for whatever the user last chose, and again whenever they
-                     change it in Settings — so this is the fallback, not the
-                     decision.
+                <!-- The look is a library now: the palette and the styles come from
+                     SimplifiedUi, and only the wordmark below is this app's own.
 
-                     Palette.Light.xaml / Palette.Dark.xaml / Palette.Glass.xaml.
-                     Glass also needs the DWM backdrop code, which neither app
-                     carries any more — the ui-full-glass tag holds both halves.
-
-                     The palette must be merged FIRST: Theme.xaml resolves its
-                     colours with StaticResource, which only sees what is already
-                     in the dictionary. -->
-                <ResourceDictionary Source="Palette.Light.xaml"/>
-                <ResourceDictionary Source="Theme.xaml"/>
+                     The palette must be merged FIRST and stay first: Theme.xaml
+                     resolves its colours against whatever is already in the
+                     dictionary, and ThemeManager swaps this entry in place when
+                     the theme changes. This is the fallback, not the decision -
+                     ThemeManager applies the saved one at startup. -->
+                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Palette.Light.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Theme.xaml"/>
+                <ResourceDictionary Source="Brand.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

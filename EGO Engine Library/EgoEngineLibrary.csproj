@@ -14,7 +14,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>EgoEngineLibrary</RootNamespace>
-    <AssemblyName>SimplifiedFormat</AssemblyName>
+    <AssemblyName>EgoEngineLibrary</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

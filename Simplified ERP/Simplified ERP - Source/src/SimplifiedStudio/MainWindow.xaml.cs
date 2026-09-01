@@ -1,3 +1,4 @@
+using SimplifiedUi;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -2227,14 +2228,14 @@ public partial class MainWindow : Window
         {
             Content = "Light",
             Style = FindResource("ChannelChip") as Style,
-            IsChecked = !Util.ThemeManager.IsDark,
+            IsChecked = !ThemeManager.IsDark,
         };
         var darkChip = new System.Windows.Controls.RadioButton
         {
             Content = "Dark",
             Style = FindResource("ChannelChip") as Style,
             Margin = new Thickness(0),
-            IsChecked = Util.ThemeManager.IsDark,
+            IsChecked = ThemeManager.IsDark,
         };
         themeRow.Children.Add(lightChip);
         themeRow.Children.Add(darkChip);
@@ -2245,9 +2246,9 @@ public partial class MainWindow : Window
 
         // Applied as it is picked rather than on Save — choosing a palette from
         // a dialog still wearing the old one is guessing. Cancel puts it back.
-        var themeOnEntry = Util.ThemeManager.Current;
-        lightChip.Checked += (_, _) => { Util.ThemeManager.Apply(Util.ThemeManager.Light); RefreshThemedUi(); };
-        darkChip.Checked  += (_, _) => { Util.ThemeManager.Apply(Util.ThemeManager.Dark);  RefreshThemedUi(); };
+        var themeOnEntry = ThemeManager.Current;
+        lightChip.Checked += (_, _) => { ThemeManager.Apply(ThemeManager.Light); RefreshThemedUi(); };
+        darkChip.Checked  += (_, _) => { ThemeManager.Apply(ThemeManager.Dark);  RefreshThemedUi(); };
 
         // Row 3 used to be a "zip files during export by default" checkbox. It's
         // gone now — packages always zip — and Row 4's credits + Row 5's buttons
@@ -2350,9 +2351,9 @@ public partial class MainWindow : Window
         {
             // Cancelled — put back the palette the dialog was opened with,
             // since picking one applied it on the spot.
-            if (Util.ThemeManager.Current != themeOnEntry)
+            if (ThemeManager.Current != themeOnEntry)
             {
-                Util.ThemeManager.Apply(themeOnEntry);
+                ThemeManager.Apply(themeOnEntry);
                 RefreshThemedUi();
             }
             return null;
@@ -2361,7 +2362,7 @@ public partial class MainWindow : Window
         return new SettingsResult(
             string.IsNullOrWhiteSpace(gameBox.Text) ? null : gameBox.Text.Trim(),
             (string?)fmtBox.SelectedItem ?? "DDS",
-            Util.ThemeManager.Current);
+            ThemeManager.Current);
     }
 
     // ─────────────────────── PKG / XML I/O ────────────────────────────
