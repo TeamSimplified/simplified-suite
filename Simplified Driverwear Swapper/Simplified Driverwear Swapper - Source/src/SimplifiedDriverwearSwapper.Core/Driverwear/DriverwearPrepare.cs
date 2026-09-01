@@ -90,9 +90,8 @@ public static class DriverwearPrepare
         // Full resolution, which means resolving the external .mipmaps sidecars —
         // without them these come out at their low-res in-archive size.
         var texturesOut = Path.Combine(wearDir, "textures");
-        var texResult = await ToolkitRunner.RunAsync(
-            new[] { "erp", "textures", "export", wear.ErpPath, texturesOut, "--with-mips", "--game-dir", options.GameDir },
-            null, cancel);
+        var texResult = await Erp.ExportTexturesAsync(
+            wear.ErpPath, texturesOut, withMips: true, gameDir: options.GameDir, cancel: cancel);
 
         if (texResult.Succeeded)
         {
@@ -139,10 +138,9 @@ public static class DriverwearPrepare
             }
 
             var part = Path.Combine(tempDir, $"tex_{driver.DriverName}.erp");
-            var partResult = await ToolkitRunner.RunAsync(
-                new[] { "erp", "extract", driver.ErpPath, part, "--to-erp",
-                        "--filter", $"textures/{Regex.Escape(driver.DriverName)}_(boots|cap)_" },
-                null, cancel);
+            var partResult = await Erp.ExtractToErpAsync(
+                driver.ErpPath, part,
+                $"textures/{Regex.Escape(driver.DriverName)}_(boots|cap)_", cancel);
 
             if (partResult.Succeeded) driverTextureParts.Add(part);
             else result.Warnings.Add($"No boots/cap textures for {driver.DriverName}: {partResult.ErrorMessage}");
@@ -150,9 +148,7 @@ public static class DriverwearPrepare
 
         if (driverTextureParts.Count > 0 && File.Exists(texturesErp))
         {
-            var mergeArgs = new List<string> { "erp", "merge", texturesErp };
-            mergeArgs.AddRange(driverTextureParts);
-            var merge = await ToolkitRunner.RunAsync(mergeArgs, null, cancel);
+            var merge = await Erp.MergeAsync(texturesErp, driverTextureParts, cancel: cancel);
             if (!merge.Succeeded) result.Warnings.Add($"Merging driver textures failed: {merge.ErrorMessage}");
             else log?.Invoke($"    textures.erp        + {driverTextureParts.Count} driver texture set(s)");
         }
@@ -160,8 +156,7 @@ public static class DriverwearPrepare
         // Embed the external mip chains so the archive carries its own images.
         if (File.Exists(texturesErp))
         {
-            var strip = await ToolkitRunner.RunAsync(
-                new[] { "erp", "strip-mips", texturesErp, "--game-dir", options.GameDir }, null, cancel);
+            var strip = await Erp.StripMipsAsync(texturesErp, options.GameDir, cancel: cancel);
             if (!strip.Succeeded) result.Warnings.Add($"Stripping mipmaps failed: {strip.ErrorMessage}");
             else log?.Invoke("    textures.erp        mipmaps embedded");
         }
@@ -249,12 +244,7 @@ public static class DriverwearPrepare
         var outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir)) Directory.CreateDirectory(outputDir);
 
-        var args = new List<string> { "erp", "merge", pieces[0] };
-        args.AddRange(pieces.Skip(1));
-        args.Add("--output");
-        args.Add(outputPath);
-
-        var merge = await ToolkitRunner.RunAsync(args, null, cancel);
+        var merge = await Erp.MergeAsync(pieces[0], pieces.Skip(1), outputPath, cancel: cancel);
         if (!merge.Succeeded)
         {
             result.Warnings.Add($"Merging into the output failed: {merge.ErrorMessage}");
@@ -266,14 +256,11 @@ public static class DriverwearPrepare
             log?.Invoke($"    + {Path.GetFileName(piece)}");
 
         // A skip means two pieces claimed the same identifier and one was dropped.
-        var skipped = Regex.Matches(merge.StandardOutput, @"(?<n>\d+) skipped")
-            .Sum(m => int.Parse(m.Groups["n"].Value));
-        if (skipped > 0)
-            result.Warnings.Add($"{skipped} resource(s) appeared in more than one Final piece and were kept from the first.");
+        if (merge.Skipped > 0)
+            result.Warnings.Add($"{merge.Skipped} resource(s) appeared in more than one Final piece and were kept from the first.");
 
-        var total = Regex.Match(merge.StandardOutput, @"Wrote .*\((?<n>\d+) resources\)");
         result.OutputPath = outputPath;
-        result.OutputResources = total.Success ? int.Parse(total.Groups["n"].Value) : 0;
+        result.OutputResources = merge.Total;
 
         log?.Invoke($"    {Path.GetFileName(outputPath)} — {result.OutputResources} resources");
     }
@@ -341,8 +328,7 @@ public static class DriverwearPrepare
             perDriver += StageDriverTextures(source, stagingDir, wear, team, driver, result);
         }
 
-        var import = await ToolkitRunner.RunAsync(
-            new[] { "erp", "textures", "import", targetErp, stagingDir }, null, cancel);
+        var import = await Erp.ImportTexturesAsync(targetErp, stagingDir, cancel: cancel);
 
         if (!import.Succeeded)
         {
@@ -354,10 +340,8 @@ public static class DriverwearPrepare
         if (staged == 0)
             result.Warnings.Add("The driverwear had no textures to stage, so the team kept its own.");
 
-        // The Toolkit reports "<n> imported, <m> missing, ..." — echo its own tally.
-        var imported = Regex.Match(import.StandardOutput, @"(?<n>\d+)\s+imported");
         log?.Invoke($"    textures.erp        driverwear images imported" +
-                    (imported.Success ? $" ({imported.Groups["n"].Value})" : "") +
+                    $" ({import.Imported})" +
                     (perDriver > 0 ? $", {perDriver} for drivers" : ""));
 
         TryDelete(stagingDir);
@@ -428,7 +412,7 @@ public static class DriverwearPrepare
         foreach (var (find, replace) in renames)
         {
             if (find == replace) continue;
-            var run = await Erp.RenameAllAsync(destination, find, replace, null, cancel);
+            var run = await Erp.RenameAllAsync(destination, find, replace, cancel);
             if (run.Succeeded) continue;
 
             result.Warnings.Add($"{label}: renaming '{find}' failed: {run.ErrorMessage}");
@@ -469,10 +453,8 @@ public static class DriverwearPrepare
 
         // "_male" as its own suffix, so it can't also match "_female".
         var genderSuffix = "_" + driver.Gender;
-        var extract = await ToolkitRunner.RunAsync(
-            new[] { "erp", "extract", wearModelRender, destination, "--to-erp",
-                    "--filter", $@"{Regex.Escape(genderSuffix)}\.idf\?" },
-            null, cancel);
+        var extract = await Erp.ExtractToErpAsync(
+            wearModelRender, destination, $@"{Regex.Escape(genderSuffix)}\.idf\?", cancel);
 
         if (!extract.Succeeded)
         {
@@ -493,7 +475,7 @@ public static class DriverwearPrepare
 
         foreach (var (find, replace) in renames)
         {
-            var run = await Erp.RenameAllAsync(destination, find, replace, null, cancel);
+            var run = await Erp.RenameAllAsync(destination, find, replace, cancel);
             if (run.Succeeded) continue;
 
             result.Warnings.Add($"{label}: renaming '{find}' failed: {run.ErrorMessage}");
@@ -559,8 +541,7 @@ public static class DriverwearPrepare
         string sourceErp, string outputErp, string filter,
         PrepareResult result, string label, Action<string>? log, CancellationToken cancel)
     {
-        var run = await ToolkitRunner.RunAsync(
-            new[] { "erp", "extract", sourceErp, outputErp, "--to-erp", "--filter", filter }, null, cancel);
+        var run = await Erp.ExtractToErpAsync(sourceErp, outputErp, filter, cancel);
 
         if (!run.Succeeded)
         {
@@ -570,9 +551,7 @@ public static class DriverwearPrepare
         }
 
         result.Outputs.Add(label);
-        // The Toolkit reports "(n of m resources)"; echo that rather than reopening the file.
-        var counts = Regex.Match(run.StandardOutput, @"\((?<n>\d+) of \d+ resources\)");
-        log?.Invoke($"    {Path.GetFileName(outputErp),-19} {(counts.Success ? counts.Groups["n"].Value + " resources" : "written")}");
+        log?.Invoke($"    {Path.GetFileName(outputErp),-19} {run.Taken} resources");
     }
 
     /// <summary>

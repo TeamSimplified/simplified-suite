@@ -7,9 +7,12 @@
     <DebugType>embedded</DebugType>
   </PropertyGroup>
 
-  <!-- No package references, and no ERP format code: every game file is read and
-       written by the bundled Simplified Toolkit CLI. That keeps the format in one
-       place across the suite — anything missing gets added to the Toolkit rather
-       than reimplemented here. -->
+  <!-- No ERP code of its own: every game file is read and written by the
+       Toolkit, which is linked in rather than launched. That keeps the format in
+       one place across the suite — anything missing gets added to the Toolkit
+       rather than reimplemented here. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Simplified Toolkit\src\SimplifiedToolkit.Core\SimplifiedToolkit.Core.csproj" />
+  </ItemGroup>
 
 </Project>

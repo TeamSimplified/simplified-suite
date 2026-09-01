@@ -22,7 +22,7 @@ public partial class MainWindow : Window
     private List<DriverwearCatalogue.DriverwearEntry> _suits = new();
 
     /// <summary>The Toolkit version, once confirmed working; null until then.</summary>
-    private string? _toolkitVersion;
+    private readonly string _toolkitVersion = SimplifiedDriverwearSwapper.Core.Toolkit.Erp.Version;
 
     public MainWindow()
     {
@@ -32,7 +32,6 @@ public partial class MainWindow : Window
 
     private async Task StartupAsync()
     {
-        _toolkitVersion = await ToolkitRunner.GetVersionAsync();
         RefreshDriverwearLists();
         RefreshStatus();
         RefreshSwapButton();
@@ -158,15 +157,6 @@ public partial class MainWindow : Window
 
     private void RefreshStatus()
     {
-        if (_toolkitVersion is null)
-        {
-            SetStatus(ToolkitRunner.FindToolkit() is null
-                    ? "stk.exe is missing from the tools folder next to the app — reinstall to restore it."
-                    : "stk.exe is present but wouldn't run.",
-                ErrorBrush);
-            return;
-        }
-
         var gameDir = _config.GameDir;
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
@@ -216,7 +206,6 @@ public partial class MainWindow : Window
         var to = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
 
         SwapButton.IsEnabled =
-            _toolkitVersion is not null &&
             from is not null && to is not null &&
             !string.Equals(from.Name, to.Name, StringComparison.OrdinalIgnoreCase) &&
             OutputBox.Text.Trim().Length > 0;

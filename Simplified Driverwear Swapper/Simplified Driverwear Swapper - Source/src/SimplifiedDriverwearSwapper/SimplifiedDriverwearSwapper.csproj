@@ -28,21 +28,4 @@
     <ProjectReference Include="..\SimplifiedDriverwearSwapper.Core\SimplifiedDriverwearSwapper.Core.csproj" />
   </ItemGroup>
 
-  <!-- Ship the Simplified Toolkit CLI loose next to the exe. It does all the ERP
-       work for this app, so it isn't optional.
-
-       Content, not None: PublishSingleFile strips None items. ExcludeFromSingleFile
-       keeps it a real file on disk, which it has to be — a single-file bundle can't
-       execute an exe it hasn't extracted.
-
-       Named explicitly rather than globbing tools/**, which would also sweep in dev
-       harnesses and their bin/obj. -->
-  <ItemGroup>
-    <Content Include="..\..\tools\stk.exe"
-             Link="tools\stk.exe"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             ExcludeFromSingleFile="true"/>
-  </ItemGroup>
-
 </Project>
