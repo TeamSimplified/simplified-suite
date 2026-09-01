@@ -1,0 +1,183 @@
+<UserControl x:Class="SimplifiedSwapper.ChassisPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        FontFamily="Segoe UI" FontSize="13">
+
+    <UserControl.Resources>
+        <!-- Keyed styles inherit nothing unless they say BasedOn, so a keyed
+             Button style without one would replace the themed template outright
+             and land this window back on the stock look. The TextBlock ones
+             carry their own Foreground for the same reason. -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <Style x:Key="BrowseButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
+                BorderThickness="0,0,0,1" Padding="18,10">
+            <DockPanel LastChildFill="False">
+                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextPrimary}"
+                           FontWeight="SemiBold" Text="Chassis swap"/>
+
+                <!-- Reverse visual order: DockPanel resolves Dock=Right from the outer edge inward. -->
+                <Button DockPanel.Dock="Right" Name="SwapButton" Content="Swap" Padding="22,6"
+                        FontWeight="SemiBold" IsEnabled="False" Click="Swap_Click"/>
+                <Button DockPanel.Dock="Right" Name="OpenOutputButton" Content="Open folder" Padding="12,6"
+                        Margin="0,0,6,0" IsEnabled="False" Click="OpenOutput_Click"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="20,16,20,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="120"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- 0 chassis -->
+                    <RowDefinition Height="Auto"/>  <!-- 1 team -->
+                    <RowDefinition Height="Auto"/>  <!-- 2 rename header -->
+                    <RowDefinition Height="Auto"/>  <!-- 3 old name -->
+                    <RowDefinition Height="Auto"/>  <!-- 4 new name -->
+                    <RowDefinition Height="Auto"/>  <!-- 5 animations header -->
+                    <RowDefinition Height="Auto"/>  <!-- 6 season -->
+                    <RowDefinition Height="Auto"/>  <!-- 7 animset source -->
+                    <RowDefinition Height="Auto"/>  <!-- 8 animset target -->
+                    <RowDefinition Height="Auto"/>  <!-- 9 engine audio -->
+                    <RowDefinition Height="Auto"/>  <!-- 10 output -->
+                </Grid.RowDefinitions>
+
+                <!-- ── Source ERPs ───────────────────────────────────────── -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Chassis ERP"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,14">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource BrowseButton}"
+                                Click="BrowseChassis_Click"/>
+                        <TextBox Name="ChassisBox" TextChanged="Inputs_Changed"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="The car you want to drive — its model, textures and cameras are kept."/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Team ERP"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,18">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource BrowseButton}"
+                                Click="BrowseTeam_Click"/>
+                        <TextBox Name="TeamBox" TextChanged="Inputs_Changed"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="The slot it takes over — this team's livery slot, wing setup and driver animations are used."/>
+                </StackPanel>
+
+                <!-- ── Rename ────────────────────────────────────────────── -->
+                <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource SectionHeader}" Text="Rename"
+                           Margin="0,0,0,6"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Replace"/>
+                <TextBox Grid.Row="3" Grid.Column="1" Name="OldNameBox" Margin="0,0,0,8"
+                         TextChanged="Inputs_Changed"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="With"/>
+                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,18">
+                    <TextBox Name="NewNameBox" TextChanged="Inputs_Changed"/>
+                    <TextBlock Name="LengthHint" Style="{StaticResource Hint}"
+                               Text="Both names must be the same number of characters."/>
+                </StackPanel>
+
+                <!-- ── Driver animations ─────────────────────────────────── -->
+                <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,0,0,8">
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="Driver animations"/>
+                    <TextBlock Name="IncardriverStatus" Style="{StaticResource Hint}" Margin="0,1,0,0"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Season"/>
+                <StackPanel Grid.Row="6" Grid.Column="1" Margin="0,0,0,8">
+                    <ComboBox Name="SeasonBox" HorizontalAlignment="Left" MinWidth="110"
+                              IsEnabled="False" SelectionChanged="Season_Changed"/>
+                    <TextBlock Name="SeasonHint" Style="{StaticResource Hint}"
+                               Text="The game ships one animation set per season. This defaults to the chassis's own year."/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Take from"/>
+                <ComboBox Grid.Row="7" Grid.Column="1" Name="ChassisAnimsetBox" Margin="0,0,0,8"
+                          IsEnabled="False" SelectionChanged="Animset_Changed"/>
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Publish as"/>
+                <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,0,0,18">
+                    <ComboBox Name="TeamAnimsetBox" IsEnabled="False" SelectionChanged="Animset_Changed"/>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="The chassis's in-car driver animations are published under the team's name, so the game finds them in the new slot."/>
+                </StackPanel>
+
+                <!-- ── Engine audio ──────────────────────────────────────── -->
+                <TextBlock Grid.Row="9" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Engine audio"/>
+                <StackPanel Grid.Row="9" Grid.Column="1" Margin="0,0,0,18">
+                    <ComboBox Name="EngineAudioBox" HorizontalAlignment="Left" MinWidth="240" MaxWidth="420"
+                              DisplayMemberPath="Label" MaxDropDownHeight="420"
+                              SelectionChanged="EngineAudio_Changed"/>
+                    <TextBlock Name="EngineAudioHint" Style="{StaticResource Hint}"/>
+                </StackPanel>
+
+                <!-- ── Output ────────────────────────────────────────────── -->
+                <TextBlock Grid.Row="10" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Save to"/>
+                <DockPanel Grid.Row="10" Grid.Column="1">
+                    <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource BrowseButton}"
+                            Click="BrowseOutput_Click"/>
+                    <TextBox Name="OutputBox" TextChanged="Inputs_Changed"/>
+                </DockPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Progress + log -->
+        <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
+                BorderThickness="0,1,0,0" Padding="20,12">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Right" Name="ProgressLabel" VerticalAlignment="Center"
+                               Margin="10,0,0,0" Foreground="{DynamicResource TextMuted}"
+                               MinWidth="42" TextAlignment="Right"/>
+                    <ProgressBar Name="SwapProgress" Height="6" Minimum="0" Maximum="1"
+                                 Background="{DynamicResource SurfaceSunken}" BorderThickness="0"
+                                 Foreground="{DynamicResource Accent}"/>
+                </DockPanel>
+                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"
+                           Margin="0,0,0,6"
+                           Text="Pick a chassis ERP and a team ERP to begin."/>
+                <TextBox Name="LogBox" Height="150" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                         VerticalScrollBarVisibility="Auto" TextWrapping="NoWrap"
+                         HorizontalScrollBarVisibility="Auto"
+                         Background="{DynamicResource SurfaceSunken}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

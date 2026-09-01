@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedSwapper.Core</RootNamespace>
+    <AssemblyName>SimplifiedSwapper.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Settings only. Both swaps live in the two swappers' own Core projects,
+       which the app references; nothing about them is reimplemented here. -->
+
+</Project>

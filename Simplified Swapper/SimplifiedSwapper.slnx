@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SimplifiedSwapper/SimplifiedSwapper.csproj" />
+    <Project Path="src/SimplifiedSwapper.Core/SimplifiedSwapper.Core.csproj" />
+  </Folder>
+  <Folder Name="/shared/">
+    <Project Path="../Simplified Chassis Swapper/src/SimplifiedChassisSwapper.Core/SimplifiedChassisSwapper.Core.csproj" />
+    <Project Path="../Simplified Driverwear Swapper/src/SimplifiedDriverwearSwapper.Core/SimplifiedDriverwearSwapper.Core.csproj" />
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+    <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
+  </Folder>
+</Solution>
