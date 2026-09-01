@@ -11,7 +11,7 @@ public enum ResourceKind { Texture, Pkg, Xml, Material, Context, Vtf }
 /// historically held only <see cref="TextureVm"/>; once PKG and XML support
 /// landed we needed a shared type so the ItemsControl can render a mix.
 /// </summary>
-public abstract class ResourceListItem : INotifyPropertyChanged
+public abstract partial class ResourceListItem : INotifyPropertyChanged
 {
     public ErpResource Resource          { get; }
     public ErpFile     ParentErp         { get; }
@@ -50,14 +50,6 @@ public abstract class ResourceListItem : INotifyPropertyChanged
         ResourceKind.Vtf      => "Vehicle handling (VTF)",
         _                     => "Textures",
     };
-
-    /// <summary>
-    /// Absolute path of the ERP file this row was loaded from, stamped after the
-    /// list is built. Lets a texture find its external .mipmaps by walking up
-    /// from the archive's own location — see <see cref="ExternalMips"/>.
-    /// Empty when the ERP came from somewhere other than a file on disk.
-    /// </summary>
-    public string ParentPath { get; set; } = "";
 
     public string FileName   => Resource.FileName;
     public string Folder     => Resource.Folder;
