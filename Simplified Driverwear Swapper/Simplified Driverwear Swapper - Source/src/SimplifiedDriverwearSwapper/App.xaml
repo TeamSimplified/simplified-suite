@@ -4,5 +4,17 @@
              xmlns:local="clr-namespace:SimplifiedDriverwearSwapper"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- The suite's look, from the shared library. The palette must
+                     be merged FIRST and stay first: Theme.xaml resolves its
+                     colours against whatever is already in the dictionary, and
+                     ThemeManager swaps this entry in place when the theme
+                     changes. This is the fallback, not the decision - App
+                     applies the saved one at startup. -->
+                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Palette.Light.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

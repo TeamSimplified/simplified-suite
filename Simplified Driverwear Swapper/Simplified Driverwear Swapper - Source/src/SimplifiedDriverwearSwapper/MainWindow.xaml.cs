@@ -11,10 +11,10 @@ namespace SimplifiedDriverwearSwapper;
 
 public partial class MainWindow : Window
 {
-    private static readonly Brush ErrorBrush = new SolidColorBrush(Color.FromRgb(0xB0, 0x2A, 0x2A));
-    private static readonly Brush HintBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0x9C));
+    private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
+    private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
     private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
-    private static readonly Brush OkBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x4F));
+    private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
 
     private readonly UserConfig _config = UserConfig.Load();
 
@@ -27,6 +27,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SimplifiedUi.FramelessWindow.Attach(this, WindowMaximizeButton);
+        VersionLabel.Text = "v" + (System.Reflection.Assembly.GetExecutingAssembly()
+            .GetName().Version?.ToString(2) ?? "1.0");
         _ = StartupAsync();
     }
 
@@ -338,4 +341,22 @@ public partial class MainWindow : Window
         try { return string.IsNullOrWhiteSpace(path) ? null : Path.GetDirectoryName(path); }
         catch { return null; }
     }
+
+    // ── Window chrome ───────────────────────────────────────────────────────
+    //
+    // The bar at the top is ours, so these three are too. Everything native
+    // that a frameless window still needs - rounded corners, and a maximise
+    // that respects the taskbar - is in SimplifiedUi.FramelessWindow.
+
+    private void WindowMinimize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void WindowMaximize_Click(object sender, RoutedEventArgs e) =>
+        SimplifiedUi.FramelessWindow.ToggleMaximize(this);
+
+    private void WindowClose_Click(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>Palette lookup with a fallback, for the few brushes set in code.</summary>
+    private static Brush Themed(string key, byte r, byte g, byte b) =>
+        Application.Current?.TryFindResource(key) as Brush ?? new SolidColorBrush(Color.FromRgb(r, g, b));
 }

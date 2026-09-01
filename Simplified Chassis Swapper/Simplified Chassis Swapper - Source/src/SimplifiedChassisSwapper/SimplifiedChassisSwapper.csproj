@@ -33,4 +33,8 @@
        not be globbed in here — that would sweep their source and bin/obj into
        the release. -->
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
 </Project>

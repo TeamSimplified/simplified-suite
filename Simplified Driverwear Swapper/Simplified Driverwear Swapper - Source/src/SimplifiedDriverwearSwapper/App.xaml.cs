@@ -1,4 +1,5 @@
 using System.Windows;
+using SimplifiedDriverwearSwapper.Core.Config;
 
 namespace SimplifiedDriverwearSwapper;
 
@@ -15,6 +16,25 @@ public partial class App : Application
     /// so windows do get closed while it waits.
     /// </summary>
     public const int ClosedByUserExitCode = 1000;
+
+    /// <summary>
+    /// Put the saved palette in place before the first window is built, so the
+    /// app never flashes the wrong theme on the way up.
+    /// </summary>
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        try
+        {
+            SimplifiedUi.ThemeManager.Apply(UserConfig.Load().Theme);
+        }
+        catch
+        {
+            // An unreadable config is not a reason to refuse to start; the
+            // default palette is already merged.
+        }
+
+        base.OnStartup(e);
+    }
 
     protected override void OnExit(ExitEventArgs e)
     {

@@ -28,4 +28,8 @@
     <ProjectReference Include="..\SimplifiedDriverwearSwapper.Core\SimplifiedDriverwearSwapper.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
 </Project>

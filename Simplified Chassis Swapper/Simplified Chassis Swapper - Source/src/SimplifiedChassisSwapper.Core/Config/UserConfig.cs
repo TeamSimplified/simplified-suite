@@ -14,6 +14,12 @@ public sealed class UserConfig
     /// auto-detect <c>incardriver_f1.erp</c>, so both texture quality and driver
     /// animations depend on it.
     /// </summary>
+    /// <summary>
+    /// Which palette to wear. Dark by default: the rest of the suite is dark,
+    /// and an app that opens light next to Studio looks like a different app.
+    /// </summary>
+    public string? Theme { get; set; } = "Dark";
+
     public string? GameDir { get; set; }
 
     /// <summary>Folder the ERP pickers open in — normally somewhere inside the game install.</summary>

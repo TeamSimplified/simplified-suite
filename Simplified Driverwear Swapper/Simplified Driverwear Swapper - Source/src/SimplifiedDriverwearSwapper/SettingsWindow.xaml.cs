@@ -20,6 +20,9 @@ public partial class SettingsWindow : Window
     public SettingsWindow(UserConfig config)
     {
         InitializeComponent();
+        // The same frameless dialog the rest of the suite uses: it wraps
+        // the content in a title bar and drops the system frame.
+        SimplifiedUi.DialogChrome.Apply(this);
         _config = config;
         GameDirBox.Text = config.GameDir ?? "";
     }

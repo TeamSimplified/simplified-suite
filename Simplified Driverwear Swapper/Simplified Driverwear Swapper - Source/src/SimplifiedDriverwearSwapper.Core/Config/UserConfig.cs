@@ -12,6 +12,12 @@ public sealed class UserConfig
     /// <summary>
     /// Game install root — where the game's own files are read from.
     /// </summary>
+    /// <summary>
+    /// Which palette to wear. Dark by default: the rest of the suite is dark,
+    /// and an app that opens light next to Studio looks like a different app.
+    /// </summary>
+    public string? Theme { get; set; } = "Dark";
+
     public string? GameDir { get; set; }
 
     /// <summary>Folder the ERP picker opens in — normally somewhere inside the game install.</summary>
