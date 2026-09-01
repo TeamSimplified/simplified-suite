@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <!-- The shipped app version, shown in Settings. Bump on release. -->
+    <Version>2.0</Version>
+    <Company>Simplified Studio</Company>
+    <Copyright>Portions ported from EgoEngineLibrary (MIT) — © ryder25</Copyright>
+  </PropertyGroup>
+</Project>

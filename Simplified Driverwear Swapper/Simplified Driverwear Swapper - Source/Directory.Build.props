@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <Company>Simplified Studio</Company>
+    <Copyright>Portions ported from EgoEngineLibrary (MIT) — © ryder25</Copyright>
+  </PropertyGroup>
+</Project>

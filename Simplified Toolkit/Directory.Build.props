@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <!-- The version stk reports, alongside the commit it was built from. Set
+         here so a tag can be checked against the binary rather than taken on
+         trust, the way the two apps already are. -->
+    <Version>1.1</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <Company>ERP Handler</Company>
+    <Copyright>Portions ported from EgoEngineLibrary (MIT) — © ryder25</Copyright>
+  </PropertyGroup>
+</Project>

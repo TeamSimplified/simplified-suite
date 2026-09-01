@@ -1,0 +1,958 @@
+<!--
+    Application-wide look. Merged from App.xaml rather than the window, because
+    a dozen dialogs are built in code as bare Windows and inherit application
+    resources only — styling the window would leave them on the stock 2006 look.
+
+    Everything here is presentation. No style sets Margin, Width, Height or
+    alignment, so nothing moves: spacing still comes from the Padding and Margin
+    the layout already specifies. Sizes that were tuned by hand stay tuned.
+
+    ComboBox is retemplated, popup and all. It kept the stock template while the
+    app was light-only; the stock one draws its own chrome from system brushes,
+    so it stayed light when the palette went dark.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework">
+
+    <!-- The palette lives in its own dictionary, merged ahead of this one by
+         App.xaml. Every style below names colours only through those keys, so
+         swapping light for dark is one line there and nothing here changes.
+
+         Those references are DynamicResource, not Static: a static one is
+         resolved once when the style loads and keeps the brush it found, so
+         swapping the palette at runtime would leave every existing control
+         wearing the old theme. Dynamic costs a lookup per use and buys a toggle
+         that works without restarting. -->
+
+    <!-- ─────────────── Brand ───────────────
+         The mark as vector geometry rather than a bitmap, so it stays crisp
+         at any DPI and takes its colour from the palette rather than the fill
+         baked into the artwork — which is what lets it invert for a dark bar.
+
+         Converted from erp.svg: WPF's geometry mini-language accepts SVG path
+         data unchanged, and the F1 prefix selects the nonzero fill rule SVG
+         uses, where WPF would otherwise default to even-odd and punch out the
+         enclosed areas of letters like o and e. The artwork is 14 separate
+         paths, which concatenate into one geometry as subpaths — no transforms,
+         fills or clipping in the source to fold in first.
+
+         Original viewBox 111.92 x 39.34, against Studio's 138.82 x 36.5. Both
+         are two-line wordmarks sized by height, so height is what decides how
+         big they read — the widths differ and always will. Studio sits at a
+         Viewbox height of 28; this mark is set to 30 in MainWindow.xaml, which
+         reads as the same weight against its squarer artwork. -->
+    <Geometry x:Key="BrandMark">F1 M8.43,12.42c-.56-.26-1.27-.53-2.15-.8-1.01-.33-1.77-.63-2.28-.89-.51-.26-.77-.58-.77-.96s.2-.63.61-.81c.41-.18.94-.27,1.6-.27.23,0,.48.02.77.05.29.03.57.08.86.14.5.11.98.23,1.43.37.46.14.85.3,1.19.46v-3.34c-1.31-.35-2.55-.52-3.73-.52-1.78,0-3.22.37-4.32,1.1-1.1.73-1.65,1.81-1.65,3.24,0,.89.19,1.61.58,2.17s.86.98,1.42,1.28c.56.29,1.25.57,2.07.82,1.01.3,1.76.57,2.26.81.5.24.75.51.75.81s-.22.54-.66.68c-.44.14-1,.2-1.69.2-.3,0-.62-.02-.95-.06-.33-.04-.66-.09-.99-.15-.5-.09-.99-.2-1.47-.34-.48-.14-.91-.29-1.29-.45v3.3c1.67.38,3.19.57,4.54.57,1.79,0,3.22-.37,4.28-1.11,1.06-.74,1.59-1.84,1.59-3.3,0-.77-.2-1.39-.59-1.88-.39-.48-.87-.86-1.42-1.12Z M12.59,8.03v11.51h3.37V6.1h-3.37v1.93Z M14.24,0c-.59,0-1.09.21-1.5.62-.41.41-.62.91-.62,1.48s.21,1.09.62,1.5c.41.41.91.62,1.5.62s1.07-.21,1.48-.62c.41-.41.62-.91.62-1.5s-.21-1.07-.62-1.48c-.41-.41-.91-.62-1.48-.62Z M35.25,5.83c-.62,0-1.2.12-1.74.35s-1.02.58-1.42,1.05c-.2.24-.38.51-.54.8-.17.29-.3.61-.41.96h-.27c-.11-.35-.22-.65-.34-.9-.12-.23-.26-.44-.42-.64s-.33-.38-.51-.53c-.78-.72-1.81-1.08-3.07-1.08-.41,0-.8.05-1.16.15-.37.1-.72.25-1.06.44-.34.2-.64.45-.92.77-.21.24-.4.51-.56.81-.17.3-.3.63-.41.99h-.23v-2.89h-3.3v13.44h3.37v-7.09c0-.9.15-1.61.45-2.12.3-.51.67-.86,1.12-1.05.44-.19.92-.28,1.41-.28.86,0,1.47.24,1.83.71.36.47.54,1.16.54,2.04v7.8h3.37v-7.09c0-1.31.29-2.22.88-2.71.59-.5,1.29-.75,2.1-.75.86,0,1.47.24,1.83.71.36.47.54,1.16.54,2.04v7.8h3.37v-8.84c0-1.54-.41-2.73-1.23-3.59-.82-.86-1.89-1.29-3.22-1.29Z M47.59,18.94c.77.59,1.72.88,2.87.88,1.05,0,2.01-.26,2.88-.77.87-.51,1.56-1.31,2.08-2.38.52-1.08.78-2.41.78-4.01s-.25-2.9-.75-3.92c-.5-1.02-1.15-1.75-1.97-2.21-.81-.46-1.72-.69-2.71-.69-1.05,0-2.02.28-2.88.82-.87.55-1.5,1.33-1.89,2.34h-.16v-2.89h-3.37v17.29h3.37v-6.73h.16c.29.93.81,1.69,1.58,2.28ZM45.85,12.81c0-.75.15-1.42.45-2,.3-.58.72-1.03,1.27-1.34.54-.32,1.15-.48,1.83-.48,1.1,0,1.95.33,2.54.98.6.66.89,1.56.89,2.7s-.31,2.13-.93,2.87c-.62.74-1.48,1.11-2.58,1.11-1.04,0-1.88-.35-2.52-1.06-.64-.71-.96-1.63-.96-2.78Z M61.6,17.17V1.47h-3.37v18.08h3.37v-2.37Z M64.54,8.03v11.51h3.37V6.1h-3.37v1.93Z M66.18,4.23c.57,0,1.07-.21,1.48-.62.41-.41.62-.91.62-1.5s-.21-1.07-.62-1.48c-.41-.41-.91-.62-1.48-.62s-1.09.21-1.5.62c-.41.41-.62.91-.62,1.48s.21,1.09.62,1.5c.41.41.91.62,1.5.62Z M81.1,4.68c.57,0,1.07-.21,1.48-.62.41-.41.62-.91.62-1.5s-.21-1.07-.62-1.48c-.41-.41-.91-.62-1.48-.62s-1.09.21-1.5.62c-.41.41-.62.91-.62,1.48s.21,1.09.62,1.5c.41.41.92.62,1.5.62Z M94.47,6.65c-.87-.55-1.94-.82-3.19-.82s-2.32.29-3.3.88-1.75,1.41-2.3,2.46c-.56,1.05-.84,2.26-.84,3.62,0,1.43.3,2.68.89,3.74.59,1.06,1.42,1.88,2.47,2.44,1.05.56,2.26.85,3.62.85s2.76-.19,4.11-.57v-3.5c-.65.3-1.3.53-1.94.68s-1.28.23-1.9.23-1.18-.09-1.67-.27c-.5-.18-.92-.46-1.28-.82s-.61-.83-.76-1.39h8.74v-2.06c0-1.19-.23-2.26-.68-3.21s-1.11-1.7-1.99-2.25ZM91.04,11.86h-2.78c.06-.62.19-1.16.38-1.62.2-.46.49-.82.89-1.1.4-.27.91-.41,1.53-.41.99,0,1.68.28,2.06.84.38.56.59,1.32.63,2.28h-2.71Z M108.55,1.47v7.52h-.16c-.35-.98-.96-1.75-1.83-2.32-.87-.56-1.83-.85-2.87-.85-.98,0-1.89.25-2.72.75-.84.5-1.51,1.27-2.01,2.33-.5,1.05-.76,2.38-.76,3.98s.25,2.92.75,3.96c.5,1.04,1.15,1.8,1.97,2.27s1.72.71,2.71.71c.69,0,1.35-.12,1.98-.36.62-.24,1.18-.6,1.66-1.07.48-.47.86-1.05,1.13-1.73h.16v2.89h3.37V1.47h-3.37ZM108.1,14.83c-.3.58-.72,1.03-1.27,1.34s-1.15.47-1.83.47c-1.1,0-1.95-.33-2.54-.98-.6-.66-.89-1.56-.89-2.7,0-.77.14-1.45.41-2.06.27-.6.67-1.07,1.2-1.41.53-.34,1.16-.51,1.9-.51,1.04,0,1.88.35,2.52,1.06.64.71.96,1.64.96,2.78,0,.75-.15,1.42-.45,2Z M56.32,22.61c-.87-.55-1.94-.82-3.19-.82s-2.32.29-3.3.88-1.75,1.41-2.3,2.46c-.56,1.05-.84,2.26-.84,3.62,0,1.43.3,2.68.89,3.74.59,1.06,1.42,1.88,2.47,2.44,1.05.56,2.26.85,3.62.85s2.76-.19,4.11-.57v-3.5c-.65.3-1.3.53-1.94.68s-1.28.23-1.9.23-1.18-.09-1.67-.27c-.5-.18-.92-.46-1.28-.82s-.61-.83-.76-1.39h8.74v-2.06c0-1.19-.23-2.26-.68-3.21s-1.11-1.7-1.99-2.25ZM52.88,27.82h-2.78c.06-.62.19-1.16.38-1.62.2-.46.49-.82.89-1.1.4-.27.91-.41,1.53-.41.99,0,1.68.28,2.06.84.38.56.59,1.32.63,2.28h-2.71Z M66.88,21.93c-.28.1-.54.23-.77.41-.23.17-.45.38-.64.62-.21.26-.4.54-.57.86s-.31.66-.43,1.02h-.23v-2.78h-3.3v13.44h3.37v-6.98c0-1.07.23-1.91.7-2.52.47-.61,1.12-.92,1.97-.92.44,0,.84.03,1.21.1.37.07.76.21,1.19.44v-3.62c-.47-.15-1-.23-1.6-.23-.32,0-.61.05-.89.15Z M81.94,22.47c-.81-.46-1.72-.69-2.71-.69-1.05,0-2.02.28-2.88.82-.87.55-1.5,1.33-1.89,2.34h-.16v-2.36h.01v-3.04h0v-10.69h5.13v10.69h3.37V6.1h-8.5v-.66c0-.57.14-.97.43-1.2.29-.23.7-.34,1.24-.34.15,0,.31,0,.46.02.16.02.32.03.49.04.35.06.69.12,1.02.18V1.2c-.78-.17-1.58-.25-2.4-.25-.96,0-1.79.15-2.47.45-.69.3-1.21.78-1.58,1.45s-.55,1.51-.55,2.55v14.15h-.01v2.51h0v17.29h3.37v-6.73h.16c.29.93.81,1.69,1.58,2.28s1.72.88,2.87.88c1.05,0,2.01-.26,2.88-.77.87-.51,1.56-1.31,2.08-2.38.52-1.08.78-2.41.78-4.01s-.25-2.9-.75-3.92c-.5-1.02-1.15-1.75-1.97-2.21ZM80.36,31.5c-.62.74-1.48,1.11-2.58,1.11-1.04,0-1.88-.35-2.52-1.06-.64-.71-.96-1.63-.96-2.78,0-.75.15-1.42.45-2,.3-.58.72-1.03,1.27-1.34.54-.32,1.15-.48,1.83-.48,1.1,0,1.95.33,2.54.98.6.66.89,1.56.89,2.7s-.31,2.13-.93,2.87Z</Geometry>
+
+
+    <!-- ─────────────── Icons ───────────────
+         Google's Material Icons, taken from their SVG sources so the shapes are
+         the real thing rather than something approximated. The F1 prefix selects
+         SVG's nonzero fill rule, which is what keeps the cut-outs — the hole in
+         the gear, the slot in the floppy — as holes instead of filled.
+
+         Each icon's own 24x24 bounding-box path is dropped: it carries
+         fill="none" and exists only to pad the artwork, and as geometry it would
+         make every icon a filled square. A Viewbox scales them, so the 24-unit
+         coordinates never need touching. -->
+    <Geometry x:Key="IconSettings">F1 M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z</Geometry>
+    <Geometry x:Key="IconOpen">F1 M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z</Geometry>
+    <Geometry x:Key="IconSave">F1 M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z</Geometry>
+
+    <!-- ─────────────── Preview backdrop ───────────────
+         What sits behind the previewed image, set by the slider on the channel
+         bar. Deliberately not palette keys: these are a judging
+         surface, not chrome. A light artwork is read against dark and a dark one
+         against light, so the pair has to stay available whichever theme the app
+         itself is wearing.
+
+         These are the two ends of the slider, which mixes between them.
+         BackdropSlider repeats them as gradient stops, since a
+         LinearGradientBrush cannot reference resources for its stops. -->
+    <SolidColorBrush x:Key="PreviewBackdropLight" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PreviewBackdropDark"  Color="#1E1E1E"/>
+
+    <!-- ─────────────── Window caption ───────────────
+         Shared by the main window and every code-built dialog, which see
+         application resources only. -->
+    <!-- Title-bar buttons: flat, no border, tinted on hover. Close goes red
+         on hover the way every Windows app does. -->
+    <Style x:Key="CaptionButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="38"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <TextBlock x:Name="Glyph" Text="{TemplateBinding Content}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Pressed}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <TextBlock x:Name="Glyph" Text="{TemplateBinding Content}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Danger}"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Danger}"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ─────────────── Icon buttons ───────────────
+         A square button carrying a Material icon. The icon is a Path tinted from
+         the palette, so it follows the theme the way the wordmark does, and the
+         template owns it rather than taking Content — a ContentPresenter would
+         hand a string to the implicit TextBlock style and lose the tint. -->
+    <Style x:Key="IconButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                            CornerRadius="4" SnapsToDevicePixels="True">
+                        <!-- Tag carries the geometry, so one style serves every icon. -->
+                        <Viewbox Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path x:Name="Glyph" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                  Fill="{TemplateBinding Foreground}"/>
+                        </Viewbox>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Pressed}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Glyph" Property="Fill" Value="{DynamicResource TextDisabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ─────────────── Backdrop slider ───────────────
+         Sets what sits behind the previewed image, anywhere between the two
+         ends rather than at one or the other.
+
+         The track is painted with the very gradient it selects from, so the
+         control shows what it does without a label. The gradient is stated here
+         rather than bound to the two backdrop brushes: a LinearGradientBrush
+         can't take resource references for its stops, so the ends are repeated
+         from PreviewBackdropLight/Dark and have to be kept in step with them. -->
+    <Style x:Key="BackdropThumb" TargetType="Thumb">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="14"/>
+        <Setter Property="Height" Value="14"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Knob" CornerRadius="7"
+                            Background="{DynamicResource Surface}"
+                            BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Knob" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Knob" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="BackdropSlider" TargetType="Slider">
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="1"/>
+        <Setter Property="SmallChange" Value="0.05"/>
+        <Setter Property="LargeChange" Value="0.2"/>
+        <!-- Click the track to jump there, rather than stepping towards it. -->
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid Height="16" VerticalAlignment="Center">
+                        <Border Height="8" CornerRadius="4"
+                                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Offset="0" Color="#FFFFFF"/>
+                                    <GradientStop Offset="1" Color="#1E1E1E"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" Focusable="False"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource BackdropThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" Focusable="False"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ─────────────── Panels ───────────────
+         One style for every framed section, so they can't drift apart again:
+         the preview, the bars under it and the metadata block were square while
+         the list beside them was rounded.
+
+         6px matches the resource list. Controls — buttons, text boxes — stay at
+         4: a container and the things inside it shouldn't share a radius, or the
+         nesting stops reading. -->
+    <Style x:Key="Panel" TargetType="Border">
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- ─────────────── Splitter ───────────────
+         The grab area is wider than the line it draws: a 1px target is miserable
+         to hit, so the control is wide and transparent with a hairline centred
+         in it. -->
+    <Style TargetType="GridSplitter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Border Background="Transparent">
+                        <Border x:Name="Line" Width="1" HorizontalAlignment="Center"
+                                Background="{DynamicResource BorderSoft}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Line" Property="Background" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Line" Property="Background" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ─────────────── Chips ───────────────
+         Small pills for the resource-type filter and the preview channels. Both
+         share one template; the difference is only the control type, which is
+         what decides the behaviour. ToggleButtons let any combination of types
+         be on at once, while RadioButtons in one panel are mutually exclusive
+         and can't all be turned off — exactly right for a view mode, where
+         "no channel" would mean nothing. -->
+    <ControlTemplate x:Key="ChipTemplate" TargetType="ToggleButton">
+        <Border x:Name="Chrome" CornerRadius="10"
+                Background="{DynamicResource SurfaceSunken}"
+                BorderBrush="Transparent" BorderThickness="1"
+                Padding="{TemplateBinding Padding}">
+            <!-- A TextBlock rather than a ContentPresenter: a presenter generates
+                 its own TextBlock for string content, and the implicit TextBlock
+                 style paints that TextPrimary — which beats anything inherited
+                 from the chip, so the checked state's foreground never reached
+                 the label. Template-binding it here makes it a template value,
+                 which the style setter cannot override.
+
+                 The cost is that chips carry text only. That is all they hold,
+                 and a chip is a word by definition. -->
+            <TextBlock x:Name="Label" Text="{TemplateBinding Content}"
+                       Foreground="{TemplateBinding Foreground}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+            </Trigger>
+            <!-- The accent carries the tint and the outline; the label stays text
+                 colour. Coloured text at this size reads as decoration rather than
+                 as a state, and the fill already says the chip is on. -->
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="FilterChip" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="10,3"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+        <Setter Property="Template" Value="{StaticResource ChipTemplate}"/>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="ChannelChip" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="10,3"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+        <Setter Property="Template" Value="{StaticResource ChipTemplate}"/>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ─────────────── Text ─────────────── -->
+    <Style TargetType="Label">
+        <Setter Property="Margin" Value="0,2,8,2"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+    </Style>
+
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+    </Style>
+
+    <!-- ─────────────── Tooltips ───────────
+         Stock tooltips fill from SystemColors.InfoBrushKey, which is Windows'
+         colour and not ours, so they stayed light when the palette went dark.
+
+         The text takes its colour through the ContentPresenter, which builds a
+         TextBlock for string content and hands it to the implicit TextBlock
+         style above — the same path that caught the chips out, except here it
+         lands on the right answer, since that style names TextPrimary and this
+         wants exactly that. Setting Foreground on the ToolTip itself would be
+         the thing that does not work: the generated TextBlock beats it. -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ─────────────── Buttons ───────────────
+         Flat with a soft border and a 6px radius. The stock button's gradient
+         and 3D edge are what date the app most. -->
+    <!-- ─────────────── Right-click menus ───────────
+         The stock ContextMenu and MenuItem fill from system brushes, so they
+         stayed light in dark mode. Two menus are affected: the category-header
+         menu Studio builds, and the Cut/Copy/Paste menu WPF puts on the text
+         preview by itself - an implicit style catches both. -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="4"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ItemsPresenter SnapsToDevicePixels="True"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="MenuItem">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="4"
+                            Margin="2,1" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- A TextBlock the template owns, not a ContentPresenter:
+                                 a presenter builds its own for string content and the
+                                 implicit TextBlock style repaints it, so the disabled
+                                 colour below would never land. Header must therefore
+                                 be text, which is all either app uses. A full Binding
+                                 rather than TemplateBinding, since Header is typed as
+                                 object and only a Binding converts it. -->
+                            <TextBlock x:Name="Label" VerticalAlignment="Center"
+                                       Text="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                            <TextBlock x:Name="Gesture" Grid.Column="1" VerticalAlignment="Center"
+                                       Margin="24,0,0,0"
+                                       Text="{TemplateBinding InputGestureText}"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                            <Setter TargetName="Gesture" Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Two declarations for one look. A menu does not use the implicit
+         Separator style: it asks for the one keyed MenuItem.SeparatorStyleKey,
+         and without that key it gets the theme's own - #D7D7D7, which is what
+         was still showing light inside an otherwise dark menu. The alias below
+         points that key at this style. -->
+    <Style TargetType="Separator">
+        <Setter Property="Background" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="Margin" Value="8,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Background="{TemplateBinding Background}"
+                            SnapsToDevicePixels="True"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator"
+           BasedOn="{StaticResource {x:Type Separator}}"/>
+
+    <Style TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter x:Name="Content"
+                                          Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          RecognizesAccessKey="True"
+                                          SnapsToDevicePixels="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsDefaulted" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Pressed}"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <!-- A disabled control is still hit-tested, so without
+                                 this the hand appears over a button that does nothing. -->
+                            <Setter Property="Cursor" Value="Arrow"/>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ─────────────── Text input ───────────────
+         Padding and vertical centring carry over from the styles this replaces,
+         so nothing in the layout shifts. -->
+    <Style TargetType="TextBox">
+        <Setter Property="Padding" Value="4,4"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource Accent}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                        </Trigger>
+                        <Trigger Property="IsReadOnly" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Stock template kept; only the colours change. -->
+    <!-- Non-editable only, which is all this app uses: an editable ComboBox
+         needs a PART_EditableTextBox in here as well. -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="4"
+                            Margin="3,1" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <!-- A TextBlock the template owns, for the reason the chips
+                             have one: a ContentPresenter builds its own, which the
+                             implicit TextBlock style then repaints. -->
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selected}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <!-- The whole box is the button: the toggle sits under the
+                                 content with no chrome of its own. -->
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <ContentPresenter IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center" HorizontalAlignment="Left"/>
+
+                            <Path x:Name="Arrow" Data="M0,0 L8,0 L4,5 Z" Width="8" Height="5"
+                                  Fill="{DynamicResource TextMuted}" IsHitTestVisible="False"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Margin="0,0,10,0"/>
+
+                            <Popup x:Name="PART_Popup" Placement="Bottom" Focusable="False"
+                                   AllowsTransparency="True" PopupAnimation="Fade"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border Background="{DynamicResource Surface}"
+                                        BorderBrush="{DynamicResource BorderStrong}"
+                                        BorderThickness="1" CornerRadius="4" Margin="0,2,0,0"
+                                        MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer>
+                                        <ItemsPresenter SnapsToDevicePixels="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                            <Setter TargetName="Arrow" Property="Fill" Value="{DynamicResource TextDisabled}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ─────────────── Check box ─────────────── -->
+    <Style TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Border x:Name="Box" Width="16" Height="16"
+                                Background="{DynamicResource Surface}"
+                                BorderBrush="{DynamicResource BorderStrong}"
+                                BorderThickness="1" CornerRadius="4"
+                                VerticalAlignment="Center" SnapsToDevicePixels="True">
+                            <Path x:Name="Tick" Visibility="Collapsed"
+                                  Data="M 2,6 L 5.5,9.5 L 11,3"
+                                  Stroke="White" StrokeThickness="1.8"
+                                  StrokeEndLineCap="Round" StrokeStartLineCap="Round"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ContentPresenter x:Name="Label" Margin="8,0,0,0"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          RecognizesAccessKey="True"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- A disabled control is still hit-tested, so without this the
+                 hand would appear over buttons that do nothing. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Cursor" Value="Arrow"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ─────────────── Lists ───────────────
+         The item style leaves HorizontalContentAlignment alone: the resource
+         list sets Stretch on the ListBox and rows must keep filling the width. -->
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="3"/>
+
+        <!-- Both grouped lists — the resource list and Choose parts — could be
+             scrolled past their last row into blank space.
+
+             A grouped list scrolls in whole groups: the extent counts group
+             headers rather than rows, so the viewport measures one group, and at
+             full scroll the last group is parked at the top of the view. Where
+             that group is short, the rest of the view is empty — 222px of it in a
+             1000-row test.
+
+             Pixel units give the extent real heights and end the list flush.
+             They only apply while the panel is virtualising, though, and grouping
+             turns virtualising off unless asked, so the two settings only work as
+             a pair. Virtualising again is worth having on its own: the same test
+             realised every one of its 1000 rows, and 32 with these set. -->
+        <Setter Property="VirtualizingPanel.IsVirtualizingWhenGrouping" Value="True"/>
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ScrollViewer Padding="{TemplateBinding Padding}" Focusable="False">
+                            <ItemsPresenter SnapsToDevicePixels="True"/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ListBoxItem">
+        <!-- A row is a click target: selecting it is how the preview is chosen. -->
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Chrome" Background="Transparent"
+                            CornerRadius="5" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <!-- Selection is grey, not accent — see the Selected token.
+                             Declared after the hover trigger so a selected row that is
+                             also hovered keeps reading as selected. -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selected}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ─────────────── Scroll bars ───────────────
+         Slim, no arrow buttons, thumb thickens on hover. -->
+    <Style x:Key="ScrollThumb" TargetType="Thumb">
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Bar" Background="{DynamicResource BorderStrong}" CornerRadius="4" Margin="3"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="{DynamicResource TextDisabled}"/>
+                            <Setter TargetName="Bar" Property="Margin" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="{DynamicResource TextMuted}"/>
+                            <Setter TargetName="Bar" Property="Margin" Value="2"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <!-- The cursor is NOT set here, though this is the obvious place. The
+             ScrollViewer's own template sets Cursor="Arrow" on the bars it
+             creates, so the value arrives as ParentTemplate, which outranks a
+             style setter and a style trigger alike - only a local value beats
+             it, and a style cannot set one. It goes on the Grid inside the
+             template below instead: QueryCursor bubbles from whatever is under
+             the pointer, so the Grid answers before the ScrollBar is asked. -->
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="{TemplateBinding Background}" Cursor="Hand">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="{TemplateBinding Background}" Cursor="Hand">
+                                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Opacity="0" Focusable="False"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ScrollThumb}"/>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Opacity="0" Focusable="False"/>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

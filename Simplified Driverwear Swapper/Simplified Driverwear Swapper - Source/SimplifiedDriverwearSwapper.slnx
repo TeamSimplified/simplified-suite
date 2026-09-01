@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedDriverwearSwapper/SimplifiedDriverwearSwapper.csproj" />
+  <Project Path="src/SimplifiedDriverwearSwapper.Core/SimplifiedDriverwearSwapper.Core.csproj" />
+</Solution>

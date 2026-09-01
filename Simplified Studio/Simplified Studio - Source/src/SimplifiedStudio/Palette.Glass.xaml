@@ -1,0 +1,75 @@
+<!--
+    Dark glass. A third palette alongside Light and Dark, selected in App.xaml.
+
+    Not in use: the DWM backdrop it depends on was removed along with the glass
+    experiment. Selected on its own it renders black, since there is nothing
+    behind the translucency. The ui-full-glass tag holds both halves together and
+    is the way back.
+
+    The difference from Palette.Dark is alpha. Plain dark mode paints opaque
+    surfaces, which would sit on top of the system backdrop and hide it
+    completely — the window would be dark, but not glass. Here the surfaces are
+    translucent, so the acrylic behind them shows through and picks up whatever
+    is on the desktop.
+
+    That only works while the backdrop is enabled. Selected without it, every
+    translucent pixel falls through to black, so this palette and
+    ApplyGlassBackdrop belong together.
+
+    Borders are white at low alpha rather than grey: a grey line over a variable
+    backdrop reads as either too dark or too light depending on the wallpaper,
+    where white at 15% simply lightens whatever is under it.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="SurfaceColor">#99121821</Color>
+    <Color x:Key="AccentColor">#FF6BA6E8</Color>
+
+    <!-- Content is the most opaque, so text stays readable over a busy desktop.
+         Chrome is the most transparent, since that is where the glass should
+         read most strongly. -->
+    <SolidColorBrush x:Key="Surface"       Color="#99121821"/>
+    <SolidColorBrush x:Key="SurfaceAlt"    Color="#4D121821"/>
+    <SolidColorBrush x:Key="SurfaceSunken" Color="#B30C1017"/>
+
+    <SolidColorBrush x:Key="BorderSoft"    Color="#26FFFFFF"/>
+    <SolidColorBrush x:Key="BorderStrong"  Color="#40FFFFFF"/>
+
+    <!-- Brighter than the plain dark theme: text now competes with whatever the
+         backdrop is sampling, not with a fixed dark ground. -->
+    <SolidColorBrush x:Key="TextPrimary"   Color="#F2F5F9"/>
+    <SolidColorBrush x:Key="TextMuted"     Color="#B4BECB"/>
+    <SolidColorBrush x:Key="TextDisabled"  Color="#7D8793"/>
+
+    <SolidColorBrush x:Key="Accent"        Color="#6BA6E8"/>
+    <SolidColorBrush x:Key="AccentSoft"    Color="#593A6EA8"/>
+    <SolidColorBrush x:Key="Hover"         Color="#1FFFFFFF"/>
+    <SolidColorBrush x:Key="Pressed"       Color="#33FFFFFF"/>
+
+    <!-- List selection. Neutral on purpose: the resource list sits beside the
+         preview, and a saturated tint there shifts how the artwork next to it
+         reads. Accent stays for controls that are switched on. -->
+    <!-- Pill fill for the title-bar version badge. A step darker than
+         SurfaceSunken, which the resource pills use: those sit on the white
+         list, where a light fill reads, while this one sits on SurfaceAlt and
+         separated from it by only 1.05:1 — invisible. Its text is TextPrimary
+         rather than TextMuted, since darkening the fill alone would drop the
+         muted text to 3.86:1. -->
+    <SolidColorBrush x:Key="Badge"        Color="#33FFFFFF"/>
+
+    <SolidColorBrush x:Key="Selected"      Color="#2EFFFFFF"/>
+    <SolidColorBrush x:Key="Danger"        Color="#E8564A"/>
+
+    <SolidColorBrush x:Key="BrandInk"      Color="#FFFFFF"/>
+
+    <!-- JSON and XML previews. Punctuation is left to TextMuted so the
+         structure recedes and the content carries the colour. -->
+    <SolidColorBrush x:Key="SyntaxKey"     Color="#9CDCFE"/>
+    <SolidColorBrush x:Key="SyntaxString"  Color="#CE9178"/>
+    <SolidColorBrush x:Key="SyntaxNumber"  Color="#B5CEA8"/>
+    <SolidColorBrush x:Key="SyntaxTag"     Color="#4EC9B0"/>
+    <SolidColorBrush x:Key="SyntaxComment" Color="#6A9955"/>
+    <SolidColorBrush x:Key="SyntaxKeyword" Color="#C586C0"/>
+
+</ResourceDictionary>

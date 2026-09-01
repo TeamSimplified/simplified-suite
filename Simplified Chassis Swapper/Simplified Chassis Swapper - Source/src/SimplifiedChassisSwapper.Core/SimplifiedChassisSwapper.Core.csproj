@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedChassisSwapper.Core</RootNamespace>
+    <AssemblyName>SimplifiedChassisSwapper.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZstdSharp.Port" />
+    <PackageReference Include="K4os.Compression.LZ4" />
+    <PackageReference Include="CommunityToolkit.HighPerformance" />
+    <PackageReference Include="System.IO.Packaging" />
+    <!-- PKG read/write goes through Newtonsoft.Json (same as the Toolkit port). -->
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+</Project>

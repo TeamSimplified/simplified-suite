@@ -1,0 +1,25 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+publish/
+
+# IDE / editor cache
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# Misc
+*.log
+*.tmp
+TestResults/
+.DS_Store
+Thumbs.db
+
+# Packaged release artifacts — built on demand, not tracked
+/Simplified Toolkit - Release/stk.exe
+/Simplified Toolkit - Release/*.zip
+/Simplified Toolkit - Release/tools/

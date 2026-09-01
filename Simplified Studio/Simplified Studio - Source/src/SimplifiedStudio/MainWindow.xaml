@@ -1,0 +1,524 @@
+<Window x:Class="SimplifiedStudio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Simplified Studio"
+        Width="1280" Height="800"
+        FontFamily="Segoe UI" FontSize="13"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        Background="{DynamicResource Surface}"
+        AllowDrop="True"
+        Drop="Window_Drop"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        StateChanged="Window_StateChanged"
+        Closing="Window_Closing">
+
+    <!-- Our own title bar, but still a real window: WindowChrome keeps the
+         native resize borders, snapping, Aero Snap layouts and double-click to
+         maximise, which WindowStyle=None + AllowsTransparency would all throw
+         away. CaptionHeight matches the bar below so Windows treats it as the
+         caption; the buttons opt out of that via IsHitTestVisibleInChrome. -->
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="56"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Caption button styles live in Theme.xaml: the code-built dialogs
+             wear the same close button and can only see application resources. -->
+        <!-- Label and TextBox styles moved to Theme.xaml: kept here they would
+             shadow the shared ones and leave this window looking unlike every
+             dialog. Their setters carried over unchanged. -->
+        <!-- These name a Style explicitly, which means they do NOT pick up the
+             implicit TextBlock style in Theme.xaml — a keyed style inherits
+             nothing unless it says BasedOn. Without a Foreground of their own
+             they fell back to the window's default, which is black whatever the
+             palette says. -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="MetaKey" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="Margin" Value="0,1,8,1"/>
+        </Style>
+        <Style x:Key="MetaVal" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <!-- Inline editable text — reads as a label until you hover or focus it. -->
+        <!-- BasedOn matters here: without it this keyed style would replace the
+             themed TextBox outright, losing its template, its palette colours and
+             its caret along with them. -->
+        <Style x:Key="InlineEditBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="2,1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="40"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                    <Setter Property="Background" Value="{DynamicResource Surface}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <!-- Log row — collapsed by default, toggled from Settings → Show/Hide log. -->
+            <RowDefinition Name="LogRow" Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0">
+            <!-- Title bar. Sits above the project bar so the window's Close can't
+                 be mistaken for the project's, which is a button away below. -->
+            <Border Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
+                <DockPanel LastChildFill="False">
+                    <!-- The wordmark, drawn from vector geometry so it stays sharp at
+                         any DPI and can be tinted. Viewbox scales it uniformly, so
+                         only the height is stated and the width follows the artwork. -->
+                    <Viewbox DockPanel.Dock="Left" Height="28" VerticalAlignment="Center" Stretch="Uniform">
+                        <Path Data="{StaticResource BrandMark}" Fill="{DynamicResource BrandInk}"/>
+                    </Viewbox>
+
+                    <!-- Version pill, styled as the resource-type pills in the list —
+                         same sunken fill, radius, padding and muted small caps. Text is
+                         set in code from the assembly version, so it can't drift from
+                         what the build actually is. -->
+                    <Border DockPanel.Dock="Left" Background="{DynamicResource Badge}" CornerRadius="3"
+                            Padding="6,1" Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Name="VersionLabel" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}"/>
+                    </Border>
+
+                    <!-- The open project, beside the mark. Text isn't hit-test-visible
+                         in the chrome, so dragging the bar still works across it.
+                         MaxWidth sits on the label rather than the panel: a horizontal
+                         StackPanel measures children unconstrained, and trimming needs
+                         a width to trim to. -->
+                    <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="16,0,0,0"
+                            VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
+
+                    <!-- The mod-info fields (Mod name / Author / Shader package / SERPs
+                         template) are hidden for now and will be brought back in a side
+                         panel later; the boxes still exist so RepopulateModInfoBar and
+                         ModInfoField_Changed keep working. -->
+                    <StackPanel Name="InlineModInfoPanel" DockPanel.Dock="Left" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="16,0,0,0" Visibility="Collapsed">
+                        <TextBlock Name="ProjectNameLabel" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"
+                                   FontWeight="SemiBold" Text="No project open"
+                                   MaxWidth="460" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Name="PendingLabel" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="{DynamicResource TextMuted}" FontStyle="Italic" Visibility="Collapsed"/>
+                        <TextBox Name="ModNameBox"   Visibility="Collapsed" TextChanged="ModInfoField_Changed"/>
+                        <TextBox Name="ModAuthorBox" Visibility="Collapsed" TextChanged="ModInfoField_Changed"/>
+                    </StackPanel>
+
+                    <!-- Shown instead of the panel above when nothing is open. -->
+                    <TextBlock Name="NoProjectLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
+                               Margin="16,0,0,0" Foreground="{DynamicResource TextDisabled}"
+                               Text="No project open"/>
+
+                    <!-- Reverse visual order, as DockPanel resolves Dock=Right outward-in. -->
+                    <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
+                            Content="&#xE8BB;" Click="WindowClose_Click" ToolTip="Close"/>
+                    <Button DockPanel.Dock="Right" Name="WindowMaximizeButton" Style="{StaticResource CaptionButton}"
+                            Content="&#xE922;" Click="WindowMaximize_Click" ToolTip="Maximize"/>
+                    <Button DockPanel.Dock="Right" Name="WindowMinimizeButton" Style="{StaticResource CaptionButton}"
+                            Content="&#xE921;" Click="WindowMinimize_Click" ToolTip="Minimize"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Project bar (v2-simplified-ui) — project file ops + inline editable mod info + add ERP. -->
+            <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1" Padding="18,12">
+                <DockPanel LastChildFill="False">
+                    <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                            Tag="{StaticResource IconSettings}" Click="Settings_Click"
+                            ToolTip="Settings"/>
+                    <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
+                    <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                            Tag="{StaticResource IconNew}" Click="NewProject_Click"
+                            ToolTip="New project"/>
+                    <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}" Margin="6,0,0,0"
+                            Tag="{StaticResource IconOpen}" Click="OpenProject_Click"
+                            ToolTip="Open project"/>
+
+                    <!-- Save, not Save as: a project is opened, worked on and saved
+                         back, so saving in place is the press that recurs. Save as is
+                         Ctrl+Shift+S, and creating a copy is the rarer intent.
+
+                         SaveProjectAsButton stays, collapsed, because
+                         OnProjectStateChanged still drives its IsEnabled. -->
+                    <Button DockPanel.Dock="Left" Name="SaveProjectButton" Style="{StaticResource IconButton}"
+                            Tag="{StaticResource IconSave}" Margin="6,0,0,0"
+                            Click="SaveProject_Click" IsEnabled="False"
+                            ToolTip="Save project    (Ctrl+S — Ctrl+Shift+S saves as)"/>
+                    <Button DockPanel.Dock="Left" Name="SaveProjectAsButton" Visibility="Collapsed"
+                            Click="SaveProjectAs_Click" IsEnabled="False"/>
+
+                    <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
+
+                    <!-- Project-wide actions. Text rather than icons: there is no
+                         Material glyph that says "import all resources of the chosen
+                         types", and a wrong icon is worse than a word. -->
+                    <Button DockPanel.Dock="Left" Name="ExportAllButton" Content="Export all" Padding="12,7" IsEnabled="False"
+                            Click="ExportAll_Click"
+                            ToolTip="Pick which resource types to export, then a folder. Files are laid out as &lt;folder&gt;/&lt;erp&gt;/&lt;resource folder&gt;/&lt;name&gt; — textures use the configured format (Settings → Texture format)"/>
+                    <Button DockPanel.Dock="Left" Name="ImportAllButton" Content="Import all" Padding="12,7" Margin="6,0,0,0" IsEnabled="False"
+                            Click="ImportAll_Click"
+                            ToolTip="Pick which resource types to import, then a folder. Each resource is matched by that same &lt;folder&gt;/&lt;erp&gt;/&lt;resource folder&gt;/&lt;name&gt; path"/>
+
+                    <!-- Right-aligned cluster. DockPanel resolves Dock=Right children in declaration order
+                         from the outer edge inward, so list them in reverse visual order: Close (rightmost),
+                         Package, Choose parts, Edit project (leftmost). Add/remove ERPs for custom projects
+                         lives inside the Edit project dialog. -->
+                    <Button DockPanel.Dock="Right" Content="Close"         Padding="12,7" Margin="6,0,0,0" Click="CloseProject_Click"  Name="CloseProjectButton"  IsEnabled="False"/>
+                    <Button DockPanel.Dock="Right" Content="Package"       Padding="12,7" Margin="6,0,0,0" Click="ExportProject_Click" Name="ExportProjectButton" IsEnabled="False"/>
+                    <Button DockPanel.Dock="Right" Content="Choose parts"  Padding="12,7" Margin="6,0,0,0" Click="ChooseParts_Click"   Name="ChoosePartsButton"   IsEnabled="False"/>
+                    <Button DockPanel.Dock="Right" Content="Edit project"  Padding="12,7"                    Click="EditProject_Click"   Name="EditProjectButton"   IsEnabled="False"/>
+
+                </DockPanel>
+            </Border>
+            <!-- File-path row hidden for now — controls still exist so the code paths
+                 (Save/SaveAs hotkeys, FilePathLabel text, PendingLabel) keep working. -->
+            <Border Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                    <Button Name="SaveButton"   Visibility="Collapsed" Click="Save_Click"/>
+                    <Button Name="SaveAsButton" Visibility="Collapsed" Click="SaveAs_Click"/>
+                    <TextBlock Name="FilePathLabel" Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
+            <!-- Game folder row hidden — moved into Settings. The GameDirBox control still exists
+                 (still named so code that reads/writes its Text + the TextChanged auto-save keeps working);
+                 the Settings dialog just writes Text into it on save. -->
+            <Border Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Name="GameDirBox" Visibility="Collapsed" TextChanged="GameDirBox_TextChanged"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Main split -->
+        <Grid Grid.Row="1" Margin="18,10,18,18">
+            <Grid.ColumnDefinitions>
+                <!-- MinWidths keep either pane from being dragged shut. -->
+                <ColumnDefinition Width="500" MinWidth="320"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="380"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: filter + texture list -->
+            <DockPanel Grid.Column="0">
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="Filter"/>
+                    <TextBox Grid.Column="1" Name="FilterBox" TextChanged="Filter_Changed"/>
+                    <TextBlock Grid.Column="2" Name="CountLabel" Margin="8,0,0,0"
+                               VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}"/>
+                </Grid>
+
+                <!-- Resource-type chips, filled in by RebuildKindChips from the
+                     kinds actually loaded — so no chip is ever shown for a type
+                     this project doesn't contain. -->
+                <WrapPanel Name="KindChips" DockPanel.Dock="Top" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <ListBox Name="TextureList" SelectionChanged="TextureList_SelectionChanged"
+                         SelectionMode="Extended"
+                         HorizontalContentAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2,8,2" LastChildFill="True">
+                                <!-- Edited-since-save dot. Hidden rather than collapsed
+                                     when clean, so names stay on one left edge instead
+                                     of shifting as rows are edited. -->
+                                <Ellipse DockPanel.Dock="Left" Width="6" Height="6"
+                                         Margin="2,0,8,0" VerticalAlignment="Center"
+                                         Fill="{DynamicResource Accent}"
+                                         ToolTip="Edited since the last save">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Visibility" Value="Hidden"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsModified}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+
+                                <!-- Type pill on the right — TEX / PKG / XML -->
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource SurfaceSunken}" CornerRadius="3"
+                                        Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding KindTag}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextMuted}"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Foreground="{DynamicResource TextMuted}" FontSize="11"
+                                               Text="{Binding SummaryLine}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <!-- v2 Phase 3: group rows by source ERP. Headers stick at the top of each section. -->
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <!-- Default GroupItem has HorizontalContentAlignment=Left, which
+                                 collapses each row's DockPanel to its natural width and pins
+                                 the Dock=Right type pill right next to the text instead of
+                                 the list's right edge. Force-stretch so each row fills the
+                                 GroupItem and the pill sits on the actual right edge. -->
+                            <GroupStyle.ContainerStyle>
+                                <Style TargetType="{x:Type GroupItem}">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </GroupStyle.ContainerStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <!-- Matches the Choose parts headings: a quiet label with
+                                         room above it, rather than a filled band with a rule.
+                                         The separation comes from the whitespace, which is what
+                                         stops a long list reading as a stack of boxes. -->
+                                    <StackPanel Orientation="Horizontal" Margin="6,10,6,4">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextMuted}"/>
+                                        <TextBlock Text="  ·  " Foreground="{DynamicResource TextDisabled}"/>
+                                        <!-- Use the precomputed ParentGroupCount stamped on each item, not
+                                             the CollectionViewGroup's ItemCount, so the total stays constant
+                                             when the filter narrows the visible rows. -->
+                                        <TextBlock Text="{Binding Items[0].ParentGroupCount}" Foreground="{DynamicResource TextDisabled}"/>
+                                        <TextBlock Text=" modifiable resources" Foreground="{DynamicResource TextDisabled}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                </ListBox>
+            </DockPanel>
+
+            <!-- The splitter's grab area supplies the gap between the panes, so
+                 neither side carries a margin of its own. -->
+            <GridSplitter Grid.Column="1" Width="10"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                          ShowsPreview="False"/>
+
+            <!-- Right: preview + channels + slice nav + metadata + actions -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Preview area. Four overlapping layers — checker, image, text,
+                     placeholder. The selection handler shows/hides them per the
+                     selected row's kind. -->
+                <!-- Background is set in code: the chosen backdrop while an image is
+                     up, the themed surface otherwise, so the empty state and the text
+                     previews aren't left sitting on a judging colour. -->
+                <Border Grid.Row="0" Name="PreviewSurface" Style="{StaticResource Panel}"
+                        Background="{DynamicResource SurfaceSunken}">
+                    <!-- A Border does not clip its children to CornerRadius, so an image
+                         scaled to fill would square off the corners it sits in. The clip
+                         is set from code on resize, inset by the 1px stroke. -->
+                    <Grid Name="PreviewClipHost" SizeChanged="PreviewClipHost_SizeChanged">
+                        <Image Name="PreviewImage" Stretch="Uniform" StretchDirection="DownOnly"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <!-- A RichTextBox rather than a TextBox: JSON and XML are
+                             coloured per token, and a TextBox has exactly one
+                             foreground. It scrolls itself, so there is no outer
+                             ScrollViewer to nest inside. -->
+                        <RichTextBox Name="PreviewText" Visibility="Collapsed" IsReadOnly="True"
+                                     Background="{DynamicResource SurfaceSunken}"
+                                     Foreground="{DynamicResource TextMuted}"
+                                     BorderThickness="0" Padding="10"
+                                     FontFamily="Consolas, Cascadia Mono" FontSize="12"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto"
+                                     SelectionBrush="{DynamicResource Accent}"
+                                     SelectionOpacity="0.35">
+                            <RichTextBox.Resources>
+                                <!-- The square where the two scrollbars meet. The stock
+                                     ScrollViewer template fills it from a system brush,
+                                     which follows Windows' theme rather than ours and so
+                                     stayed light in dark mode. Transparent shows the
+                                     control's own themed background instead. -->
+                                <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}"
+                                                 Color="Transparent"/>
+                            </RichTextBox.Resources>
+                        </RichTextBox>
+                        <!-- Structured view for the formats we parse — materials and
+                             contexts. Built in code because its rows come from the parse:
+                             the binding lists are the point of it, and each row has to know
+                             which resource it links to. -->
+                        <ScrollViewer Name="StructuredPanel" Visibility="Collapsed"
+                                      Background="{DynamicResource Surface}"
+                                      Padding="16" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Name="StructuredContent"/>
+                        </ScrollViewer>
+
+                        <TextBlock Name="PreviewMessage" Foreground="{DynamicResource TextMuted}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   TextWrapping="Wrap" Margin="20"
+                                   Text="Select a resource to preview it."/>
+                    </Grid>
+                </Border>
+
+                <!-- Channel isolation (visible only while an image is previewed).
+                     Ego packs AO, roughness and metallic into separate channels of
+                     one texture, so a composite view is the one thing that can't
+                     show you what a mask actually holds. -->
+                <Border Grid.Row="1" Name="ChannelBar" Style="{StaticResource Panel}"
+                        Margin="0,6,0,0" Padding="8,4"
+                        Visibility="Collapsed">
+                    <!-- Channels stay centred in the bar; the backdrop swatches sit on
+                         the right edge. A Grid rather than a DockPanel, so the centred
+                         group centres on the bar itself instead of on whatever space
+                         the swatches leave over. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Channels" VerticalAlignment="Center" Margin="0,0,12,0"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                            <!-- RadioButtons group by parent panel, so these and the
+                                 swatches below are already separate groups. -->
+                            <RadioButton Style="{StaticResource ChannelChip}" Content="RGB" Tag="Rgb"
+                                         Name="ChannelRgb" IsChecked="True" Checked="Channel_Changed"
+                                         ToolTip="Colour as stored"/>
+                            <RadioButton Style="{StaticResource ChannelChip}" Content="R" Tag="Red"
+                                         Checked="Channel_Changed" ToolTip="Red channel only"/>
+                            <RadioButton Style="{StaticResource ChannelChip}" Content="G" Tag="Green"
+                                         Checked="Channel_Changed" ToolTip="Green channel only"/>
+                            <RadioButton Style="{StaticResource ChannelChip}" Content="B" Tag="Blue"
+                                         Checked="Channel_Changed" ToolTip="Blue channel only"/>
+                            <RadioButton Style="{StaticResource ChannelChip}" Content="A" Tag="Alpha"
+                                         Checked="Channel_Changed" ToolTip="Alpha channel only"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Background" VerticalAlignment="Center" Margin="0,0,10,0"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                            <Slider Name="BackdropSlider" Style="{StaticResource BackdropSlider}"
+                                    Width="130" VerticalAlignment="Center"
+                                    ValueChanged="Backdrop_Changed"
+                                    ToolTip="Slide from a white background to a dark one — a light artwork reads against dark, a dark one against light"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Slice nav (visible only when ArraySize > 1) -->
+                <Border Grid.Row="2" Name="SliceBar" Style="{StaticResource Panel}"
+                        Margin="0,6,0,0" Padding="8,4"
+                        Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Name="PrevSliceButton" Content="◀" Padding="14,2" Click="PrevSlice_Click"
+                                ToolTip="Previous slice"/>
+                        <TextBlock Name="SliceLabel" VerticalAlignment="Center"
+                                   Margin="14,0" FontWeight="SemiBold"/>
+                        <Button Name="NextSliceButton" Content="▶" Padding="14,2" Click="NextSlice_Click"
+                                ToolTip="Next slice"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Metadata -->
+                <Border Grid.Row="3" Style="{StaticResource Panel}" Margin="0,8,0,0" Padding="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="0" Grid.Column="0" Text="Name"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Name="MetaName"/>
+
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="1" Grid.Column="0" Text="Format"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="1" Grid.Column="1" Name="MetaFormat"/>
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="1" Grid.Column="2" Text="Resolution"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="1" Grid.Column="3" Name="MetaResolution"/>
+
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="2" Grid.Column="0" Text="Mip levels"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="2" Grid.Column="1" Name="MetaMips"/>
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="2" Grid.Column="2" Text="Array size"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="2" Grid.Column="3" Name="MetaArraySize"/>
+
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="3" Grid.Column="0" Text="Mipmap file"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Name="MetaMipFile"/>
+
+                        <TextBlock Style="{StaticResource MetaKey}" Grid.Row="4" Grid.Column="0" Text="Identifier"/>
+                        <TextBlock Style="{StaticResource MetaVal}" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Name="MetaIdentifier"
+                                   Foreground="{DynamicResource TextMuted}" FontWeight="Normal"/>
+                    </Grid>
+                </Border>
+
+                <!-- Actions for the current row(s). What acts across every loaded
+                     ERP sits in the project bar instead, beside Open and Save. -->
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Name="ExportAllSlicesButton" Content="Export all slices" Padding="22,8" Margin="0,0,8,0"
+                                Click="ExportAllSlices_Click" Visibility="Collapsed"
+                                ToolTip="Save every slice of this texture array as &lt;name&gt;.sliceN.png"/>
+                        <Button Name="ExportButton" Content="Export" Padding="22,8" FontWeight="SemiBold"
+                                Click="Export_Click" IsEnabled="False"/>
+                        <Button Name="ImportButton" Content="Import" Padding="22,8" Margin="8,0,0,0"
+                                Click="Import_Click" IsEnabled="False"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status log. Hidden by default; toggled from Settings → Show/Hide log.
+             LogBox still receives writes either way, so toggling on shows the full backlog. -->
+        <DockPanel Name="LogPanel" Grid.Row="2" Margin="18,0,18,18" Visibility="Collapsed">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Log" Style="{StaticResource SectionHeader}"/>
+                <Button Grid.Column="1" Content="Clear log" Padding="10,2" Click="ClearLog_Click"/>
+            </Grid>
+            <TextBox Name="LogBox" IsReadOnly="True" FontFamily="Consolas, Cascadia Mono"
+                     FontSize="12" VerticalScrollBarVisibility="Auto"
+                     TextWrapping="Wrap" AcceptsReturn="True"/>
+        </DockPanel>
+    </Grid>
+</Window>

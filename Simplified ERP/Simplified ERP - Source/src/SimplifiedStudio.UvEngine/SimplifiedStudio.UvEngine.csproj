@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- The loaders build WPF Media3D geometry and ImageBrush materials, and the
+         UV renderer rasterizes through DrawingVisual / RenderTargetBitmap. -->
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedStudio.UvEngine</RootNamespace>
+
+    <!-- Third-party engine sources, carried in as written. They predate this
+         solution's nullable and implicit-usings settings, so those are turned
+         off here rather than editing 30k lines to satisfy them — which is the
+         reason this is its own project instead of files compiled into the app. -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Embed symbols rather than emitting a loose .pdb, which would otherwise
+         be the one extra file sitting beside the published single-file exe. -->
+    <DebugType>embedded</DebugType>
+
+    <!-- Their warnings are not ours to fix, and burying our own under thousands
+         of theirs would defeat the point of having warnings. -->
+    <NoWarn>$(NoWarn);CS0649;CS0168;CS0219;CS0414;CS1591;CA1416;NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HelixToolkit.Wpf" />
+    <PackageReference Include="ZstdSharp.Port" />
+  </ItemGroup>
+
+</Project>

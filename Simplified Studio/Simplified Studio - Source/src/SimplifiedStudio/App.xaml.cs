@@ -1,0 +1,70 @@
+﻿using System.Configuration;
+using System.Linq;
+using System.Data;
+using System.Windows;
+
+namespace SimplifiedStudio;
+
+/// <summary>
+/// Interaction logic for App.xaml
+/// </summary>
+public partial class App : Application
+{
+
+    /// <summary>
+    /// The file a double-click asked for, if any. Explorer starts the app with
+    /// it as the first argument; the window acts on it once it is up, since
+    /// there is nothing to open it into before that.
+    ///
+    /// Matched against the types the app actually claims, so an unrelated
+    /// argument is ignored rather than guessed at.
+    /// </summary>
+    public static string? StartupFile { get; private set; }
+
+    /// <summary>
+    /// Take the file Explorer handed over, and put the saved palette in place
+    /// before the first window is built so the app never flashes the wrong
+    /// theme on the way up.
+    /// </summary>
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        StartupFile = e.Args.FirstOrDefault(a =>
+            Util.FileAssociation.Kinds.Any(k =>
+                a.EndsWith(k.Extension, StringComparison.OrdinalIgnoreCase))
+            && System.IO.File.Exists(a));
+
+        try
+        {
+            Util.ThemeManager.Apply(Core.Config.UserConfig.Load().Theme);
+        }
+        catch
+        {
+            // An unreadable config is not a reason to refuse to start; the
+            // default palette is already merged.
+        }
+
+        base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// The code the process reports when a person closed the window.
+    ///
+    /// Nothing in here shuts the app down on its own, so a normal exit means
+    /// someone shut it. That is the difference the release smoke check needs:
+    /// it starts the packaged exe and asks whether it is still up, and a build
+    /// that quit by itself would otherwise report the same 0 that success
+    /// reports. The release runs on the same machine somebody is working on,
+    /// so windows do get closed while it waits.
+    ///
+    /// Measured rather than assumed: of the ways to set a WPF process's exit
+    /// code, ExitEventArgs.ApplicationExitCode is the documented one and it
+    /// does reach the process. WPF's own default is 0.
+    /// </summary>
+    public const int ClosedByUserExitCode = 1000;
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        e.ApplicationExitCode = ClosedByUserExitCode;
+        base.OnExit(e);
+    }
+}

@@ -1,0 +1,23 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+publish/
+
+# IDE / editor cache
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# Misc
+*.log
+*.tmp
+TestResults/
+.DS_Store
+Thumbs.db
+
+# Team-only Advanced-menu unlock marker — never commit or ship
+team.simplified

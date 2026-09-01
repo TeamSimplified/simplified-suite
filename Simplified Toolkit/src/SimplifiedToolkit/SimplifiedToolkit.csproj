@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SimplifiedToolkit.Cli</RootNamespace>
+    <AssemblyName>stk</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Publish-time settings. Activated only when running `dotnet publish` (via the
+    _IsPublishing property MSBuild sets internally). `dotnet build` / `dotnet run`
+    stay framework-dependent and keep the flat output layout for fast dev cycles.
+
+    Release command:
+      dotnet publish src/SimplifiedToolkit -c Release -r win-x64 -o publish/
+
+    Produces a single self-contained stk.exe with no .NET 10 install required.
+  -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimplifiedToolkit.Core\SimplifiedToolkit.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <!-- Ship texconv.exe next to stk.exe. Must be Content (not None) with
+       ExcludeFromSingleFile so it survives PublishSingleFile as a loose file —
+       None items get stripped from a single-file publish, which left the
+       packaged tool unable to do PNG texture conversion. -->
+  <ItemGroup>
+    <Content Include="..\..\tools\texconv.exe"
+             Link="tools\texconv.exe"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+</Project>

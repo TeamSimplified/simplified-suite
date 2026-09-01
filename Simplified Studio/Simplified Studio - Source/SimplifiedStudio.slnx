@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SimplifiedStudio.Core/SimplifiedStudio.Core.csproj" />
+    <Project Path="src/SimplifiedStudio/SimplifiedStudio.csproj" />
+  </Folder>
+</Solution>

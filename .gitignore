@@ -1,0 +1,15 @@
+# Build output.
+[Bb]in/
+[Oo]bj/
+
+# Packaged builds. Each app's release step rebuilds these, and they are the
+# exe and zip themselves - several hundred megabytes that would otherwise sit
+# in every clone. They stayed outside the repository when each app had its own;
+# in one repository they have to be named to stay out.
+* - Release/
+
+# What the apps write next to themselves at runtime.
+config.json
+
+# Scratch left by the dev harnesses under tools/.
+*.user

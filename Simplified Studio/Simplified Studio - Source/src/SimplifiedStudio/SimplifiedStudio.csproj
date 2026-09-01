@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedStudio</RootNamespace>
+    <AssemblyName>Simplified Studio</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- Off deliberately. Turning it on embeds the native libraries in the
+         single file, and the host then extracts them to %TEMP%\.net at startup:
+         about 100 MB, once per build, never cleaned up, and outside the app
+         folder — which this app does not do. They publish as files instead,
+         and MoveNativesIntoRuntimeFolder below tidies them away. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimplifiedStudio.Core\SimplifiedStudio.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Ship icon.ico beside the published EXE and texconv.exe in runtime\,
+       joining the native libraries — one folder of things the app needs and
+       nobody should be poking at, rather than two.
+       Content items survive PublishSingleFile (None items get stripped).
+       ExcludeFromSingleFile keeps them as separate files instead of embedded. -->
+  <ItemGroup>
+    <!-- The icon Explorer shows on a .simplified file, once the user asks for
+         the association in Settings. Shipped as a file because the registry
+         points at a path; it cannot be read from inside the exe. -->
+    <Content Include="..\..\serps.ico" Link="runtime\serps.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+    <Content Include="..\..\project.ico" Link="runtime\project.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+    <Content Include="..\..\icon.ico" Link="runtime\icon.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+    <!-- Only texconv.exe ships — NOT the whole tools/ folder, which also holds
+         dev-only helper projects (smoke tests, diff tools) that must never be
+         packaged. It is a separate process the app launches, so it has to stay
+         a real file on disk; TexconvRunner looks for it here. -->
+    <Content Include="..\..\tools\texconv.exe"
+             Link="runtime\texconv.exe"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <!-- Put the published native libraries in runtime\ rather than loose beside
+       the exe, joining texconv.exe there. Everything else in the publish folder
+       is a Content item we placed on purpose, so the loose .dll files here are
+       exactly the native ones.
+
+       NativeLibraryFolder is the other half of this: nothing looks in a
+       subfolder by default, so the app has to say where they went. -->
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+      <!-- A package that ships per-architecture natives publishes them into
+           x64/ and x86/ - ZstdNet, by way of the UV engine. This app is x64
+           only, so the x64 copy joins the rest and the x86 one is dropped.
+           Verified: zstd still round-trips from runtime/. -->
+      <PublishedNativeLibrary Include="$(PublishDir)x64\*.dll"/>
+      <UnusedArchitectureNative Include="$(PublishDir)x86\**\*"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+    <Delete Files="@(UnusedArchitectureNative)"/>
+    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86"/>
+  </Target>
+
+</Project>

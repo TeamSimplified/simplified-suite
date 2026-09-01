@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedStudio.Core</RootNamespace>
+    <AssemblyName>SimplifiedStudio.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZstdSharp.Port" />
+    <PackageReference Include="K4os.Compression.LZ4" />
+    <PackageReference Include="CommunityToolkit.HighPerformance" />
+    <PackageReference Include="System.IO.Packaging" />
+    <!-- Required by the EgoEngineLibrary.Data.Pkg port — PKG read/write goes
+         through Newtonsoft.Json. System.Text.Json elsewhere in the project is
+         untouched. -->
+    <PackageReference Include="Newtonsoft.Json" />
+  </ItemGroup>
+
+  <!-- ERP fragment baked into the assembly; ProjectPackager extracts it to a
+       temp file at package time and merges it into both shader_package ERPs.
+       Stored as a resource (not a Content file) so it never ships loose next
+       to the EXE — only the assembly is published. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Embedded\serps.erp" LogicalName="serps.erp" />
+  </ItemGroup>
+
+</Project>

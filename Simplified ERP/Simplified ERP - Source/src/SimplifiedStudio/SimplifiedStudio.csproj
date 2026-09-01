@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedStudio</RootNamespace>
+    <AssemblyName>Simplified ERP</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- Off deliberately. Turning it on embeds the native libraries in the
+         single file, and the host then extracts them to %TEMP%\.net at startup:
+         about 100 MB, once per build, never cleaned up, and outside the app
+         folder — which this app does not do. They publish as files instead,
+         and MoveNativesIntoRuntimeFolder below tidies them away. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimplifiedStudio.Core\SimplifiedStudio.Core.csproj" />
+    <ProjectReference Include="..\SimplifiedStudio.UvEngine\SimplifiedStudio.UvEngine.csproj" />
+  </ItemGroup>
+
+  <!-- Ship icon.ico beside the published EXE and texconv.exe in runtime\,
+       joining the native libraries — one folder of things the app needs and
+       nobody should be poking at, rather than two.
+       Content items survive PublishSingleFile (None items get stripped).
+       ExcludeFromSingleFile keeps them as separate files instead of embedded. -->
+  <ItemGroup>
+    <Content Include="..\..\icon.ico" Link="runtime\icon.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+    <!-- Only texconv.exe ships — NOT the whole tools/ folder, which also
+         holds dev-only helper projects (smoke tests, diff tools) that must
+         never be packaged. The glob that used to be here shipped them,
+         bin and obj included. It is a separate process the app launches,
+         so it has to stay a real file on disk; TexconvRunner looks for it
+         here. -->
+    <Content Include="..\..\tools\texconv.exe"
+             Link="runtime\texconv.exe"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <!-- Put the published native libraries in runtime\ rather than loose beside
+       the exe, joining texconv.exe there. Everything else in the publish folder
+       is a Content item we placed on purpose, so the loose .dll files here are
+       exactly the native ones.
+
+       NativeLibraryFolder is the other half of this: nothing looks in a
+       subfolder by default, so the app has to say where they went. -->
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+      <!-- Kept for any future package that ships per-architecture natives
+           into x64/ and x86/: this app is x64 only, so the x64 copy joins the
+           rest and the x86 one is dropped. Nothing does at present. -->
+      <PublishedNativeLibrary Include="$(PublishDir)x64\*.dll"/>
+      <UnusedArchitectureNative Include="$(PublishDir)x86\**\*"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+    <Delete Files="@(UnusedArchitectureNative)"/>
+    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86"/>
+  </Target>
+
+</Project>

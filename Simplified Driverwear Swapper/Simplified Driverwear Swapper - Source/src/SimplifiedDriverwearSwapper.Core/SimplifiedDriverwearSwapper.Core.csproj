@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedDriverwearSwapper.Core</RootNamespace>
+    <AssemblyName>SimplifiedDriverwearSwapper.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!-- No package references, and no ERP format code: every game file is read and
+       written by the bundled Simplified Toolkit CLI. That keeps the format in one
+       place across the suite — anything missing gets added to the Toolkit rather
+       than reimplemented here. -->
+
+</Project>

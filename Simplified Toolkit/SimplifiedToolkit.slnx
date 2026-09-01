@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SimplifiedToolkit.Core/SimplifiedToolkit.Core.csproj" />
+    <Project Path="src/SimplifiedToolkit/SimplifiedToolkit.csproj" />
+  </Folder>
+</Solution>
