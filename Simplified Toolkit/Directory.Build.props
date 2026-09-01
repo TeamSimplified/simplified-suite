@@ -9,6 +9,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+    <!-- Inside the assembly, so a referenced library's .pdb does not follow an
+         app into its publish output. -->
+    <DebugType>embedded</DebugType>
     <Company>ERP Handler</Company>
     <Copyright>Portions ported from EgoEngineLibrary (MIT) — © ryder25</Copyright>
   </PropertyGroup>

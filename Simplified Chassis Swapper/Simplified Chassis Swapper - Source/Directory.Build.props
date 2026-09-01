@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
+    <!-- What the app reports for its version, alongside the commit it was
+         built from, so a release tag can be checked against the binary. -->
+    <Version>1.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>

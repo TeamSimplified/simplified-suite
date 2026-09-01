@@ -4,6 +4,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
+    <!-- Inside the assembly, not beside it. A referenced library's loose .pdb
+         otherwise follows every app into its publish output and then into the
+         package, which is not something anyone downloads a mod tool for. -->
+    <DebugType>embedded</DebugType>
     <Company>Team Simplified</Company>
     <Copyright>Portions ported from EgoEngineLibrary (MIT), (c) ryder25</Copyright>
   </PropertyGroup>
