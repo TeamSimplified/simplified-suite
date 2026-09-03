@@ -4,7 +4,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:local="clr-namespace:SimplifiedSwapper"
         Title="Simplified Swapper"
-        Width="920" Height="520" MinWidth="760" MinHeight="470"
+        Width="920" Height="500" MinWidth="760" MinHeight="470"
         FontFamily="Segoe UI" FontSize="13"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
