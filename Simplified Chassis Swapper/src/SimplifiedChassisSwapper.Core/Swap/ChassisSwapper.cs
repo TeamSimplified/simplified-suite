@@ -74,34 +74,6 @@ public sealed class ChassisSwapper
         foreach (var missed in rename.Skipped)
             result.Warnings.Add($"Couldn't rename one occurrence: {missed}");
 
-        // ── 3b. Give the car's textures names of this swap's own ────────────
-        //
-        // Everything above renames the car to what the user asked for, which
-        // two people can ask for independently. The textures are the part where
-        // that bites: a material names its texture, and if two mods for the
-        // same team both ship 'textures/26-fer_damage.tif' then whichever
-        // loads second wins and the other car wears the wrong livery.
-        //
-        // A tag in the folder segment settles it. Only this car's own textures
-        // move — the shared ones it draws from elsewhere in the game keep the
-        // names the rest of the game knows them by.
-        if (options.UniqueTextureNames)
-        {
-            var tag = Guid.NewGuid().ToString("N")[..8];
-            var from = $"/teams/{options.NewName}/textures/";
-            var to = $"/teams/{options.NewName}/textures-{tag}/";
-
-            Report("Giving the textures unique names…", 0.50);
-            var textures = ErpRename.Apply(chassis, from, to);
-
-            result.TexturesRenamed = textures.Identifiers;
-            result.TextureTag = tag;
-            result.FragmentsPatched += textures.Fragments;
-
-            foreach (var missed in textures.Skipped)
-                result.Warnings.Add($"Couldn't rename one texture reference: {missed}");
-        }
-
         // ── 4. Drop the chassis's own slot wiring ───────────────────────────
         // The car keeps its geometry but must not claim its old identity: the
         // handling file and every /wep/ resource are replaced by the team's.
