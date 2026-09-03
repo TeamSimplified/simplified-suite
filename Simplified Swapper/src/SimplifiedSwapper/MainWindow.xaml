@@ -99,16 +99,19 @@
                         Tag="{StaticResource IconOpen}" Click="OpenTemplate_Click"
                         ToolTip="Open template    (Ctrl+O)"/>
 
-                <!-- Save, not Save as: a template is opened, swapped into and
-                     saved back. SaveTemplateAsButton stays, hidden, because
-                     Ctrl+Shift+S reaches it and OnTemplateStateChanged drives
-                     its IsEnabled with the rest. -->
-                <Button DockPanel.Dock="Left" Name="SaveTemplateButton" Style="{StaticResource IconButton}"
+                <!-- Save as, not Save: a save icon asks where, in every app in
+                     the suite. It matters most here, because what gets opened is
+                     usually a template straight out of the pack — one click on a
+                     Save icon would overwrite the master copy with a swap.
+
+                     SaveTemplateButton stays, hidden, because Ctrl+S reaches it
+                     and OnTemplateStateChanged drives its IsEnabled. -->
+                <Button DockPanel.Dock="Left" Name="SaveTemplateAsButton" Style="{StaticResource IconButton}"
                         Tag="{StaticResource IconSave}" Margin="6,0,0,0"
-                        Click="SaveTemplate_Click" IsEnabled="False"
-                        ToolTip="Save template    (Ctrl+S — Ctrl+Shift+S saves as)"/>
-                <Button DockPanel.Dock="Left" Name="SaveTemplateAsButton" Visibility="Collapsed"
-                        Click="SaveTemplateAs_Click" IsEnabled="False"/>
+                        Click="SaveTemplateAs_Click" IsEnabled="False"
+                        ToolTip="Save template as…    (Ctrl+S saves in place)"/>
+                <Button DockPanel.Dock="Left" Name="SaveTemplateButton" Visibility="Collapsed"
+                        Click="SaveTemplate_Click" IsEnabled="False"/>
 
                 <!-- Reverse visual order again: Close sits outermost. -->
                 <Button DockPanel.Dock="Right" Name="CloseTemplateButton" Content="Close"

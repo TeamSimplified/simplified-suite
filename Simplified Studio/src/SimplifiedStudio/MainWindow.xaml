@@ -159,18 +159,18 @@
                             Tag="{StaticResource IconOpen}" Click="OpenProject_Click"
                             ToolTip="Open project"/>
 
-                    <!-- Save, not Save as: a project is opened, worked on and saved
-                         back, so saving in place is the press that recurs. Save as is
-                         Ctrl+Shift+S, and creating a copy is the rarer intent.
+                    <!-- Save as, not Save: a save icon asks where, in every app in
+                         the suite. Overwriting what you opened is what Ctrl+S is for,
+                         and it should take saying so rather than one click.
 
-                         SaveProjectAsButton stays, collapsed, because
-                         OnProjectStateChanged still drives its IsEnabled. -->
-                    <Button DockPanel.Dock="Left" Name="SaveProjectButton" Style="{StaticResource IconButton}"
+                         SaveProjectButton stays, collapsed, because the shortcut and
+                         OnProjectStateChanged both still drive it. -->
+                    <Button DockPanel.Dock="Left" Name="SaveProjectAsButton" Style="{StaticResource IconButton}"
                             Tag="{StaticResource IconSave}" Margin="6,0,0,0"
-                            Click="SaveProject_Click" IsEnabled="False"
-                            ToolTip="Save project    (Ctrl+S — Ctrl+Shift+S saves as)"/>
-                    <Button DockPanel.Dock="Left" Name="SaveProjectAsButton" Visibility="Collapsed"
-                            Click="SaveProjectAs_Click" IsEnabled="False"/>
+                            Click="SaveProjectAs_Click" IsEnabled="False"
+                            ToolTip="Save project as…    (Ctrl+S saves in place)"/>
+                    <Button DockPanel.Dock="Left" Name="SaveProjectButton" Visibility="Collapsed"
+                            Click="SaveProject_Click" IsEnabled="False"/>
 
                     <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
 
