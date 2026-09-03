@@ -237,7 +237,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     {
         if (_host.HasTemplate && !TeamErps.CanSwapDriverwear(_host.ShaderPackage))
         {
-            SetStatus($"{TeamErps.TeamNameOf(_host.ShaderPackage)} swaps are coming soon — " +
+            SetStatus($"{TeamErps.TeamNameOf(_host.ShaderPackage)} driverwear is coming soon — " +
                       "nothing to do here yet.", StatusBrush);
             return;
         }
