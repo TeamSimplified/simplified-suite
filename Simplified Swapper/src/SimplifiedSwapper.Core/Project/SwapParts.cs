@@ -106,8 +106,13 @@ public static class SwapParts
     public static Destination Chassis(string carName) =>
         new($"Livery - {Clean(carName)} Chassis", 1, "car_swapped_livery-and-chassis");
 
-    public static readonly Destination Driverwear =
-        new("Driverwear - Swapped", 2, "driverwear_swapped");
+    /// <summary>
+    /// Where swapped driverwear goes, named after the wear that went in —
+    /// <c>Driverwear - 2026-mclaren</c> — for the same reason the chassis
+    /// folder is named after its car.
+    /// </summary>
+    public static Destination Driverwear(string wearName) =>
+        new($"Driverwear - {Clean(wearName)}", 2, "driverwear_swapped");
 
     /// <summary>
     /// A car name fit to be a folder name. The invalid characters would become

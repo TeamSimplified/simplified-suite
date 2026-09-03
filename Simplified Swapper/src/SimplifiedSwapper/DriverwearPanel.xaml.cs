@@ -317,6 +317,14 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     public event EventHandler? CanSwapChanged;
 
 
+    /// <summary>
+    /// The wear being put on, as the dropdown names it. It becomes the folder's
+    /// name in the template, so a template shows what was done to it without
+    /// being opened.
+    /// </summary>
+    private string WearName =>
+        (DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry)?.Name ?? "Swapped";
+
     /// <summary>Run this half's swap.</summary>
     public async Task RunSwapAsync()
     {
@@ -326,7 +334,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         // Nobody picks where this goes any more: the swap writes to scratch and
         // the window files it in the open template. Outside the template until
         // it has finished, so a failed run leaves nothing in there.
-        var outputPath = _host.ScratchErpPath(SwapParts.Driverwear);
+        var outputPath = _host.ScratchErpPath(SwapParts.Driverwear(WearName));
 
         var log = new List<string>();
         void Log(string line)
@@ -364,7 +372,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
                           $"({result.OutputResources} resources) with {result.Warnings.Count} warning(s).", ErrorBrush);
             else
             {
-                var part = _host.PlaceSwap(result.OutputPath, SwapParts.Driverwear);
+                var part = _host.PlaceSwap(result.OutputPath, SwapParts.Driverwear(WearName));
                 Log($"Added to the template as {part}");
                 SetStatus($"Added {Path.GetFileName(part)} to the template — " +
                           $"{result.OutputResources} resources, {result.DriverCount} driver(s). " +
