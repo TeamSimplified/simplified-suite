@@ -119,8 +119,8 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         ChassisCarBox.SelectedItem ??= _defaultCar;
 
         ChassisHint.Text = !allowed
-            ? $"{TeamErps.TeamNameOf(_host.ShaderPackage)} can't take a swapped chassis — the game " +
-              "doesn't load one. Its driverwear still can."
+            ? $"Coming soon — {TeamErps.TeamNameOf(_host.ShaderPackage)} is built differently " +
+              "from a team and needs its own swap."
             : cars.Count > 0
                 ? "The car you want to drive — its model, textures and cameras are kept."
                 : "No 2026 cars under your game folder — check the folder in Settings.";

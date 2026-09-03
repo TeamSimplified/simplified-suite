@@ -129,11 +129,14 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         _driverwear = DriverwearCatalogue.Scan(_config.GameDir);
         _suits = DriverwearCatalogue.ScanMyTeamSuits(_config.GameDir);
 
-        var targets = TeamTargets();
+        var allowed = !_host.HasTemplate || TeamErps.CanSwapDriverwear(_host.ShaderPackage);
+        var targets = allowed ? TeamTargets() : new List<DriverwearCatalogue.DriverwearEntry>();
 
-        DriverwearBox.ItemsSource = _driverwear;
-        DriverwearBox.IsEnabled = _driverwear.Count > 0;
-        DriverwearHint.Text = "The suit, gloves and boots you want to use.";
+        DriverwearBox.ItemsSource = allowed ? _driverwear : new List<DriverwearCatalogue.DriverwearEntry>();
+        DriverwearBox.IsEnabled = allowed && _driverwear.Count > 0;
+        DriverwearHint.Text = allowed
+            ? "The suit, gloves and boots the team will race in."
+            : "Coming soon — My Team is built differently from a team and needs its own swap.";
 
         TeamBox.ItemsSource = targets;
         TeamBox.IsEnabled = targets.Count > 1;
@@ -149,7 +152,10 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         // One team is a fact, not a choice, so it reads as text. My Team's
         // suits are a choice and keep the list.
         TeamBox.Visibility = targets.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-        TeamHint.Text = TargetHint(targets);
+
+        // The wear's own hint carries the reason when the swap isn't offered,
+        // so this one would only repeat it.
+        TeamHint.Text = allowed ? TargetHint(targets) : "";
 
         // The wear a template opens with is its own team's, which is the state
         // of not having asked for anything.
@@ -229,6 +235,13 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
 
     private void RefreshStatus()
     {
+        if (_host.HasTemplate && !TeamErps.CanSwapDriverwear(_host.ShaderPackage))
+        {
+            SetStatus($"{TeamErps.TeamNameOf(_host.ShaderPackage)} swaps are coming soon — " +
+                      "nothing to do here yet.", StatusBrush);
+            return;
+        }
+
         var gameDir = _config.GameDir;
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
@@ -284,7 +297,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         var to = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
 
         SwapButton.IsEnabled =
-            _host.HasTemplate &&
+            _host.HasTemplate && TeamErps.CanSwapDriverwear(_host.ShaderPackage) &&
             from is not null && to is not null &&
             !string.Equals(from.Name, to.Name, StringComparison.OrdinalIgnoreCase);
 
@@ -373,18 +386,31 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
             DriversHint.Text = $"{result.Outputs.Count} item(s) in {WorkingDir}";
 
             if (result.OutputPath is null)
-                SetStatus("The output wasn't written — see the list.", ErrorBrush);
-            else if (result.Warnings.Count > 0)
-                SetStatus($"Wrote {Path.GetFileName(result.OutputPath)} " +
-                          $"({result.OutputResources} resources) with {result.Warnings.Count} warning(s).", ErrorBrush);
-            else
             {
-                var part = _host.PlaceSwap(result.OutputPath, SwapParts.Driverwear(WearName));
-                Log($"Added to the template as {part}");
-                SetStatus($"Added {Path.GetFileName(part)} to the template — " +
-                          $"{result.OutputResources} resources, {result.DriverCount} driver(s). " +
-                          "Save it to keep it.", OkBrush);
+                SetStatus("The swap produced nothing to add.", ErrorBrush);
+                return;
             }
+
+            // A warning means the swap is partial, and a partial swap is not
+            // something to put in a template: it would sit there looking
+            // finished. So it fails, says why, and the template is left alone.
+            //
+            // What it must not do is what it used to — build the ERP, report
+            // "wrote" in red, and quietly drop it in a scratch folder, which
+            // read as a warning about something that had actually happened.
+            if (result.Warnings.Count > 0)
+            {
+                var more = result.Warnings.Count > 1 ? $" (+{result.Warnings.Count - 1} more)" : "";
+                SetStatus($"Swap failed: {result.Warnings[0]}{more} " +
+                          "Nothing was added to the template.", ErrorBrush);
+                return;
+            }
+
+            var part = _host.PlaceSwap(result.OutputPath, SwapParts.Driverwear(WearName));
+            Log($"Added to the template as {part}");
+            SetStatus($"Added {Path.GetFileName(part)} to the template — " +
+                      $"{result.OutputResources} resources, {result.DriverCount} driver(s). " +
+                      "Save it to keep it.", OkBrush);
         }
         catch (Exception ex)
         {

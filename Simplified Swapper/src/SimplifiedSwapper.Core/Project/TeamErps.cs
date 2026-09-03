@@ -57,7 +57,8 @@ public static class TeamErps
     /// Team template is for — but they are not cars anyone picks to drive.
     /// </param>
     private sealed record Team(string Name, string[] Folders, string? DriverwearSet,
-                               string Code, bool OnTheGrid = true, bool ChassisSwapWorks = true);
+                               string Code, bool OnTheGrid = true,
+                               bool ChassisSwapWorks = true, bool DriverwearSwapWorks = true);
 
     private const string TeamsSubPath = "f1_2026_vehicle_package/teams";
 
@@ -79,7 +80,8 @@ public static class TeamErps
         [
             "myteam_audi", "myteam_ferrari", "myteam_honda",
             "myteam_mercedes", "myteam_redbull_ford", "myteam_renault",
-        ], DriverwearSet: null, Code: "myt", OnTheGrid: false, ChassisSwapWorks: false),
+        ], DriverwearSet: null, Code: "myt", OnTheGrid: false,
+           ChassisSwapWorks: false, DriverwearSwapWorks: false),
     };
 
     /// <summary>The team a shader package belongs to, or null for one we don't know.</summary>
@@ -117,6 +119,17 @@ public static class TeamErps
     /// default in game.
     /// </summary>
     public const string MyTeamDefaultSuit = "tier02_livery98";
+
+    /// <summary>
+    /// Whether a driverwear swap into this template is worth offering.
+    ///
+    /// False for My Team, which needs building differently from a team and
+    /// isn't done yet.
+    /// </summary>
+    public static bool CanSwapDriverwear(string? shaderPackage) =>
+        shaderPackage is not null &&
+        ByShaderPackage.TryGetValue(shaderPackage, out var team) &&
+        team.DriverwearSwapWorks;
 
     /// <summary>True when the template's wear comes from the player's MyTeam suits.</summary>
     public static bool WearsMyTeamSuits(string? shaderPackage) =>
