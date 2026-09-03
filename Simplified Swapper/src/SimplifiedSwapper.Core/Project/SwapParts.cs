@@ -80,13 +80,47 @@ public static class SwapParts
     /// <c>26-ferrari_driverwear</c>, so a swap reads as one more of those rather
     /// than as something a different program left behind.
     /// </param>
-    public sealed record Destination(string DisplayName, int ConflictGroup, string NameSuffix);
+    public sealed record Destination(string DisplayName, int ConflictGroup, string NameSuffix)
+    {
+        /// <summary>
+        /// What identifies a swap of this kind inside a template, whatever its
+        /// folder ended up called.
+        ///
+        /// The part's name rather than the folder's: a folder named after the
+        /// car changes when the car does, and something has to survive that for
+        /// a second swap to know what it is replacing. Stock parts are
+        /// <c>car_default_…</c> and <c>car_FOM_…</c>, so this cannot match one
+        /// of those by accident — which matters, since what it finds is deleted.
+        /// </summary>
+        public string Marker => NameSuffix;
+    }
 
-    public static readonly Destination Chassis =
-        new("Livery - Swapped Chassis", 1, "car_swapped_livery-and-chassis");
+    /// <summary>
+    /// Where a swapped chassis goes, named after the car that went in —
+    /// <c>Livery - Ferrari Chassis</c> — so a template says what was done to it
+    /// without being opened.
+    ///
+    /// That the name varies is why nothing looks a swap up by it; see
+    /// <see cref="Destination.Marker"/>.
+    /// </summary>
+    public static Destination Chassis(string carName) =>
+        new($"Livery - {Clean(carName)} Chassis", 1, "car_swapped_livery-and-chassis");
 
     public static readonly Destination Driverwear =
         new("Driverwear - Swapped", 2, "driverwear_swapped");
+
+    /// <summary>
+    /// A car name fit to be a folder name. The invalid characters would become
+    /// real path separators, and a double hyphen reads as one of Studio's
+    /// prefixes.
+    /// </summary>
+    private static string Clean(string name)
+    {
+        name = (name ?? "").Trim();
+        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, ' ');
+        name = name.Replace("--", "-").Trim();
+        return name.Length == 0 ? "Swapped" : name;
+    }
 
     /// <summary>
     /// Prefix for the ERP itself. Group <c>00</c> is "no group": the part is the

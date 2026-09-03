@@ -217,10 +217,16 @@ public static class SerpsStore
         // All of them, not the first: the numbers are ours but the file is the
         // user's, and two folders under one display name would otherwise leave
         // a second swapped chassis in the template for good.
+        // Found by what is inside rather than by what the folder is called. The
+        // chassis folder is named after the car that went in, so swapping a
+        // second car looks for a folder whose name it no longer knows — but the
+        // part in it is still the only thing in the template called
+        // car_swapped_livery-and-chassis.
+        //
         // Listed before the loop, not during it: CategoryFolderNames walks the
         // directory lazily, and deleting out from under that walk throws.
-        var previous = template.CategoryFolderNames.Where(f =>
-            SerpsPrefix.Display(f).Equals(destination.DisplayName, StringComparison.OrdinalIgnoreCase))
+        var previous = template.CategoryFolderNames
+            .Where(f => HoldsA(template, f, destination))
             .ToList();
 
         foreach (var stale in previous)
@@ -245,6 +251,25 @@ public static class SerpsStore
         Directory.CreateDirectory(folder);
         File.Copy(sourceErpPath, Path.Combine(folder, partFileName), overwrite: true);
         return Path.Combine(folderName, partFileName);
+    }
+
+    /// <summary>
+    /// Whether a folder holds a swap of this kind — an ERP whose name carries
+    /// the destination's marker.
+    ///
+    /// Deliberately not "is this folder called what we would call it": the
+    /// chassis folder takes the name of the car in it, and a template being
+    /// swapped into a second time has a folder named for the first car.
+    /// </summary>
+    private static bool HoldsA(SerpsTemplate template, string folder, SwapParts.Destination destination)
+    {
+        var path = Path.Combine(template.ErpsFolder, folder);
+        if (!Directory.Exists(path)) return false;
+
+        return Directory.EnumerateFiles(path, "*.erp")
+                        .Select(Path.GetFileNameWithoutExtension)
+                        .Any(n => n is not null &&
+                                  n.Contains(destination.Marker, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

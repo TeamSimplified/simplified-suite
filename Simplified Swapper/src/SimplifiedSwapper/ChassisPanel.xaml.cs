@@ -430,6 +430,13 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     public event EventHandler? CanSwapChanged;
 
 
+    /// <summary>
+    /// The car being swapped in, as the dropdown names it. It becomes the
+    /// folder's name in the template, so a template shows what was done to it
+    /// without being opened.
+    /// </summary>
+    private string CarName => (ChassisCarBox.SelectedItem as TeamErps.Candidate)?.Label ?? "Swapped";
+
     /// <summary>Run this half's swap.</summary>
     public async Task RunSwapAsync()
     {
@@ -438,7 +445,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         // Nobody picks where this goes any more: the swap writes to scratch and
         // the window files it in the open template. Outside the template until
         // it has finished, so a failed run leaves nothing in there.
-        var outputPath = _host.ScratchErpPath(SwapParts.Chassis);
+        var outputPath = _host.ScratchErpPath(SwapParts.Chassis(CarName));
 
         var options = new ChassisSwapOptions
         {
@@ -495,7 +502,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
 
     private void ReportSuccess(ChassisSwapResult result, string outputPath)
     {
-        var part = _host.PlaceSwap(outputPath, SwapParts.Chassis);
+        var part = _host.PlaceSwap(outputPath, SwapParts.Chassis(CarName));
 
         Log($"resources   {result.ResourcesIn} -> {result.ResourcesOut}");
         Log($"textures    {result.TexturesEmbedded} embedded" +

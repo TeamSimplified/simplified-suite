@@ -196,9 +196,11 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     {
         if (DriverwearHint is null) return;   // fires during InitializeComponent
 
-        DriverwearHint.Text = Describe(
-            DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry,
-            "The suit, gloves and boots you want to use.");
+        // No file name here: the dropdown above already says which set this
+        // is, and repeating it as an .erp only adds a line.
+        DriverwearHint.Text = DriverwearBox.SelectedItem is DriverwearCatalogue.DriverwearEntry wear && !wear.HasErp
+            ? $"No {wear.Name}.erp in this folder."
+            : "The suit, gloves and boots the team will race in.";
         // The team hint says which template this is for, which a pick doesn't
         // change — only the source needs re-describing.
 
