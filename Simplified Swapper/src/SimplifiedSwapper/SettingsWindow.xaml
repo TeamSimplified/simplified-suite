@@ -20,6 +20,18 @@
                        Text="Your F1 25 install. Used to pull each texture's full-resolution mipmaps into the swap, and to find the in-car driver animations."/>
         </StackPanel>
 
+        <Border BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,12">
+            <StackPanel>
+                <TextBlock Text="Appearance" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <RadioButton Name="LightChip" Content="Light" Style="{StaticResource ChannelChip}"
+                                 Checked="Light_Checked"/>
+                    <RadioButton Name="DarkChip" Content="Dark" Style="{StaticResource ChannelChip}"
+                                 Margin="0" Checked="Dark_Checked"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
         <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,12">
             <StackPanel>
                 <TextBlock Text="Credits" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,6"/>

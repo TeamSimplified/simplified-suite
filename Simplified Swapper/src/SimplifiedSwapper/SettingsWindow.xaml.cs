@@ -10,11 +10,25 @@ namespace SimplifiedSwapper;
 
 public partial class SettingsWindow : Window
 {
-    private static readonly Brush HintBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0x9C));
-    private static readonly Brush WarnBrush = new SolidColorBrush(Color.FromRgb(0xB0, 0x2A, 0x2A));
-    private static readonly Brush OkBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x4F));
+    // Read from the palette rather than pinned, so they are right in both of
+    // them. Resolved per use because the palette can change while this dialog
+    // is open — picking a theme applies it immediately.
+    private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
+    private static Brush WarnBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
+    private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
+
+    private static Brush Themed(string key, byte r, byte g, byte b) =>
+        Application.Current?.TryFindResource(key) as Brush
+        ?? new SolidColorBrush(Color.FromRgb(r, g, b));
 
     private readonly UserConfig _config;
+
+    /// <summary>
+    /// The palette on the way in, so Cancel can put it back. A theme is applied
+    /// as it is picked — choosing one from a dialog still wearing the old one is
+    /// guessing — which means leaving without saving has to undo it.
+    /// </summary>
+    private readonly string _themeOnEntry = SimplifiedUi.ThemeManager.Current;
 
     public SettingsWindow(UserConfig config)
     {
@@ -24,6 +38,24 @@ public partial class SettingsWindow : Window
         SimplifiedUi.DialogChrome.Apply(this);
         _config = config;
         GameDirBox.Text = config.GameDir ?? "";
+
+        // Set before the handlers can fire, so opening the dialog doesn't count
+        // as picking anything.
+        LightChip.IsChecked = !SimplifiedUi.ThemeManager.IsDark;
+        DarkChip.IsChecked = SimplifiedUi.ThemeManager.IsDark;
+    }
+
+    private void Light_Checked(object sender, RoutedEventArgs e) =>
+        SimplifiedUi.ThemeManager.Apply(SimplifiedUi.ThemeManager.Light);
+
+    private void Dark_Checked(object sender, RoutedEventArgs e) =>
+        SimplifiedUi.ThemeManager.Apply(SimplifiedUi.ThemeManager.Dark);
+
+    /// <summary>Cancel, or the close button, puts the palette back.</summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        if (DialogResult != true) SimplifiedUi.ThemeManager.Apply(_themeOnEntry);
+        base.OnClosed(e);
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -76,6 +108,7 @@ public partial class SettingsWindow : Window
     {
         var dir = GameDirBox.Text.Trim();
         _config.GameDir = dir.Length == 0 ? null : dir;
+        _config.Theme = SimplifiedUi.ThemeManager.Current;
         DialogResult = true;
     }
 }

@@ -256,6 +256,10 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     /// <summary>Settings closed. A different game install makes the cached animation lists stale.</summary>
     public void SettingsChanged(bool gameDirChanged)
     {
+        // Colours this panel sets in code were resolved from the palette that
+        // was current at the time, so a theme change leaves them behind until
+        // something re-runs. Validation is what sets them.
+        UpdateValidation();
         if (!gameDirChanged) return;
 
         RefreshCars();
