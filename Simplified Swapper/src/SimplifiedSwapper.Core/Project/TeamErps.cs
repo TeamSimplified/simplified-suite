@@ -108,6 +108,16 @@ public static class TeamErps
         ByShaderPackage.TryGetValue(shaderPackage, out var team) &&
         team.ChassisSwapWorks;
 
+    /// <summary>
+    /// The MyTeam suit a template should open on.
+    ///
+    /// The suits sort in a way that means nothing — the first alphabetically is
+    /// a novelty one — so without this a My Team template opens pointing at
+    /// whatever happens to be first. This is the one that is actually the
+    /// default in game.
+    /// </summary>
+    public const string MyTeamDefaultSuit = "tier02_livery98";
+
     /// <summary>True when the template's wear comes from the player's MyTeam suits.</summary>
     public static bool WearsMyTeamSuits(string? shaderPackage) =>
         shaderPackage is not null && ByShaderPackage.TryGetValue(shaderPackage, out var t) &&

@@ -137,7 +137,14 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
 
         TeamBox.ItemsSource = targets;
         TeamBox.IsEnabled = targets.Count > 1;
-        TeamBox.SelectedItem = targets.Count > 0 ? targets[0] : null;
+
+        // A real team has one target and it doesn't matter which way this is
+        // written. My Team has eighty-one, ordered by nothing in particular, so
+        // the one the game itself defaults to is named rather than left to
+        // whatever sorts first.
+        TeamBox.SelectedItem =
+            targets.FirstOrDefault(t => t.Name.Equals(TeamErps.MyTeamDefaultSuit, StringComparison.OrdinalIgnoreCase))
+            ?? (targets.Count > 0 ? targets[0] : null);
 
         // One team is a fact, not a choice, so it reads as text. My Team's
         // suits are a choice and keep the list.
