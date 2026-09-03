@@ -38,17 +38,6 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     // what we put there, so anything the user typed survives.
     private string _autoOldName = "";
 
-    /// <summary>
-    /// How long a replacement name may be.
-    ///
-    /// Not the format's limit — identifiers take any length — but the tightest
-    /// thing in the archive: a handful of .layer files store the name in a slot
-    /// of fixed width, sixteen bytes in every 2026 car measured. The swap reads
-    /// the real figure off the car it is given and refuses anything longer, so
-    /// this is only what the panel says while typing.
-    /// </summary>
-    private const int MaxNameLength = 16;
-
 
     public ChassisPanel()
     {
@@ -334,25 +323,22 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         var old = OldNameBox.Text.Trim();
         var neu = NewNameBox.Text.Trim();
 
-        // The two names no longer have to match in length: the rename knows how
-        // the archive frames its strings and rewrites them properly. What is
-        // left is a ceiling, from a few .layer files that keep the name in a
-        // slot of fixed width. Every 2026 car measures the same sixteen, and
-        // the swap checks the real figure for the car in hand before starting.
-        if (neu.Length == 0)
+        // Length is the one rule the user can't work around — fragment payloads are
+        // patched by equal-length byte replacement — so say so as they type.
+        if (old.Length == 0 || neu.Length == 0)
         {
-            LengthHint.Text = $"Up to {MaxNameLength} characters.";
+            LengthHint.Text = "Both names must be the same number of characters.";
             LengthHint.Foreground = HintBrush;
         }
-        else if (neu.Length > MaxNameLength)
+        else if (old.Length != neu.Length)
         {
-            LengthHint.Text = $"'{neu}' is {neu.Length} characters — {MaxNameLength} is as much as " +
-                              "the car's camera and effect layers have room for.";
+            LengthHint.Text = $"'{old}' is {old.Length} characters, '{neu}' is {neu.Length} — " +
+                              $"they must match, so add or remove {Math.Abs(old.Length - neu.Length)}.";
             LengthHint.Foreground = ErrorBrush;
         }
         else
         {
-            LengthHint.Text = $"{neu.Length} of {MaxNameLength} characters.";
+            LengthHint.Text = $"{neu.Length} characters — matches.";
             LengthHint.Foreground = OkBrush;
         }
 
@@ -376,8 +362,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         var neu = NewNameBox.Text.Trim();
         if (old.Length == 0) return "Enter the name to replace.";
         if (neu.Length == 0) return "Enter the replacement name.";
-        if (neu.Length > MaxNameLength)
-            return $"The replacement name can be at most {MaxNameLength} characters.";
+        if (old.Length != neu.Length) return "The two names must be the same length.";
         if (string.Equals(old, neu, StringComparison.Ordinal))
             return "The replacement name is the same as the original.";
 

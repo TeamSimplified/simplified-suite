@@ -1,6 +1,5 @@
 using System.Text;
 using EgoEngineLibrary.Archive.Erp;
-using EgoEngineLibrary.Operations;
 using SimplifiedChassisSwapper.Core.Util;
 
 namespace SimplifiedChassisSwapper.Core.Swap;
@@ -49,30 +48,10 @@ public sealed class ChassisSwapper
         var chassisLayers = CaptureLayerJson(chassis, options.OldName);
 
         // ── 3. Re-badge: identifiers and payloads ───────────────────────────
-        // The new name no longer has to be the same length as the old one. It
-        // does have a ceiling, which the archive itself sets: a few of its
-        // .layer files hold names in slots of fixed width, and a name that
-        // won't fit one of those can't be placed everywhere. Asked before the
-        // work rather than after, because a rename that reaches most of an
-        // archive leaves it naming two different things - worse than one that
-        // was never started.
         Report("Renaming to the new identity…", 0.45);
-
-        var room = ErpRename.MaxLength(chassis, options.OldName);
-        if (options.NewName.Length > room)
-            throw new InvalidOperationException(
-                $"'{options.NewName}' is {options.NewName.Length} characters and this car has room " +
-                $"for {room}. Its camera and effect layers store the name in a fixed-width slot.");
-
-        var rename = ErpRename.Apply(chassis, options.OldName, options.NewName);
-        result.IdentifiersRenamed = rename.Identifiers;
-        result.FragmentsPatched = rename.Fragments;
-
-        // Belt and braces: the check above should catch anything that cannot be
-        // placed, so a leftover here means the archive is shaped in a way this
-        // doesn't know about yet.
-        foreach (var missed in rename.Skipped)
-            result.Warnings.Add($"Couldn't rename one occurrence: {missed}");
+        var (renamed, patched) = Rebadge(chassis, options.OldName, options.NewName);
+        result.IdentifiersRenamed = renamed;
+        result.FragmentsPatched = patched;
 
         // ── 4. Drop the chassis's own slot wiring ───────────────────────────
         // The car keeps its geometry but must not claim its old identity: the
@@ -137,6 +116,60 @@ public sealed class ChassisSwapper
             catch { /* not a readable PKG — the team's own layer is used instead */ }
         }
         return map;
+    }
+
+    /// <summary>
+    /// Replace the chassis token with the new name in both resource identifiers
+    /// and fragment payloads. Payload edits are equal-length byte replacements,
+    /// which is why the two names must match in length.
+    /// </summary>
+    private static (int renamed, int patched) Rebadge(ErpFile erp, string oldName, string newName)
+    {
+        var oldBytes = Encoding.UTF8.GetBytes(oldName);
+        var newBytes = Encoding.UTF8.GetBytes(newName);
+        int renamed = 0, patched = 0;
+
+        foreach (var res in erp.Resources)
+        {
+            if (res.Identifier.Contains(oldName, StringComparison.Ordinal))
+            {
+                res.Identifier = res.Identifier.Replace(oldName, newName, StringComparison.Ordinal);
+                renamed++;
+            }
+
+            foreach (var frag in res.Fragments)
+            {
+                byte[] data;
+                try { data = frag.GetDataArray(true); }
+                catch { continue; }
+
+                if (!ReplaceInPlace(data, oldBytes, newBytes)) continue;
+                try { frag.SetData(data); patched++; }
+                catch { /* leave the fragment untouched if it won't re-pack */ }
+            }
+        }
+        return (renamed, patched);
+    }
+
+    /// <summary>Equal-length in-place byte replacement. True when anything changed.</summary>
+    private static bool ReplaceInPlace(byte[] haystack, byte[] needle, byte[] replacement)
+    {
+        if (needle.Length == 0 || needle.Length != replacement.Length) return false;
+        var changed = false;
+        var limit = haystack.Length - needle.Length;
+        for (var i = 0; i <= limit; i++)
+        {
+            var match = true;
+            for (var j = 0; j < needle.Length; j++)
+            {
+                if (haystack[i + j] != needle[j]) { match = false; break; }
+            }
+            if (!match) continue;
+            Buffer.BlockCopy(replacement, 0, haystack, i, replacement.Length);
+            changed = true;
+            i += needle.Length - 1;
+        }
+        return changed;
     }
 
     /// <summary>
