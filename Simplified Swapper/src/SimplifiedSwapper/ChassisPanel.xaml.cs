@@ -99,7 +99,11 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     {
         if (!_ready) return;
 
-        var cars = TeamErps.AllCars(_config.GameDir);
+        // A template the game won't take a swapped chassis for gets no car
+        // list at all. Offering one and failing at the end, or worse producing
+        // a mod that quietly doesn't load, is worse than saying so here.
+        var allowed = !_host.HasTemplate || TeamErps.CanSwapChassis(_host.ShaderPackage);
+        var cars = allowed ? TeamErps.AllCars(_config.GameDir) : [];
 
         var chosen = (ChassisCarBox.SelectedItem as TeamErps.Candidate)?.Path;
         ChassisCarBox.ItemsSource = cars;
@@ -114,9 +118,15 @@ public partial class ChassisPanel : UserControl, ISwapPanel
             : null;
         ChassisCarBox.SelectedItem ??= _defaultCar;
 
-        ChassisHint.Text = cars.Count > 0
-            ? "The car you want to drive — its model, textures and cameras are kept."
-            : "No 2026 cars under your game folder — check the folder in Settings.";
+        ChassisHint.Text = !allowed
+            ? $"{TeamErps.TeamNameOf(_host.ShaderPackage)} can't take a swapped chassis — the game " +
+              "doesn't load one. Its driverwear still can."
+            : cars.Count > 0
+                ? "The car you want to drive — its model, textures and cameras are kept."
+                : "No 2026 cars under your game folder — check the folder in Settings.";
+
+        // The rename only means anything alongside a car.
+        NewNameBox.IsEnabled = allowed;
 
         if (ChassisCarBox.SelectedItem is null) ChassisBox.Text = "";
         UpdateValidation();
@@ -159,7 +169,9 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     {
         if (!_ready) return;
 
-        var candidates = _host.HasTemplate
+        // No slot to offer where no chassis swap is going to happen. My Team's
+        // six engine slots are a real choice about a swap that can't be made.
+        var candidates = _host.HasTemplate && TeamErps.CanSwapChassis(_host.ShaderPackage)
             ? TeamErps.For(_config.GameDir, _host.ShaderPackage)
             : new List<TeamErps.Candidate>();
 
@@ -170,7 +182,12 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         // One slot is a fact, not a choice, so it reads as text. My Team's six
         // are a choice and keep the list.
         TeamErpBox.Visibility = candidates.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-        TeamErpHint.Text = TeamHint(candidates);
+
+        // The car's own hint carries the reason when the swap is off, so this
+        // one would only repeat it.
+        TeamErpHint.Text = _host.HasTemplate && !TeamErps.CanSwapChassis(_host.ShaderPackage)
+            ? ""
+            : TeamHint(candidates);
 
         // SelectionChanged doesn't fire for a list that went empty, so the store
         // is written here rather than only there.
@@ -357,7 +374,12 @@ public partial class ChassisPanel : UserControl, ISwapPanel
 
         // Length is the one rule the user can't work around — fragment payloads are
         // patched by equal-length byte replacement — so say so as they type.
-        if (old.Length == 0 || neu.Length == 0)
+        if (_host.HasTemplate && !TeamErps.CanSwapChassis(_host.ShaderPackage))
+        {
+            // Nothing to rename into, so nothing to say about lengths.
+            LengthHint.Text = "";
+        }
+        else if (old.Length == 0 || neu.Length == 0)
         {
             LengthHint.Text = "Both names must be the same number of characters.";
             LengthHint.Foreground = HintBrush;
@@ -397,6 +419,8 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     {
         if (_busy) return "Swapping…";
         if (!_host.HasTemplate) return "Open a template to swap into.";
+        if (!TeamErps.CanSwapChassis(_host.ShaderPackage))
+            return $"{TeamErps.TeamNameOf(_host.ShaderPackage) ?? "This template"} can't take a swapped chassis.";
         if (ChassisBox.Text.Trim().Length == 0) return "Choose the car you want to drive.";
         if (!File.Exists(ChassisBox.Text.Trim())) return "That car's ERP isn't in the game folder.";
         if (TeamBox.Text.Trim().Length == 0) return "This template has no team ERP to swap into.";

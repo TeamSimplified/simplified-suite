@@ -44,13 +44,20 @@ public static class TeamErps
     /// because the codes were given rather than derived, and the work on
     /// renaming at any length will want them.
     /// </param>
+    /// <param name="ChassisSwapWorks">
+    /// False for My Team. A swapped chassis can be built for its slots and the
+    /// game will not load it — so the app doesn't offer to build one. Kept
+    /// apart from <paramref name="OnTheGrid"/> deliberately: that one is about
+    /// which cars are on the grid, this is about what the game accepts, and
+    /// they coincide today by accident rather than for a reason.
+    /// </param>
     /// <param name="OnTheGrid">
     /// False for My Team, which is the player's own entry rather than one of the
     /// eleven. Its slots are still somewhere a swap can go — that is what a My
     /// Team template is for — but they are not cars anyone picks to drive.
     /// </param>
     private sealed record Team(string Name, string[] Folders, string? DriverwearSet,
-                               string Code, bool OnTheGrid = true);
+                               string Code, bool OnTheGrid = true, bool ChassisSwapWorks = true);
 
     private const string TeamsSubPath = "f1_2026_vehicle_package/teams";
 
@@ -72,7 +79,7 @@ public static class TeamErps
         [
             "myteam_audi", "myteam_ferrari", "myteam_honda",
             "myteam_mercedes", "myteam_redbull_ford", "myteam_renault",
-        ], DriverwearSet: null, Code: "myt", OnTheGrid: false),
+        ], DriverwearSet: null, Code: "myt", OnTheGrid: false, ChassisSwapWorks: false),
     };
 
     /// <summary>The team a shader package belongs to, or null for one we don't know.</summary>
@@ -88,6 +95,18 @@ public static class TeamErps
     public static string? DriverwearSetOf(string? shaderPackage) =>
         shaderPackage is not null && ByShaderPackage.TryGetValue(shaderPackage, out var t)
             ? t.DriverwearSet : null;
+
+    /// <summary>
+    /// Whether a chassis swap into this template is worth offering.
+    ///
+    /// False for My Team: the swap builds, and the game doesn't load it. False
+    /// too for a package we don't recognise, where there is no slot to swap
+    /// into at all.
+    /// </summary>
+    public static bool CanSwapChassis(string? shaderPackage) =>
+        shaderPackage is not null &&
+        ByShaderPackage.TryGetValue(shaderPackage, out var team) &&
+        team.ChassisSwapWorks;
 
     /// <summary>True when the template's wear comes from the player's MyTeam suits.</summary>
     public static bool WearsMyTeamSuits(string? shaderPackage) =>
