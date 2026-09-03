@@ -8,10 +8,14 @@
              Button style without one would replace the themed template outright
              and land this window back on the stock look. The TextBlock ones
              carry their own Foreground for the same reason. -->
+        <!-- Top, not centre. A row is a control with a line or two of hint
+             under it, and a centred label drifts down past the thing it names —
+             on the tallest row it ends up level with the hint instead. The top
+             margin is what puts it on the control's own text. -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Margin" Value="0,7,10,0"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style x:Key="Hint" TargetType="TextBlock">
