@@ -11,6 +11,12 @@ public sealed class ChassisSwapResult
     /// <summary>Textures that had external mips we couldn't reach (kept base image only).</summary>
     public int TexturesMipsUnreachable { get; set; }
 
+    /// <summary>Texture identifiers given a tag of this swap's own. Zero when it was off.</summary>
+    public int TexturesRenamed { get; set; }
+
+    /// <summary>The tag they were given, for the log.</summary>
+    public string? TextureTag { get; set; }
+
     public int IdentifiersRenamed { get; set; }
     public int FragmentsPatched { get; set; }
 

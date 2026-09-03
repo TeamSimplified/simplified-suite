@@ -80,6 +80,19 @@ public sealed class ChassisSwapOptions
     /// </summary>
     public string? TeamAnimsetOverride { get; init; }
 
+    /// <summary>
+    /// Give this car's own textures identifiers nobody else will have.
+    ///
+    /// Two mods built for the same team otherwise name their textures
+    /// identically — the names come from the team, not from the mod — so
+    /// installing both means one quietly winning. A tag in the texture path
+    /// makes each swap's textures its own.
+    ///
+    /// Only the car's own textures move. Anything it shares with the rest of
+    /// the game keeps the name the rest of the game knows it by.
+    /// </summary>
+    public bool UniqueTextureNames { get; init; } = true;
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(OldName) || string.IsNullOrWhiteSpace(NewName))

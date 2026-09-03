@@ -481,6 +481,8 @@ public partial class ChassisPanel : UserControl, ISwapPanel
                 ? $", {result.TexturesMipsUnreachable} without external mipmaps"
                 : ""));
         Log($"renamed     {result.IdentifiersRenamed} identifiers, {result.FragmentsPatched} fragments");
+        if (result.TextureTag is not null)
+            Log($"tagged      {result.TexturesRenamed} texture identifiers as textures-{result.TextureTag}");
         Log($"removed     {result.RemovedVtf} vtf, {result.RemovedWep} wep");
         Log($"grafted     {result.LayersRebuilt} layers rebuilt, {result.WepCopied} copied");
         Log(result.AnimsetTransplanted
