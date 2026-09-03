@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>SimplifiedStudio.Core</RootNamespace>
     <AssemblyName>SimplifiedStudio.Core</AssemblyName>
-    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

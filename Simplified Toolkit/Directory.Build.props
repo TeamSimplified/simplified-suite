@@ -1,18 +1,21 @@
 <Project>
+
+  <!-- MSBuild stops at the first Directory.Build.props it finds on the way up,
+       so this file replaced the suite-wide one rather than adding to it. Every
+       setting in the root was therefore reaching nothing, and each project was
+       quietly repeating whatever it needed - until one didn't, and shipped a
+       loose .pdb. Importing it explicitly is the way to have both. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
   <PropertyGroup>
-    <LangVersion>latest</LangVersion>
-    <!-- The version stk reports, alongside the commit it was built from. Set
-         here so a tag can be checked against the binary rather than taken on
-         trust, the way the two apps already are. -->
+    <!-- What the app reports for its version, alongside the commit it was
+         built from, so a release tag can be checked against the binary. -->
     <Version>1.1</Version>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Deterministic>true</Deterministic>
-    <!-- Inside the assembly, so a referenced library's .pdb does not follow an
-         app into its publish output. -->
-    <DebugType>embedded</DebugType>
-    <Company>ERP Handler</Company>
+
+    <!-- The two the root sets differently. Declared after the import, so these
+         win. -->
+    <Company>Simplified Studio</Company>
     <Copyright>Portions ported from EgoEngineLibrary (MIT) — © ryder25</Copyright>
   </PropertyGroup>
+
 </Project>

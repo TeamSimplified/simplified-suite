@@ -14,9 +14,6 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
 
-    <!-- Embed symbols rather than emitting a loose .pdb, which would otherwise
-         be the one extra file sitting beside the published single-file exe. -->
-    <DebugType>embedded</DebugType>
 
     <!-- Their warnings are not ours to fix, and burying our own under thousands
          of theirs would defeat the point of having warnings. -->

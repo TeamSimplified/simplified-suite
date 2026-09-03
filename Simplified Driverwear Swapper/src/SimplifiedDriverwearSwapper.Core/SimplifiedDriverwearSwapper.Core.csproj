@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>SimplifiedDriverwearSwapper.Core</RootNamespace>
     <AssemblyName>SimplifiedDriverwearSwapper.Core</AssemblyName>
-    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <!-- No ERP code of its own: every game file is read and written by the
