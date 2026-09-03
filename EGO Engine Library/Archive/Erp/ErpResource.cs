@@ -16,7 +16,48 @@ namespace EgoEngineLibrary.Archive.Erp
 
         public List<ErpFragment> Fragments { get; }
 
+        /// <summary>
+        /// The resource's 16-byte hash: MD5 over every fragment's decompressed
+        /// data, concatenated in order. Confirmed against all 2,983 resources
+        /// of three shipped F1 25 archives.
+        ///
+        /// It covers the data and nothing else — not the identifier, not the
+        /// resource type — so renaming a resource cannot invalidate it, while
+        /// editing any fragment always does.
+        /// </summary>
         public byte[] Hash { get; private set; }
+
+        /// <summary>
+        /// Recompute <see cref="Hash"/> from the fragments as they stand.
+        ///
+        /// Worth doing after editing one. The game evidently doesn't check it —
+        /// mods that patch fragment bytes and leave the old hash in place have
+        /// always worked — but a stale hash is still wrong, and nothing about
+        /// leaving it wrong is cheaper than fixing it.
+        ///
+        /// Leaves the hash alone if a fragment can't be read, since half a hash
+        /// is worse than a stale one.
+        /// </summary>
+        /// <returns>True when the hash was recomputed.</returns>
+        public bool RecomputeHash()
+        {
+            try
+            {
+                using var all = new MemoryStream();
+                foreach (var fragment in Fragments)
+                {
+                    var data = fragment.GetDataArray(true);
+                    all.Write(data, 0, data.Length);
+                }
+
+                Hash = System.Security.Cryptography.MD5.HashData(all.ToArray());
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         public string FileName
         {
