@@ -35,4 +35,14 @@ public interface ISerpsHost
     /// </summary>
     /// <returns>The part's path inside the template, for the log.</returns>
     string PlaceSwap(string erpPath, SwapParts.Destination destination);
+
+    /// <summary>
+    /// Say what is happening. There is one status line for the window rather
+    /// than one per panel, because there is one page and one thing happening
+    /// on it at a time.
+    /// </summary>
+    void ReportStatus(string text, SwapStatus kind = SwapStatus.Plain);
+
+    /// <summary>How far along, 0 to 1. Negative clears the bar.</summary>
+    void ReportProgress(double fraction);
 }

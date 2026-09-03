@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -56,7 +57,6 @@ public partial class MainWindow : Window, ISerpsHost
         // and whatever that one currently thinks of its inputs.
         Chassis.CanSwapChanged += (_, _) => RefreshSwap();
         Driverwear.CanSwapChanged += (_, _) => RefreshSwap();
-        Tabs.SelectionChanged += (_, _) => RefreshSwap();
 
         OnTemplateStateChanged();
 
@@ -79,16 +79,84 @@ public partial class MainWindow : Window, ISerpsHost
 
     // ── The swap ────────────────────────────────────────────────────────────
 
-    /// <summary>The panel the front tab is showing.</summary>
-    private ISwapPanel ActivePanel => Tabs.SelectedIndex == 0 ? Chassis : Driverwear;
+    /// <summary>Both halves of the page, in the order a swap runs them.</summary>
+    private ISwapPanel[] Panels => [Chassis, Driverwear];
+
+    /// <summary>
+    /// Swap runs whichever halves have been changed from what the template
+    /// already is, and only those.
+    ///
+    /// A template opens showing its own team on both sides — that is the state
+    /// of not having asked for anything — so pressing Swap then would rebuild a
+    /// car as itself and re-dress a team in its own wear. Changing one and
+    /// leaving the other is the ordinary case, not an edge one.
+    /// </summary>
+    private ISwapPanel[] Asked => Panels.Where(p => p.IsChanged).ToArray();
 
     private void RefreshSwap()
     {
-        SwapButton.IsEnabled = ActivePanel.CanSwap;
-        SwapButton.Content = ActivePanel.SwapLabel;
+        if (_swapping) return;
+
+        var asked = Asked;
+        SwapButton.IsEnabled = asked.Length > 0 && asked.All(p => p.CanSwap);
+        SwapButton.Content = asked.Length == 2 ? "Swap both" : "Swap";
     }
 
-    private void Swap_Click(object sender, RoutedEventArgs e) => ActivePanel.RunSwap();
+    /// <summary>Set while a swap runs, so the button can't start a second one.</summary>
+    private bool _swapping;
+
+    private async void Swap_Click(object sender, RoutedEventArgs e)
+    {
+        var asked = Asked;
+        if (asked.Length == 0 || _swapping) return;
+
+        _swapping = true;
+        SwapButton.IsEnabled = false;
+        SwapButton.Content = "Swapping…";
+
+        try
+        {
+            // One after another, not both at once: they write into the same
+            // template, and the second would be placing its part while the
+            // first was still rewriting the folder list.
+            foreach (var panel in asked) await panel.RunSwapAsync();
+        }
+        finally
+        {
+            _swapping = false;
+            RefreshSwap();
+        }
+    }
+
+    // ── The status line ─────────────────────────────────────────────────────
+
+    public void ReportStatus(string text, SwapStatus kind = SwapStatus.Plain)
+    {
+        StatusLabel.Text = text;
+        StatusLabel.Foreground = kind switch
+        {
+            SwapStatus.Problem => Themed("Danger", 0xB0, 0x2A, 0x2A),
+            SwapStatus.Done    => Themed("Accent", 0x2E, 0x7D, 0x4F),
+            _                  => Themed("TextPrimary", 0xEA, 0xEA, 0xEA),
+        };
+    }
+
+    public void ReportProgress(double fraction)
+    {
+        if (fraction < 0)
+        {
+            SwapProgress.Value = 0;
+            ProgressLabel.Text = "";
+            return;
+        }
+
+        SwapProgress.Value = fraction;
+        ProgressLabel.Text = $"{(int)(fraction * 100)}%";
+    }
+
+    private static System.Windows.Media.Brush Themed(string key, byte r, byte g, byte b) =>
+        Application.Current?.TryFindResource(key) as System.Windows.Media.Brush
+        ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
 
     // ── ISerpsHost ──────────────────────────────────────────────────────────
 

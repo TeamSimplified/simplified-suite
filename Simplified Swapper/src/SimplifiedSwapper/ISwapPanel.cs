@@ -2,6 +2,17 @@ using SimplifiedSwapper.Core.Config;
 
 namespace SimplifiedSwapper;
 
+/// <summary>How a status line should read.</summary>
+public enum SwapStatus
+{
+    /// <summary>Ordinary progress or an instruction.</summary>
+    Plain,
+    /// <summary>Something is wrong, or finished with warnings.</summary>
+    Problem,
+    /// <summary>Finished cleanly.</summary>
+    Done,
+}
+
 /// <summary>
 /// What the window needs from a swap panel.
 ///
@@ -30,15 +41,25 @@ public interface ISwapPanel
     /// </summary>
     void Reset();
 
-    /// <summary>Whether a swap could start right now.</summary>
-    bool CanSwap { get; }
+    /// <summary>
+    /// Whether this panel has been moved off what the open template already is.
+    ///
+    /// A template opens showing its own team on both sides, which is the state
+    /// of not having asked for anything. Swap runs the panels that have been
+    /// changed and leaves the rest alone, so opening a template and pressing
+    /// Swap does nothing rather than rebuilding a car as itself.
+    /// </summary>
+    bool IsChanged { get; }
 
-    /// <summary>What the button should read right now.</summary>
-    string SwapLabel { get; }
+    /// <summary>Whether a swap could start right now, if it were asked for.</summary>
+    bool CanSwap { get; }
 
     /// <summary>Raised when either of those changes, so the window can follow.</summary>
     event EventHandler? CanSwapChanged;
 
-    /// <summary>Start one.</summary>
-    void RunSwap();
+    /// <summary>
+    /// Run this panel's swap. Awaitable so the window can run one after another
+    /// rather than starting both into the same template at once.
+    /// </summary>
+    Task RunSwapAsync();
 }

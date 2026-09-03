@@ -38,6 +38,24 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     // what we put there, so anything the user typed survives.
     private string _autoOldName = "";
 
+    /// <summary>
+    /// The car this template is already for. Selecting anything else is what
+    /// makes this half of the page a request rather than a starting position —
+    /// see <see cref="IsChanged"/>.
+    /// </summary>
+    private TeamErps.Candidate? _defaultCar;
+
+    /// <summary>
+    /// True once a car other than the template's own is chosen.
+    ///
+    /// With nothing chosen, or the template's own car chosen, there is nothing
+    /// being asked for: rebuilding Ferrari's car as Ferrari's car is work with
+    /// no result, so Swap leaves this half alone.
+    /// </summary>
+    public bool IsChanged =>
+        ChassisCarBox.SelectedItem is TeamErps.Candidate car &&
+        !string.Equals(car.Path, _defaultCar?.Path, StringComparison.OrdinalIgnoreCase);
+
 
     public ChassisPanel()
     {
@@ -58,7 +76,11 @@ public partial class ChassisPanel : UserControl, ISwapPanel
 
         // Opening or closing a template is the difference between a swap having
         // somewhere to go and not — and it is also what decides the team slot.
-        _host.TemplateChanged += (_, _) => RefreshTeamErps();
+        _host.TemplateChanged += (_, _) =>
+        {
+            RefreshCars();        // the template decides which car is the default
+            RefreshTeamErps();
+        };
 
         _ready = true;
         RefreshCars();
@@ -84,6 +106,13 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         ChassisCarBox.IsEnabled = !_busy && cars.Count > 0;
         ChassisCarBox.SelectedItem = cars.FirstOrDefault(c =>
             string.Equals(c.Path, chosen, StringComparison.OrdinalIgnoreCase));
+
+        // A template opens showing the car it is already for. That is the state
+        // of not having asked for anything, and what IsChanged measures against.
+        _defaultCar = _host.HasTemplate
+            ? cars.FirstOrDefault(c => c.Label == TeamErps.TeamNameOf(_host.ShaderPackage))
+            : null;
+        ChassisCarBox.SelectedItem ??= _defaultCar;
 
         ChassisHint.Text = cars.Count > 0
             ? "The car you want to drive — its model, textures and cameras are kept."
@@ -137,6 +166,10 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         TeamErpBox.ItemsSource = candidates;
         TeamErpBox.IsEnabled = candidates.Count > 1;
         TeamErpBox.SelectedItem = candidates.Count > 0 ? candidates[0] : null;
+
+        // One slot is a fact, not a choice, so it reads as text. My Team's six
+        // are a choice and keep the list.
+        TeamErpBox.Visibility = candidates.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         TeamErpHint.Text = TeamHint(candidates);
 
         // SelectionChanged doesn't fire for a list that went empty, so the store
@@ -194,8 +227,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         ChassisCarBox.ItemsSource = null;
         TeamErpBox.ItemsSource = null;
         LogBox.Clear();
-        SwapProgress.Value = 0;
-        ProgressLabel.Text = "";
+        _host.ReportProgress(-1);
         _completionMessage = null;
         _ready = true;
 
@@ -342,10 +374,22 @@ public partial class ChassisPanel : UserControl, ISwapPanel
             LengthHint.Foreground = OkBrush;
         }
 
+        OldNameLabel.Text = old.Length == 0
+            ? ""
+            : $"Replaces '{old}', the name the car has now.";
+
         var problem = FirstProblem();
-        StatusLabel.Foreground = StatusBrush;
-        StatusLabel.Text = problem ?? "Ready to swap.";
         SwapButton.IsEnabled = problem is null;
+
+        // Not only when the button flips: choosing the template's own car again
+        // leaves this half perfectly valid and no longer asked for, and the
+        // window has to hear about that too.
+        CanSwapChanged?.Invoke(this, EventArgs.Empty);
+
+        // Only speak for the page when this half is the one with something to
+        // say. Unchanged, it has nothing: the other half may be mid-swap.
+        if (IsChanged || problem is null)
+            _host.ReportStatus(problem ?? "Ready to swap.", SwapStatus.Plain);
     }
 
     /// <summary>The one thing still blocking a swap, or null when everything's set.</summary>
@@ -386,13 +430,8 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     public event EventHandler? CanSwapChanged;
 
 
-    /// <summary>What the button should read right now.</summary>
-    public string SwapLabel => (string)SwapButton.Content;
-
-    /// <summary>Start one, as if the panel's own button had been pressed.</summary>
-    public void RunSwap() => Swap_Click(SwapButton, new RoutedEventArgs());
-
-    private async void Swap_Click(object sender, RoutedEventArgs e)
+    /// <summary>Run this half's swap.</summary>
+    public async Task RunSwapAsync()
     {
         if (FirstProblem() is not null) return;
 
@@ -427,11 +466,10 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         var lastMessage = "";
         var progress = new Progress<(string Message, double Fraction)>(p =>
         {
-            SwapProgress.Value = p.Fraction;
-            ProgressLabel.Text = $"{(int)(p.Fraction * 100)}%";
+            _host.ReportProgress(p.Fraction);
             if (p.Message == lastMessage) return;
             lastMessage = p.Message;
-            StatusLabel.Text = p.Message;
+            _host.ReportStatus(p.Message, SwapStatus.Plain);
         });
         var reporter = (IProgress<(string, double)>)progress;
 
@@ -444,8 +482,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         }
         catch (Exception ex)
         {
-            SwapProgress.Value = 0;
-            ProgressLabel.Text = "";
+            _host.ReportProgress(-1);
             Log("");
             Log($"FAILED: {ex.Message}");
             MessageBox.Show(Window.GetWindow(this), ex.Message, "Swap failed", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -483,8 +520,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         Log("");
         Log($"Added to the template as {part}");
 
-        SwapProgress.Value = 1;
-        ProgressLabel.Text = "100%";
+        _host.ReportProgress(1);
         _completionMessage = result.Warnings.Count > 0
             ? $"Done with {result.Warnings.Count} warning(s) — see the log."
             : "Done — added to the template. Save it to keep it.";
@@ -507,23 +543,19 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         // Only ever live when there is more than one slot to choose between.
         TeamErpBox.IsEnabled = !busy && TeamErpBox.Items.Count > 1;
 
-        SwapButton.Content = busy ? "Swapping…" : "Swap";
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
 
         if (busy)
         {
             SwapButton.IsEnabled = false;
-            StatusLabel.Foreground = StatusBrush;
             _completionMessage = null;
             return;
         }
 
         UpdateValidation();
         if (_completionMessage is not null)
-        {
-            StatusLabel.Text = _completionMessage;
-            StatusLabel.Foreground = _completionIsWarning ? ErrorBrush : OkBrush;
-        }
+            _host.ReportStatus(_completionMessage,
+                _completionIsWarning ? SwapStatus.Problem : SwapStatus.Done);
     }
 
     private void Log(string line)

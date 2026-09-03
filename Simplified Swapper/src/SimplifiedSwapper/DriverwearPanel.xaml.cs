@@ -27,6 +27,22 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     private UserConfig _config = null!;
     private ISerpsHost _host = null!;
 
+    /// <summary>
+    /// The wear this template's team already races in. Choosing anything else
+    /// is what makes this half a request — see <see cref="IsChanged"/>.
+    /// </summary>
+    private DriverwearCatalogue.DriverwearEntry? _defaultWear;
+
+    /// <summary>
+    /// True once wear other than the team's own is chosen.
+    ///
+    /// Dressing Ferrari in Ferrari's own driverwear is work with no result, so
+    /// Swap leaves this half alone until it is asked for something else.
+    /// </summary>
+    public bool IsChanged =>
+        DriverwearBox.SelectedItem is DriverwearCatalogue.DriverwearEntry wear &&
+        !string.Equals(wear.Name, _defaultWear?.Name, StringComparison.OrdinalIgnoreCase);
+
     private List<DriverwearCatalogue.DriverwearEntry> _driverwear = new();
     private List<DriverwearCatalogue.DriverwearEntry> _suits = new();
 
@@ -74,6 +90,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
 
         DriverwearBox.SelectedItem = null;
         TeamBox.SelectedItem = null;
+        _defaultWear = null;
         DriverList.ItemsSource = null;
         DriversHint.Text = "";
 
@@ -121,7 +138,19 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         TeamBox.ItemsSource = targets;
         TeamBox.IsEnabled = targets.Count > 1;
         TeamBox.SelectedItem = targets.Count > 0 ? targets[0] : null;
+
+        // One team is a fact, not a choice, so it reads as text. My Team's
+        // suits are a choice and keep the list.
+        TeamBox.Visibility = targets.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         TeamHint.Text = TargetHint(targets);
+
+        // The wear a template opens with is its own team's, which is the state
+        // of not having asked for anything.
+        _defaultWear = _host.HasTemplate
+            ? _driverwear.FirstOrDefault(d => d.Name.Equals(
+                TeamErps.DriverwearSetOf(_host.ShaderPackage), StringComparison.OrdinalIgnoreCase))
+            : null;
+        DriverwearBox.SelectedItem ??= _defaultWear;
     }
 
     /// <summary>
@@ -249,6 +278,10 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
             _host.HasTemplate &&
             from is not null && to is not null &&
             !string.Equals(from.Name, to.Name, StringComparison.OrdinalIgnoreCase);
+
+        // Same reason as the other half: choosing the team's own wear back is
+        // still valid and no longer a request.
+        CanSwapChanged?.Invoke(this, EventArgs.Empty);
     }
 
     // ── Swap ────────────────────────────────────────────────────────────────
@@ -282,13 +315,8 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     public event EventHandler? CanSwapChanged;
 
 
-    /// <summary>What the button should read right now.</summary>
-    public string SwapLabel => (string)SwapButton.Content;
-
-    /// <summary>Start one, as if the panel's own button had been pressed.</summary>
-    public void RunSwap() => Swap_Click(SwapButton, new RoutedEventArgs());
-
-    private async void Swap_Click(object sender, RoutedEventArgs e)
+    /// <summary>Run this half's swap.</summary>
+    public async Task RunSwapAsync()
     {
         if (DriverwearBox.SelectedItem is not DriverwearCatalogue.DriverwearEntry from ||
             TeamBox.SelectedItem is not DriverwearCatalogue.DriverwearEntry to) return;
@@ -358,7 +386,6 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         foreach (var c in new Control[] { DriverwearBox, TeamBox })
             c.IsEnabled = !busy;
 
-        SwapButton.Content = busy ? "Working…" : "Swap";
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
 
         if (busy) SwapButton.IsEnabled = false;
@@ -372,8 +399,9 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
 
     private void SetStatus(string text, Brush brush)
     {
-        StatusLabel.Text = text;
-        StatusLabel.Foreground = brush;
+        _host.ReportStatus(text,
+            ReferenceEquals(brush, ErrorBrush) ? SwapStatus.Problem :
+            ReferenceEquals(brush, OkBrush) ? SwapStatus.Done : SwapStatus.Plain);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

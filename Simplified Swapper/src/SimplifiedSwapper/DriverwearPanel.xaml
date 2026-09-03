@@ -40,52 +40,44 @@
         <Button Name="SwapButton" Content="Swap" IsEnabled="False" Visibility="Collapsed"/>
 
         <!-- Body -->
-        <Grid Grid.Row="2" Margin="20,18,20,18">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" MinWidth="90"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>  <!-- 0 driverwear -->
-                <RowDefinition Height="Auto"/>  <!-- 1 team -->
-                <RowDefinition Height="Auto"/>  <!-- 2 output -->
-                <RowDefinition Height="*"/>     <!-- 3 files found -->
-            </Grid.RowDefinitions>
+        <Border Grid.Row="2" Padding="20,4,20,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="120"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- 0 the wear, and who wears it -->
+                    <RowDefinition Height="Auto"/>  <!-- 1 the file list, hidden -->
+                </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Driverwear"/>
-            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,16">
-                <ComboBox Name="DriverwearBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
-                          DisplayMemberPath="Label" MaxDropDownHeight="420"
-                          IsEnabled="False" SelectionChanged="Selection_Changed"/>
-                <TextBlock Name="DriverwearHint" Style="{StaticResource Hint}"
-                           Text="The suit, gloves and boots you want to use."/>
-            </StackPanel>
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}"
+                           Text="Team's driverwear:"/>
+                <StackPanel Grid.Row="0" Grid.Column="1">
+                    <ComboBox Name="DriverwearBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
+                              DisplayMemberPath="Label" MaxDropDownHeight="420"
+                              IsEnabled="False" SelectionChanged="Selection_Changed"/>
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Team"/>
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
-                <ComboBox Name="TeamBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
-                          DisplayMemberPath="Label" MaxDropDownHeight="420"
-                          IsEnabled="False" SelectionChanged="Selection_Changed"/>
-                <TextBlock Name="TeamHint" Style="{StaticResource Hint}"
-                           Text="The team that will wear it."/>
-            </StackPanel>
+                    <!-- Who wears it. A dropdown only for My Team, whose suits
+                         are the player's own and a real choice; for everyone
+                         else the template names the team, so it reads as text. -->
+                    <ComboBox Name="TeamBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
+                              DisplayMemberPath="Label" MaxDropDownHeight="420" Margin="0,6,0,0"
+                              Visibility="Collapsed" SelectionChanged="Selection_Changed"/>
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}"
-                       VerticalAlignment="Top" Margin="0,2,10,0" Text="Files" Visibility="Collapsed"/>
-            <DockPanel Grid.Row="3" Grid.Column="1" Visibility="Collapsed">
-                <TextBlock DockPanel.Dock="Top" Name="DriversHint" Style="{StaticResource Hint}"
-                           Margin="0,0,0,4"
-                           Text="Press Swap to gather the files each side contributes."/>
-                <ListBox Name="DriverList" Background="{DynamicResource SurfaceSunken}"
-                         FontFamily="Consolas" FontSize="11.5"
-                         ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
-            </DockPanel>
-        </Grid>
+                    <TextBlock Name="TeamHint" Style="{StaticResource Hint}"/>
+                    <TextBlock Name="DriverwearHint" Style="{StaticResource Hint}"
+                               Text="The suit, gloves and boots the team will race in."/>
+                </StackPanel>
 
-        <!-- Status -->
-        <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
-                BorderThickness="0,1,0,0" Padding="20,12">
-            <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                <DockPanel Grid.Row="1" Grid.Column="1" Visibility="Collapsed">
+                    <TextBlock DockPanel.Dock="Top" Name="DriversHint" Style="{StaticResource Hint}"/>
+                    <ListBox Name="DriverList" Background="{DynamicResource SurfaceSunken}"
+                             FontFamily="Consolas" FontSize="11.5"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                </DockPanel>
+            </Grid>
         </Border>
+
     </Grid>
 </UserControl>

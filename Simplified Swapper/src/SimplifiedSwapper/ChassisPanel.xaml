@@ -45,32 +45,21 @@
         <Button Name="SwapButton" Content="Swap" IsEnabled="False" Visibility="Collapsed"/>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="20,16,20,16">
+        <Border Grid.Row="2" Padding="20,16,20,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" MinWidth="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>  <!-- 0 chassis -->
-                    <RowDefinition Height="Auto"/>  <!-- 1 team -->
-                    <RowDefinition Height="Auto"/>  <!-- 2 rename header -->
-                    <RowDefinition Height="Auto"/>  <!-- 3 old name -->
-                    <RowDefinition Height="Auto"/>  <!-- 4 new name -->
-                    <RowDefinition Height="Auto"/>  <!-- 5 animations header -->
-                    <RowDefinition Height="Auto"/>  <!-- 6 season -->
-                    <RowDefinition Height="Auto"/>  <!-- 7 animset source -->
-                    <RowDefinition Height="Auto"/>  <!-- 8 animset target -->
-                    <RowDefinition Height="Auto"/>  <!-- 9 engine audio -->
-                    <RowDefinition Height="Auto"/>  <!-- 10 output -->
+                    <RowDefinition Height="Auto"/>  <!-- 0 the car, and the slot it takes -->
+                    <RowDefinition Height="Auto"/>  <!-- 1 what it is called there -->
+                    <RowDefinition Height="Auto"/>  <!-- 2 engine audio, hidden -->
                 </Grid.RowDefinitions>
 
-                <!-- ── Source ERPs ───────────────────────────────────────── -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Chassis"/>
-                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,14">
-                    <!-- The 2026 grid, for now. Browsing is how you would bring
-                         in a car that isn't in the game, which is not what this
-                         is for yet. -->
+                <!-- ── The car ───────────────────────────────────────────── -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Car chassis:"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,16">
                     <ComboBox Name="ChassisCarBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
                               DisplayMemberPath="Label" MaxDropDownHeight="420"
                               IsEnabled="False" SelectionChanged="ChassisCar_Changed"/>
@@ -78,40 +67,34 @@
                     <!-- Collapsed, not removed: still the path the swap reads,
                          and still what every validation path here looks at. -->
                     <TextBox Name="ChassisBox" TextChanged="Inputs_Changed" Visibility="Collapsed"/>
+
+                    <!-- The slot it takes over. Was a dropdown of one, which
+                         invited a choice that isn't there — the template names
+                         the team. It stays a dropdown only for My Team, whose
+                         six engine slots are a real choice. -->
+                    <ComboBox Name="TeamErpBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
+                              DisplayMemberPath="Label" MaxDropDownHeight="420" Margin="0,6,0,0"
+                              Visibility="Collapsed" SelectionChanged="TeamErp_Changed"/>
+                    <TextBox Name="TeamBox" TextChanged="Inputs_Changed" Visibility="Collapsed"/>
+
+                    <TextBlock Name="TeamErpHint" Style="{StaticResource Hint}"/>
                     <TextBlock Name="ChassisHint" Style="{StaticResource Hint}"
                                Text="The car you want to drive — its model, textures and cameras are kept."/>
                 </StackPanel>
 
-                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Team"/>
-                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,18">
-                    <!-- Not browsed for any more: the open template says whose
-                         slot this is, through its shader package. A list rather
-                         than a label because My Team ships one slot per engine,
-                         and which of those a swap takes over is a real choice
-                         no template can answer. -->
-                    <ComboBox Name="TeamErpBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
-                              DisplayMemberPath="Label" MaxDropDownHeight="420"
-                              IsEnabled="False" SelectionChanged="TeamErp_Changed"/>
+                <!-- ── What it is called in the slot ─────────────────────── -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Resource string:"/>
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,16">
+                    <TextBox Name="NewNameBox" HorizontalAlignment="Left" MinWidth="280" MaxWidth="420"
+                             TextChanged="Inputs_Changed"/>
 
-                    <!-- Collapsed, not removed: still the path the swap reads,
-                         and still what every validation path here looks at. -->
-                    <TextBox Name="TeamBox" TextChanged="Inputs_Changed" Visibility="Collapsed"/>
-                    <TextBlock Name="TeamErpHint" Style="{StaticResource Hint}"/>
-                </StackPanel>
-
-                <!-- ── Rename ────────────────────────────────────────────── -->
-                <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource SectionHeader}" Text="Rename"
-                           Margin="0,0,0,6"/>
-
-                <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Replace"/>
-                <TextBox Grid.Row="3" Grid.Column="1" Name="OldNameBox" Margin="0,0,0,8"
-                         TextChanged="Inputs_Changed"/>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="With"/>
-                <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,18">
-                    <TextBox Name="NewNameBox" TextChanged="Inputs_Changed"/>
-                    <TextBlock Name="LengthHint" Style="{StaticResource Hint}"
-                               Text="Both names must be the same number of characters."/>
+                    <!-- The name being replaced is the car's own and nobody
+                         chooses it, so it reads rather than edits. Still a box
+                         underneath, because the swap and the validation both
+                         take it from there. -->
+                    <TextBox Name="OldNameBox" TextChanged="Inputs_Changed" Visibility="Collapsed"/>
+                    <TextBlock Name="OldNameLabel" Style="{StaticResource Hint}"/>
+                    <TextBlock Name="LengthHint" Style="{StaticResource Hint}"/>
                 </StackPanel>
 
                 <!-- Driver animations used to be three rows here: which season's
@@ -122,36 +105,21 @@
                      wrong. Rows 5-8 are left empty rather than renumbered. -->
 
                 <!-- ── Engine audio ──────────────────────────────────────── -->
-                <TextBlock Grid.Row="9" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Engine audio" Visibility="Collapsed"/>
-                <StackPanel Grid.Row="9" Grid.Column="1" Margin="0,0,0,18" Visibility="Collapsed">
+                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Engine audio" Visibility="Collapsed"/>
+                <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,18" Visibility="Collapsed">
                     <ComboBox Name="EngineAudioBox" HorizontalAlignment="Left" MinWidth="240" MaxWidth="420"
                               DisplayMemberPath="Label" MaxDropDownHeight="420"
                               SelectionChanged="EngineAudio_Changed"/>
                     <TextBlock Name="EngineAudioHint" Style="{StaticResource Hint}"/>
                 </StackPanel>
             </Grid>
-        </ScrollViewer>
-
-        <!-- Progress + log -->
-        <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
-                BorderThickness="0,1,0,0" Padding="20,12">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,6">
-                    <TextBlock DockPanel.Dock="Right" Name="ProgressLabel" VerticalAlignment="Center"
-                               Margin="10,0,0,0" Foreground="{DynamicResource TextMuted}"
-                               MinWidth="42" TextAlignment="Right"/>
-                    <ProgressBar Name="SwapProgress" Height="6" Minimum="0" Maximum="1"
-                                 Background="{DynamicResource SurfaceSunken}" BorderThickness="0"
-                                 Foreground="{DynamicResource Accent}"/>
-                </DockPanel>
-                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"
-                           Margin="0,0,0,6"
-                           Text="Pick a chassis ERP and a team ERP to begin."/>
-                <TextBox Name="LogBox" Height="150" IsReadOnly="True" Visibility="Collapsed" FontFamily="Consolas" FontSize="12"
-                         VerticalScrollBarVisibility="Auto" TextWrapping="NoWrap"
-                         HorizontalScrollBarVisibility="Auto"
-                         Background="{DynamicResource SurfaceSunken}"/>
-            </StackPanel>
         </Border>
+
+        <!-- The log the window's status line replaced. Kept, hidden, because
+             every step still writes to it and a swap's detail has to land
+             somewhere. -->
+        <TextBox Name="LogBox" Visibility="Collapsed" IsReadOnly="True"
+                 AcceptsReturn="True" TextWrapping="NoWrap"/>
+
     </Grid>
 </UserControl>

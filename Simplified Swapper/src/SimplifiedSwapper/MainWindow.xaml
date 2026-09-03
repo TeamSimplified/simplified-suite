@@ -30,6 +30,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Title bar: the name and the caption buttons, nothing else. What the
@@ -75,10 +76,10 @@
              the file operations on the left, what the app does on the right, on
              the row under the title bar rather than in it.
 
-             All of it belongs to the window rather than a tab. The template
-             because both swaps go into the same one, settings because both read
-             the same game folder, and Swap because there is one of it: it runs
-             whichever tab is in front. -->
+             All of it belongs to the window rather than to either swap. The
+             template because both go into the same one, settings because both
+             read the same game folder, and Swap because there is one of it: it
+             runs whichever of the two has been asked for. -->
         <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}"
                 BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1"
                 Padding="18,12">
@@ -113,16 +114,33 @@
             </DockPanel>
         </Border>
 
-        <!-- One window, both swaps. The panels are the two apps' own windows,
-             so what each tab does is what that app does. -->
-        <TabControl Grid.Row="2" Name="Tabs" Padding="0" BorderThickness="0"
-                    Background="{DynamicResource Surface}">
-            <TabItem Header="Chassis">
+        <!-- One page, both swaps. They were tabs, which made them read as two
+             jobs; they are two halves of one — a car and what its drivers wear
+             — going into the same template, and each is now three lines. -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      Background="{DynamicResource Surface}">
+            <StackPanel Margin="0,4,0,12">
                 <local:ChassisPanel x:Name="Chassis"/>
-            </TabItem>
-            <TabItem Header="Driverwear">
                 <local:DriverwearPanel x:Name="Driverwear"/>
-            </TabItem>
-        </TabControl>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- One status line for the window. The panels report through the host
+             rather than each carrying their own, since only one thing happens
+             at a time and two of these would only ever disagree. -->
+        <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                    <TextBlock DockPanel.Dock="Right" Name="ProgressLabel" VerticalAlignment="Center"
+                               Margin="10,0,0,0" Foreground="{DynamicResource TextMuted}" FontSize="11.5"/>
+                    <ProgressBar Name="SwapProgress" Height="4" Minimum="0" Maximum="1"
+                                 Background="{DynamicResource SurfaceSunken}"
+                                 Foreground="{DynamicResource Accent}" BorderThickness="0"/>
+                </DockPanel>
+                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
