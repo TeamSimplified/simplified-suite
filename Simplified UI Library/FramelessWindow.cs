@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace SimplifiedUi;
 
@@ -85,6 +86,14 @@ public static class FramelessWindow
             mmi.MaxSize.Y = info.Work.Bottom - info.Work.Top;
             mmi.MaxTrackSize = mmi.MaxSize;
 
+            // And the floor, which is the part that is easy to miss. Answering
+            // this message at all takes it away from WPF, and with it goes the
+            // enforcement of MinWidth and MinHeight — the window can then be
+            // dragged smaller than its own content, which does not reflow but
+            // is simply cut off. What goes first is whatever sits at an edge:
+            // the caption buttons, and the bar along the bottom.
+            if (MinTrackSize(hwnd) is { } floor) mmi.MinTrackSize = floor;
+
             Marshal.StructureToPtr(mmi, lParam, fDeleteOld: true);
             handled = true;
         }
@@ -93,6 +102,28 @@ public static class FramelessWindow
             // Leave the default sizing rather than fail the message.
         }
         return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// The window's own <see cref="FrameworkElement.MinWidth"/> and
+    /// <see cref="FrameworkElement.MinHeight"/>, in the device pixels this
+    /// message speaks in. Null when the window sets neither.
+    /// </summary>
+    private static Point32? MinTrackSize(IntPtr hwnd)
+    {
+        if (HwndSource.FromHwnd(hwnd) is not { RootVisual: Window window } source) return null;
+        if (double.IsNaN(window.MinWidth) || double.IsNaN(window.MinHeight)) return null;
+        if (window.MinWidth <= 0 && window.MinHeight <= 0) return null;
+
+        // Device-independent up there, device pixels down here, and the two are
+        // only the same at 100%.
+        var scale = source.CompositionTarget?.TransformToDevice ?? Matrix.Identity;
+
+        return new Point32
+        {
+            X = (int)Math.Ceiling(window.MinWidth * scale.M11),
+            Y = (int)Math.Ceiling(window.MinHeight * scale.M22),
+        };
     }
 
     [StructLayout(LayoutKind.Sequential)]

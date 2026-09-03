@@ -37,6 +37,18 @@
              app does lives on the bar below. -->
         <Border Grid.Row="0" Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
             <DockPanel LastChildFill="False">
+                <!-- The caption buttons are declared first, before anything on
+                     the left, because a DockPanel hands out space in declaration
+                     order and not by side. Declared last they were the first
+                     thing to lose it: narrowing the window used to take the
+                     close button away rather than squeeze the title. -->
+                <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
+                        Content="&#xE8BB;" Click="WindowClose_Click" ToolTip="Close"/>
+                <Button DockPanel.Dock="Right" Name="WindowMaximizeButton" Style="{StaticResource CaptionButton}"
+                        Content="&#xE922;" Click="WindowMaximize_Click" ToolTip="Maximize"/>
+                <Button DockPanel.Dock="Right" Name="WindowMinimizeButton" Style="{StaticResource CaptionButton}"
+                        Content="&#xE921;" Click="WindowMinimize_Click" ToolTip="Minimize"/>
+
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                            Text="Simplified Swapper"
                            FontSize="17" FontWeight="SemiBold"
@@ -59,21 +71,13 @@
                 <!-- Which template is open, the way Studio names the open
                      project up here. Only one of the two is ever showing. -->
                 <TextBlock Name="TemplateNameLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Margin="16,0,0,0" FontWeight="SemiBold"
+                           Margin="16,0,10,0" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}"
-                           MaxWidth="420" TextTrimming="CharacterEllipsis"
+                           MinWidth="0" MaxWidth="420" TextTrimming="CharacterEllipsis"
                            Visibility="Collapsed"/>
                 <TextBlock Name="NoTemplateLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
                            Margin="16,0,0,0" Foreground="{DynamicResource TextDisabled}"
                            Text="No template open"/>
-
-                <!-- Reverse visual order, as DockPanel resolves Dock=Right outward-in. -->
-                <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
-                        Content="&#xE8BB;" Click="WindowClose_Click" ToolTip="Close"/>
-                <Button DockPanel.Dock="Right" Name="WindowMaximizeButton" Style="{StaticResource CaptionButton}"
-                        Content="&#xE922;" Click="WindowMaximize_Click" ToolTip="Maximize"/>
-                <Button DockPanel.Dock="Right" Name="WindowMinimizeButton" Style="{StaticResource CaptionButton}"
-                        Content="&#xE921;" Click="WindowMinimize_Click" ToolTip="Minimize"/>
 
             </DockPanel>
         </Border>
@@ -90,6 +94,16 @@
                 BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1"
                 Padding="18,12">
             <DockPanel LastChildFill="False">
+                <!-- Same as the title bar: declared first so they keep their
+                     space when the window narrows. Reverse visual order, since
+                     a DockPanel resolves Dock=Right outward-in. -->
+                <Button DockPanel.Dock="Right" Name="CloseTemplateButton" Content="Close"
+                        Padding="12,7" Margin="6,0,0,0" IsEnabled="False"
+                        Click="CloseTemplate_Click"/>
+                <Button DockPanel.Dock="Right" Name="SwapButton" Content="Swap"
+                        Padding="16,7" FontWeight="SemiBold" IsEnabled="False"
+                        Click="Swap_Click"/>
+
                 <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
                         Tag="{StaticResource IconSettings}" Click="Settings_Click"
                         ToolTip="Settings"/>
@@ -112,14 +126,6 @@
                         ToolTip="Save template as…    (Ctrl+S saves in place)"/>
                 <Button DockPanel.Dock="Left" Name="SaveTemplateButton" Visibility="Collapsed"
                         Click="SaveTemplate_Click" IsEnabled="False"/>
-
-                <!-- Reverse visual order again: Close sits outermost. -->
-                <Button DockPanel.Dock="Right" Name="CloseTemplateButton" Content="Close"
-                        Padding="12,7" Margin="6,0,0,0" IsEnabled="False"
-                        Click="CloseTemplate_Click"/>
-                <Button DockPanel.Dock="Right" Name="SwapButton" Content="Swap"
-                        Padding="16,7" FontWeight="SemiBold" IsEnabled="False"
-                        Click="Swap_Click"/>
             </DockPanel>
         </Border>
 
