@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>SimplifiedSwapper.Core</RootNamespace>
     <AssemblyName>SimplifiedSwapper.Core</AssemblyName>
+    <!-- Embedded, so no loose .pdb follows this into the app's publish output
+         and then into the package. Repeated here rather than inherited: this
+         app's own Directory.Build.props stops MSBuild searching further up, so
+         the suite-wide setting never reaches it. Every other Core says the
+         same thing for the same reason. -->
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <!-- Settings only. Both swaps live in the two swappers' own Core projects,
