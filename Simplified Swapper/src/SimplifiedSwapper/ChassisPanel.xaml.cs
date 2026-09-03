@@ -385,7 +385,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         }
         else if (old.Length == 0 || neu.Length == 0)
         {
-            LengthHint.Text = "Both names must be the same number of characters.";
+            LengthHint.Text = "Must be the same number of characters as the one it replaces.";
             LengthHint.Foreground = HintBrush;
         }
         else if (old.Length != neu.Length)
@@ -432,11 +432,13 @@ public partial class ChassisPanel : UserControl, ISwapPanel
 
         var old = OldNameBox.Text.Trim();
         var neu = NewNameBox.Text.Trim();
-        if (old.Length == 0) return "Enter the name to replace.";
-        if (neu.Length == 0) return "Enter the replacement name.";
-        if (old.Length != neu.Length) return "The two names must be the same length.";
+        // The name being replaced comes from the car rather than from a box, so
+        // it can't be asked for — when it's missing, the car is what to say.
+        if (old.Length == 0) return "That car's ERP doesn't name a livery to replace.";
+        if (neu.Length == 0) return "Enter the resource string to swap in.";
+        if (old.Length != neu.Length) return "The resource string must be the same length as the one it replaces.";
         if (string.Equals(old, neu, StringComparison.Ordinal))
-            return "The replacement name is the same as the original.";
+            return "The resource string is the same as the one it replaces.";
 
         return null;
     }
@@ -446,7 +448,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
 
     // ── What the window's Swap button drives ────────────────────────────────
     //
-    // The button lives in the title bar so both tabs share one, which means the
+    // The button lives on the action bar so both panels share one, which means the
     // panel has to say whether a swap is possible and do it when asked. The
     // hidden SwapButton is still the state: every validation path already sets
     // it, so mirroring it is cheaper and safer than a second source of truth.

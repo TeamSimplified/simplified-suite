@@ -9,12 +9,12 @@ using SimplifiedSwapper.Core.Project;
 namespace SimplifiedSwapper;
 
 /// <summary>
-/// The shell around the two swaps: a title bar, an action bar, a tab each, and
-/// one set of settings.
+/// The shell around the two swaps: a title bar, an action bar, both panels on
+/// one page, and one set of settings.
 ///
-/// Neither swap is implemented here. Each tab is the corresponding app's own
+/// Neither swap is implemented here. Each panel is the corresponding app's own
 /// window turned into a control, and the engines stay in their own projects —
-/// so what a tab does is what that app does, which is what makes the two
+/// so what a panel does is what that app does, which is what makes the two
 /// comparable while they are simplified.
 ///
 /// What is implemented here is the template. A swap doesn't produce a loose ERP
@@ -33,7 +33,7 @@ public partial class MainWindow : Window, ISerpsHost
     /// </summary>
     private readonly UserConfig _config = UserConfig.Load();
 
-    /// <summary>The open template, or null. One per window, shared by both tabs.</summary>
+    /// <summary>The open template, or null. One per window, shared by both panels.</summary>
     private SerpsTemplate? _template;
 
     /// <summary>Set when a swap has gone in and the .serps on disk is behind.</summary>
@@ -100,6 +100,85 @@ public partial class MainWindow : Window, ISerpsHost
         var asked = Asked;
         SwapButton.IsEnabled = asked.Length > 0 && asked.All(p => p.CanSwap);
         SwapButton.Content = asked.Length == 2 ? "Swap both" : "Swap";
+
+        // Only needs a wear picked. Not a template, not a swap, not a save.
+        ExtractUvButton.IsEnabled = Driverwear.SelectedWearErp is not null;
+    }
+
+    // ── UV maps ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Write out every UV layout in the selected driverwear's ERP.
+    ///
+    /// Nothing to do with swapping: it reads the archive the dropdown names and
+    /// draws what its meshes lay out, whether or not a swap has been made or a
+    /// template is even open. The same renderer ERP uses, so a template from
+    /// here and one from there are the same drawing.
+    /// </summary>
+    private async void ExtractUv_Click(object sender, RoutedEventArgs e)
+    {
+        if (Driverwear.SelectedWearErp is not { } erpPath) return;
+        var wearName = Driverwear.SelectedWearName ?? "driverwear";
+
+        var dlg = new OpenFolderDialog
+        {
+            Title = $"Where should the UV maps for {wearName} go?",
+            InitialDirectory = FirstExistingDir(_config.LastUvFolder) ?? "",
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        var folder = dlg.FolderName;
+        _config.LastUvFolder = folder;
+        _config.Save();
+
+        ExtractUvButton.IsEnabled = false;
+        var previousCursor = Cursor;
+        Cursor = System.Windows.Input.Cursors.Wait;
+        ReportStatus($"Exporting UVs from {wearName}…");
+        ReportProgress(0);
+
+        try
+        {
+            var session = await Task.Run(() => SimplifiedStudio.UvEngine.UvMapSession.Load(erpPath));
+            if (session is null || session.Templates.Count == 0)
+            {
+                ReportStatus($"{wearName} has no meshes that lay out a texture, so there are no UV maps to draw.",
+                    SwapStatus.Problem);
+                return;
+            }
+
+            // Drawn at the size of the file someone will paint on rather than
+            // the size the ERP happens to hold — see TextureSizes.
+            var sizes = await Task.Run(() => TextureSizes.Read(erpPath));
+            var templates = session.Templates.ToList();
+            var written = 0;
+
+            for (var i = 0; i < templates.Count; i++)
+            {
+                var t = templates[i];
+                var stem = Path.GetFileNameWithoutExtension(t.Name.Replace("?", "%3F"));
+                var target = Path.Combine(folder, "uvmap_" + stem + ".png");
+
+                var size = sizes.TryGetValue(t.Name, out var s) ? s : (Width: 0, Height: 0);
+                if (await Task.Run(() => session.Render(t.Name, target, size.Width, size.Height))) written++;
+
+                ReportProgress((i + 1) / (double)templates.Count);
+                ReportStatus($"Exporting UVs — {i + 1} of {templates.Count}…");
+            }
+
+            ReportProgress(1);
+            ReportStatus($"{written} UV map(s) from {wearName} → {folder}", SwapStatus.Done);
+        }
+        catch (Exception ex)
+        {
+            ReportProgress(-1);
+            ReportStatus($"Couldn't extract the UV maps: {ex.Message}", SwapStatus.Problem);
+        }
+        finally
+        {
+            Cursor = previousCursor;
+            RefreshSwap();
+        }
     }
 
     /// <summary>Set while a swap runs, so the button can't start a second one.</summary>
@@ -299,7 +378,7 @@ public partial class MainWindow : Window, ISerpsHost
 
         if (!resetPanels) return;
 
-        // Every choice in both tabs was made for the template that has just
+        // Every choice in both panels was made for the template that has just
         // gone. Opening another one comes through here too, which is the case
         // that matters most: the leftovers would be for the wrong car.
         Chassis.Reset();
@@ -332,7 +411,7 @@ public partial class MainWindow : Window, ISerpsHost
 
     /// <summary>
     /// Everything that depends on whether a template is open, in one place so
-    /// the bar and the tabs can never disagree about it.
+    /// the bar and the panels can never disagree about it.
     /// </summary>
     private void OnTemplateStateChanged()
     {
@@ -359,8 +438,8 @@ public partial class MainWindow : Window, ISerpsHost
     // ── Settings ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Settings belongs to the window rather than a tab: both swaps read the
-    /// same game folder, and having it in one tab would imply otherwise.
+    /// Settings belongs to the window rather than a panel: both swaps read the
+    /// same game folder, and having it in one of them would imply otherwise.
     /// </summary>
     private void Settings_Click(object sender, RoutedEventArgs e)
     {

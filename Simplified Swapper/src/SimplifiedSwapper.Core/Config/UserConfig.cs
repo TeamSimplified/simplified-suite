@@ -28,6 +28,9 @@ public sealed class UserConfig
     /// <summary>Folder the last swap was written to.</summary>
     public string? LastOutputFolder { get; set; }
 
+    /// <summary>Folder the UV maps were last written to.</summary>
+    public string? LastUvFolder { get; set; }
+
     /// <summary>Folder the .serps picker opens in — normally the template pack.</summary>
     public string? LastTemplateFolder { get; set; }
 

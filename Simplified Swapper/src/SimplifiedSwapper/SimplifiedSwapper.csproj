@@ -31,6 +31,11 @@
     <ProjectReference Include="..\..\..\Simplified Chassis Swapper\src\SimplifiedChassisSwapper.Core\SimplifiedChassisSwapper.Core.csproj" />
     <ProjectReference Include="..\..\..\Simplified Driverwear Swapper\src\SimplifiedDriverwearSwapper.Core\SimplifiedDriverwearSwapper.Core.csproj" />
     <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+
+    <!-- The UV renderer ERP uses, unchanged. Extracting a UV layout is the same
+         job wherever it is asked for, and a second implementation of it would
+         only be a second thing to be wrong. -->
+    <ProjectReference Include="..\..\..\Simplified ERP\src\SimplifiedStudio.UvEngine\SimplifiedStudio.UvEngine.csproj" />
   </ItemGroup>
 
   <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">

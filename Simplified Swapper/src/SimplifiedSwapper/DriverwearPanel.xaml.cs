@@ -259,9 +259,25 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         var from = DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
         var to = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
 
+        // Asked first: with no template there is no team to dress, so every
+        // message below it would be about something the app can't know yet.
+        if (!_host.HasTemplate)
+        {
+            SetStatus(from is null
+                ? $"{_driverwear.Count} driverwear sets found. Open a template to swap into."
+                : $"Open a template to swap {from.Name} driverwear into.", StatusBrush);
+            return;
+        }
+
         if (to is null)
         {
-            SetStatus("This template has nobody to dress — see the team box.", StatusBrush);
+            // Not "see the team box": that box is only on screen for My Team's
+            // suits, so for everyone else it names something invisible.
+            var team = TeamErps.TeamNameOf(_host.ShaderPackage);
+            SetStatus(team is null
+                ? "This template isn't one of the 2026 teams, so there is nobody to dress."
+                : $"{team}'s driverwear isn't in this game folder — check the folder in Settings.",
+                StatusBrush);
             return;
         }
 
@@ -275,12 +291,6 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
         if (from.Name == to.Name)
         {
             SetStatus($"{from.Name} already wears its own driverwear.", StatusBrush);
-            return;
-        }
-
-        if (!_host.HasTemplate)
-        {
-            SetStatus("Open a template to swap into.", StatusBrush);
             return;
         }
 
@@ -325,7 +335,7 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
 
     // ── What the window's Swap button drives ────────────────────────────────
     //
-    // The button lives in the title bar so both tabs share one, which means the
+    // The button lives on the action bar so both panels share one, which means the
     // panel has to say whether a swap is possible and do it when asked. The
     // hidden SwapButton is still the state: every validation path already sets
     // it, so mirroring it is cheaper and safer than a second source of truth.
@@ -344,6 +354,18 @@ public partial class DriverwearPanel : UserControl, ISwapPanel
     /// </summary>
     private string WearName =>
         (DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry)?.Name ?? "Swapped";
+
+    /// <summary>
+    /// The ERP of whatever wear is selected, or null when nothing is or it has
+    /// none. Independent of the template and of any swap — reading a UV layout
+    /// out of an archive asks nothing of either.
+    /// </summary>
+    public string? SelectedWearErp =>
+        (DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry)?.ErpPath;
+
+    /// <summary>What that wear is called, for naming the folder it writes into.</summary>
+    public string? SelectedWearName =>
+        (DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry)?.Name;
 
     /// <summary>Run this half's swap.</summary>
     public async Task RunSwapAsync()

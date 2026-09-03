@@ -6,7 +6,11 @@
     <AssemblyName>SimplifiedSwapper.Core</AssemblyName>
   </PropertyGroup>
 
-  <!-- Settings only. Both swaps live in the two swappers' own Core projects,
-       which the app references; nothing about them is reimplemented here. -->
+  <!-- Settings, the .serps document, and reading a texture's real size. Both
+       swaps live in the two swappers' own Core projects, which the app
+       references; nothing about them is reimplemented here. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
 
 </Project>

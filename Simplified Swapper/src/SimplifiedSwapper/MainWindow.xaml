@@ -104,6 +104,14 @@
                         Padding="16,7" FontWeight="SemiBold" IsEnabled="False"
                         Click="Swap_Click"/>
 
+                <!-- Left of Swap, and nothing to do with it: this reads the
+                     driverwear that is selected and writes its UV layouts out.
+                     It needs no template, no swap and no save. -->
+                <Button DockPanel.Dock="Right" Name="ExtractUvButton" Content="Extract UVs"
+                        Padding="14,7" Margin="0,0,8,0" IsEnabled="False"
+                        Click="ExtractUv_Click"
+                        ToolTip="Save every UV layout in the selected driverwear ERP as a transparent PNG, drawn at each texture's own size"/>
+
                 <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
                         Tag="{StaticResource IconSettings}" Click="Settings_Click"
                         ToolTip="Settings"/>
