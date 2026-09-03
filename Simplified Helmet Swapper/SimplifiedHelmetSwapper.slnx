@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/SimplifiedHelmetSwapper/SimplifiedHelmetSwapper.csproj" />
+  <Project Path="src/SimplifiedHelmetSwapper.Core/SimplifiedHelmetSwapper.Core.csproj" />
+  <Folder Name="/shared/">
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+    <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
+  </Folder>
+</Solution>

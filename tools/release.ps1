@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Publish, package and tag the apps in the Simplified Suite.
 
@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Swapper, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, Swapper, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Swapper', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'Swapper', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -105,6 +105,12 @@ $Apps = @(
         Project = 'src\SimplifiedDriverwearSwapper\SimplifiedDriverwearSwapper.csproj'
         Exe = 'Simplified Driverwear Swapper'; Package = 'Simplified Driverwear Swapper'
         Tag = 'driverwear-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Helmet'; Folder = 'Simplified Helmet Swapper'
+        Project = 'src\SimplifiedHelmetSwapper\SimplifiedHelmetSwapper.csproj'
+        Exe = 'Simplified Helmet Swapper'; Package = 'Simplified Helmet Swapper'
+        Tag = 'helmet-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Swapper'; Folder = 'Simplified Swapper'
