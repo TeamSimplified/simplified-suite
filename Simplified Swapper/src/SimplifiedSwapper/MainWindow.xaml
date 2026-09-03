@@ -8,6 +8,8 @@
         FontFamily="Segoe UI" FontSize="13"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
+        Closing="OnWindowClosing" Closed="OnWindowClosed"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Background="{DynamicResource Surface}">
 
     <!-- Our own title bar, but still a real window: WindowChrome keeps the
@@ -26,12 +28,12 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Title bar. One Settings for both swaps, because they share a game
-             folder and always did — each app was reading the same setting out
-             of its own copy of the same file. -->
+        <!-- Title bar: the name and the caption buttons, nothing else. What the
+             app does lives on the bar below. -->
         <Border Grid.Row="0" Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
             <DockPanel LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
@@ -47,6 +49,17 @@
                                Foreground="{DynamicResource TextPrimary}"/>
                 </Border>
 
+                <!-- Which template is open, the way Studio names the open
+                     project up here. Only one of the two is ever showing. -->
+                <TextBlock Name="TemplateNameLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Margin="16,0,0,0" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}"
+                           MaxWidth="420" TextTrimming="CharacterEllipsis"
+                           Visibility="Collapsed"/>
+                <TextBlock Name="NoTemplateLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Margin="16,0,0,0" Foreground="{DynamicResource TextDisabled}"
+                           Text="No template open"/>
+
                 <!-- Reverse visual order, as DockPanel resolves Dock=Right outward-in. -->
                 <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
                         Content="&#xE8BB;" Click="WindowClose_Click" ToolTip="Close"/>
@@ -55,14 +68,54 @@
                 <Button DockPanel.Dock="Right" Name="WindowMinimizeButton" Style="{StaticResource CaptionButton}"
                         Content="&#xE921;" Click="WindowMinimize_Click" ToolTip="Minimize"/>
 
-                <Button DockPanel.Dock="Right" Content="Settings" Padding="14,6" Margin="0,0,12,0"
-                        VerticalAlignment="Center" Click="Settings_Click"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Action bar, laid out the way Studio's project bar is: settings and
+             the file operations on the left, what the app does on the right, on
+             the row under the title bar rather than in it.
+
+             All of it belongs to the window rather than a tab. The template
+             because both swaps go into the same one, settings because both read
+             the same game folder, and Swap because there is one of it: it runs
+             whichever tab is in front. -->
+        <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1"
+                Padding="18,12">
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconSettings}" Click="Settings_Click"
+                        ToolTip="Settings"/>
+                <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
+
+                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconOpen}" Click="OpenTemplate_Click"
+                        ToolTip="Open template    (Ctrl+O)"/>
+
+                <!-- Save, not Save as: a template is opened, swapped into and
+                     saved back. SaveTemplateAsButton stays, hidden, because
+                     Ctrl+Shift+S reaches it and OnTemplateStateChanged drives
+                     its IsEnabled with the rest. -->
+                <Button DockPanel.Dock="Left" Name="SaveTemplateButton" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconSave}" Margin="6,0,0,0"
+                        Click="SaveTemplate_Click" IsEnabled="False"
+                        ToolTip="Save template    (Ctrl+S — Ctrl+Shift+S saves as)"/>
+                <Button DockPanel.Dock="Left" Name="SaveTemplateAsButton" Visibility="Collapsed"
+                        Click="SaveTemplateAs_Click" IsEnabled="False"/>
+
+                <!-- Reverse visual order again: Close sits outermost. -->
+                <Button DockPanel.Dock="Right" Name="CloseTemplateButton" Content="Close"
+                        Padding="12,7" Margin="6,0,0,0" IsEnabled="False"
+                        Click="CloseTemplate_Click"/>
+                <Button DockPanel.Dock="Right" Name="SwapButton" Content="Swap"
+                        Padding="16,7" FontWeight="SemiBold" IsEnabled="False"
+                        Click="Swap_Click"/>
             </DockPanel>
         </Border>
 
         <!-- One window, both swaps. The panels are the two apps' own windows,
              so what each tab does is what that app does. -->
-        <TabControl Grid.Row="1" Name="Tabs" Padding="0" BorderThickness="0"
+        <TabControl Grid.Row="2" Name="Tabs" Padding="0" BorderThickness="0"
                     Background="{DynamicResource Surface}">
             <TabItem Header="Chassis">
                 <local:ChassisPanel x:Name="Chassis"/>

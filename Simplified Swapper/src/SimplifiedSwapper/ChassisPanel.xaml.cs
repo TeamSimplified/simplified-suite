@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,18 +5,28 @@ using System.Windows.Media;
 using EgoEngineLibrary.Archive.Erp;
 using Microsoft.Win32;
 using SimplifiedSwapper.Core.Config;
+using SimplifiedSwapper.Core.Project;
 using SimplifiedChassisSwapper.Core.Swap;
 using SimplifiedChassisSwapper.Core.Util;
 
 namespace SimplifiedSwapper;
 
-public partial class ChassisPanel : UserControl
+public partial class ChassisPanel : UserControl, ISwapPanel
 {
     private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
     private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
+
+    /// <summary>
+    /// The status line's own colour. Full strength rather than the muted grey
+    /// the field hints use: it is the one line on the bar, and grey text that
+    /// small picks up a blue cast from subpixel rendering.
+    /// </summary>
+    private static Brush StatusBrush => Themed("TextPrimary", 0xEA, 0xEA, 0xEA);
+
     private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
 
     private UserConfig _config = null!;
+    private ISerpsHost _host = null!;
 
     /// <summary>Set once the constructor is done, so programmatic setup doesn't trigger validation.</summary>
     private bool _ready;
@@ -28,37 +37,170 @@ public partial class ChassisPanel : UserControl
     // Values we filled in ourselves. A box is only re-derived while it still holds
     // what we put there, so anything the user typed survives.
     private string _autoOldName = "";
-    private string _autoOutput = "";
 
-    // Cached animset list, keyed by the ERP it came from so switching between two
-    // cars of the same season doesn't reload it.
-    private string? _loadedIncPath;
-    private List<string> _animsets = new();
-    private int _animsetLoadToken;
-
-    private List<IncardriverLocator.IncardriverSeason> _seasons = new();
-
-    /// <summary>Set while we fill the season box ourselves, so it doesn't read as a user pick.</summary>
-    private bool _suppressSeasonChange;
-
-    private string? _lastOutput;
 
     public ChassisPanel()
     {
         InitializeComponent();
+        SwapButton.IsEnabledChanged += (_, _) => CanSwapChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
-    /// Hand the panel the app's settings and let it start. Separate from the
-    /// constructor because a UserControl is built by XAML with no arguments,
-    /// and there is nothing useful to do before there is a config.
+    /// Hand the panel the app's settings and the template host, and let it
+    /// start. Separate from the constructor because a UserControl is built by
+    /// XAML with no arguments, and there is nothing useful to do before there
+    /// is a config.
     /// </summary>
-    public void Initialise(UserConfig config)
+    public void Initialise(UserConfig config, ISerpsHost host)
     {
         _config = config;
+        _host = host;
+
+        // Opening or closing a template is the difference between a swap having
+        // somewhere to go and not — and it is also what decides the team slot.
+        _host.TemplateChanged += (_, _) => RefreshTeamErps();
+
         _ready = true;
+        RefreshCars();
+        RefreshTeamErps();
+        _ = RefreshEngineAudioAsync();
+    }
+
+    // -- The car -------------------------------------------------------------
+
+    /// <summary>
+    /// Fill the car list from the game folder. Every 2026 team's ERP, whichever
+    /// template is open — the template says which slot a car goes into, not
+    /// which car you want in it.
+    /// </summary>
+    private void RefreshCars()
+    {
+        if (!_ready) return;
+
+        var cars = TeamErps.AllCars(_config.GameDir);
+
+        var chosen = (ChassisCarBox.SelectedItem as TeamErps.Candidate)?.Path;
+        ChassisCarBox.ItemsSource = cars;
+        ChassisCarBox.IsEnabled = !_busy && cars.Count > 0;
+        ChassisCarBox.SelectedItem = cars.FirstOrDefault(c =>
+            string.Equals(c.Path, chosen, StringComparison.OrdinalIgnoreCase));
+
+        ChassisHint.Text = cars.Count > 0
+            ? "The car you want to drive — its model, textures and cameras are kept."
+            : "No 2026 cars under your game folder — check the folder in Settings.";
+
+        if (ChassisCarBox.SelectedItem is null) ChassisBox.Text = "";
         UpdateValidation();
-        _ = RefreshSeasonsAsync();
+    }
+
+    private void ChassisCar_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (ChassisBox is null) return;   // fires during InitializeComponent
+        if (ChassisCarBox.SelectedItem is not TeamErps.Candidate car)
+        {
+            ChassisBox.Text = "";
+            return;
+        }
+
+        ChassisBox.Text = car.Path;
+
+        // The token to replace is the chassis ERP's own name in every case we've
+        // seen, so fill it in — unless the user has typed something else.
+        var token = Path.GetFileNameWithoutExtension(car.Path);
+        if (OldNameBox.Text.Length == 0 || OldNameBox.Text == _autoOldName)
+        {
+            _autoOldName = token;
+            OldNameBox.Text = token;
+        }
+
+    }
+
+    // -- Team slot ----------------------------------------------------------
+
+    /// <summary>
+    /// Fill the team list from the open template.
+    ///
+    /// Which team a swap takes over is not a free choice: a template is built
+    /// for one team's slot, and putting a car into a different team's ERP than
+    /// the template expects makes a mod that doesn't work. So the shader package
+    /// the template carries picks it, and this panel offers only what that
+    /// leaves — one ERP for a real team, one per engine for My Team.
+    /// </summary>
+    private void RefreshTeamErps()
+    {
+        if (!_ready) return;
+
+        var candidates = _host.HasTemplate
+            ? TeamErps.For(_config.GameDir, _host.ShaderPackage)
+            : new List<TeamErps.Candidate>();
+
+        TeamErpBox.ItemsSource = candidates;
+        TeamErpBox.IsEnabled = candidates.Count > 1;
+        TeamErpBox.SelectedItem = candidates.Count > 0 ? candidates[0] : null;
+        TeamErpHint.Text = TeamHint(candidates);
+
+        // SelectionChanged doesn't fire for a list that went empty, so the store
+        // is written here rather than only there.
+        TeamBox.Text = (TeamErpBox.SelectedItem as TeamErps.Candidate)?.Path ?? "";
+        UpdateValidation();
+    }
+
+    /// <summary>Why the list holds what it holds — the useful half when it's empty.</summary>
+    private string TeamHint(IReadOnlyList<TeamErps.Candidate> candidates)
+    {
+        if (!_host.HasTemplate)
+            return "The slot the car takes over. Open a template and it names its own team.";
+
+        var team = TeamErps.TeamNameOf(_host.ShaderPackage);
+        if (team is null)
+            return "This template's shader package isn't one of the 2026 teams, so there is no slot to swap into.";
+
+        if (candidates.Count == 0)
+            return $"{team}'s ERP isn't in this game folder — check the folder in Settings.";
+
+        return candidates.Count == 1
+            ? $"{team}, from the open template. Its livery slot, wing setup and driver animations are used."
+            : $"{team} — one slot per engine. Pick the one you race with.";
+    }
+
+    private void TeamErp_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (TeamBox is null) return;   // fires during InitializeComponent
+        TeamBox.Text = (TeamErpBox.SelectedItem as TeamErps.Candidate)?.Path ?? "";
+    }
+
+
+    /// <summary>
+    /// Back to how the panel opens. The two ERPs, the rename and the animation
+    /// picks were all chosen for the template that has just gone, so none of
+    /// them should still be sitting there for the next one.
+    ///
+    /// The season, animsets and engine-audio lists come off the game folder
+    /// rather than the template, so they are reloaded rather than emptied —
+    /// same as at startup.
+    /// </summary>
+    public void Reset()
+    {
+        if (!_ready) return;
+
+        // Off while the boxes are cleared: each one fires Inputs_Changed, and
+        // there is no point validating four times on the way to empty.
+        _ready = false;
+        ChassisBox.Text = "";
+        TeamBox.Text = "";
+        OldNameBox.Text = "";
+        NewNameBox.Text = "";
+        _autoOldName = "";
+        ChassisCarBox.ItemsSource = null;
+        TeamErpBox.ItemsSource = null;
+        LogBox.Clear();
+        SwapProgress.Value = 0;
+        ProgressLabel.Text = "";
+        _completionMessage = null;
+        _ready = true;
+
+        RefreshCars();
+        RefreshTeamErps();
         _ = RefreshEngineAudioAsync();
     }
 
@@ -67,36 +209,12 @@ public partial class ChassisPanel : UserControl
     {
         if (!gameDirChanged) return;
 
-        _loadedIncPath = null;
-        _ = RefreshSeasonsAsync();
+        RefreshCars();
+        RefreshTeamErps();
         _ = RefreshEngineAudioAsync();
     }
 
     // ── Pickers ─────────────────────────────────────────────────────────────
-
-    private void BrowseChassis_Click(object sender, RoutedEventArgs e)
-    {
-        var path = PickErp("Choose the chassis ERP — the car you want to drive");
-        if (path is null) return;
-
-        ChassisBox.Text = path;
-
-        // The token to replace is the chassis ERP's own name in every case we've
-        // seen, so fill it in — unless the user has typed something else.
-        var token = Path.GetFileNameWithoutExtension(path);
-        if (OldNameBox.Text.Length == 0 || OldNameBox.Text == _autoOldName)
-        {
-            _autoOldName = token;
-            OldNameBox.Text = token;
-        }
-    }
-
-    private void BrowseTeam_Click(object sender, RoutedEventArgs e)
-    {
-        var path = PickErp("Choose the team ERP — the slot the car takes over");
-        if (path is null) return;
-        TeamBox.Text = path;
-    }
 
     private string? PickErp(string title)
     {
@@ -114,50 +232,14 @@ public partial class ChassisPanel : UserControl
         return dlg.FileName;
     }
 
-    private void BrowseOutput_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new SaveFileDialog
-        {
-            Title = "Save the swapped ERP",
-            Filter = "ERP archives (*.erp)|*.erp",
-            DefaultExt = ".erp",
-            AddExtension = true,
-            FileName = SafeFileName(OutputBox.Text) ?? $"{NewNameBox.Text.Trim()}.erp",
-            InitialDirectory = FirstExistingDir(
-                SafeDirName(OutputBox.Text), _config.LastOutputFolder) ?? "",
-            OverwritePrompt = false,   // confirmed at swap time instead
-        };
-        if (dlg.ShowDialog(Window.GetWindow(this)) != true) return;
-
-        OutputBox.Text = dlg.FileName;
-        _autoOutput = "";             // an explicit choice — stop re-deriving it
-        _config.LastOutputFolder = Path.GetDirectoryName(dlg.FileName);
-        _config.Save();
-    }
-
-    private void OpenOutput_Click(object sender, RoutedEventArgs e)
-    {
-        if (_lastOutput is null || !File.Exists(_lastOutput)) return;
-        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_lastOutput}\"") { UseShellExecute = true });
-    }
-
     // ── Validation ──────────────────────────────────────────────────────────
 
     private void Inputs_Changed(object sender, TextChangedEventArgs e)
     {
         if (!_ready) return;
 
-        // A different chassis implies a different season, so re-derive the default.
-        // A different team only changes which animset gets preselected.
-        if (ReferenceEquals(sender, ChassisBox)) _ = RefreshSeasonsAsync();
-        else if (ReferenceEquals(sender, TeamBox)) _ = LoadAnimsetsAsync();
-
-        if (ReferenceEquals(sender, NewNameBox)) SyncOutputPath();
-
         UpdateValidation();
     }
-
-    private void Animset_Changed(object sender, SelectionChangedEventArgs e) => UpdateValidation();
 
     // ── Engine audio ────────────────────────────────────────────────────────
 
@@ -197,7 +279,9 @@ public partial class ChassisPanel : UserControl
         };
 
         EngineAudioBox.ItemsSource = choices;
-        EngineAudioBox.SelectedIndex = 0;
+        // Always the team: the control is hidden, so this is the answer rather
+        // than a default someone can move off.
+        EngineAudioBox.SelectedItem = choices.First(c => c.Source == EngineAudioSource.Team);
 
         var gameDir = _config.GameDir;
         if (string.IsNullOrWhiteSpace(gameDir)) return;
@@ -234,20 +318,6 @@ public partial class ChassisPanel : UserControl
 
     private EngineChoice? SelectedEngineChoice => EngineAudioBox.SelectedItem as EngineChoice;
 
-    /// <summary>Keep the output file named after the new car, until the user picks a path themselves.</summary>
-    private void SyncOutputPath()
-    {
-        var name = NewNameBox.Text.Trim();
-        if (name.Length == 0) return;
-        if (OutputBox.Text.Length != 0 && OutputBox.Text != _autoOutput) return;
-
-        var folder = FirstExistingDir(_config.LastOutputFolder)
-                     ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        try { _autoOutput = Path.Combine(folder, name + ".erp"); }
-        catch { return; }             // characters the filesystem won't take
-        OutputBox.Text = _autoOutput;
-    }
-
     private void UpdateValidation()
     {
         var old = OldNameBox.Text.Trim();
@@ -273,7 +343,7 @@ public partial class ChassisPanel : UserControl
         }
 
         var problem = FirstProblem();
-        StatusLabel.Foreground = HintBrush;
+        StatusLabel.Foreground = StatusBrush;
         StatusLabel.Text = problem ?? "Ready to swap.";
         SwapButton.IsEnabled = problem is null;
     }
@@ -282,10 +352,11 @@ public partial class ChassisPanel : UserControl
     private string? FirstProblem()
     {
         if (_busy) return "Swapping…";
-        if (ChassisBox.Text.Trim().Length == 0) return "Choose a chassis ERP.";
-        if (!File.Exists(ChassisBox.Text.Trim())) return "That chassis ERP doesn't exist.";
-        if (TeamBox.Text.Trim().Length == 0) return "Choose a team ERP.";
-        if (!File.Exists(TeamBox.Text.Trim())) return "That team ERP doesn't exist.";
+        if (!_host.HasTemplate) return "Open a template to swap into.";
+        if (ChassisBox.Text.Trim().Length == 0) return "Choose the car you want to drive.";
+        if (!File.Exists(ChassisBox.Text.Trim())) return "That car's ERP isn't in the game folder.";
+        if (TeamBox.Text.Trim().Length == 0) return "This template has no team ERP to swap into.";
+        if (!File.Exists(TeamBox.Text.Trim())) return "This template's team ERP isn't in the game folder.";
 
         var old = OldNameBox.Text.Trim();
         var neu = NewNameBox.Text.Trim();
@@ -295,149 +366,40 @@ public partial class ChassisPanel : UserControl
         if (string.Equals(old, neu, StringComparison.Ordinal))
             return "The replacement name is the same as the original.";
 
-        if (OutputBox.Text.Trim().Length == 0) return "Choose where to save the swapped ERP.";
         return null;
     }
 
-    // ── Driver animations ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// Refill the season dropdown from the game folder and default it to the
-    /// chassis's own year, then load that season's animsets.
-    ///
-    /// The game ships one <c>incardriver_f1.erp</c> per season and they carry
-    /// different animsets, so the season is an explicit choice — the chassis path
-    /// only supplies the default.
-    /// </summary>
-    private async Task RefreshSeasonsAsync()
-    {
-        var seasons = IncardriverLocator.ListSeasons(_config.GameDir);
-
-        if (seasons.Count == 0)
-        {
-            _seasons = seasons;
-            _suppressSeasonChange = true;
-            SeasonBox.ItemsSource = null;
-            _suppressSeasonChange = false;
-            SeasonBox.IsEnabled = false;
-            SeasonHint.Text = string.IsNullOrWhiteSpace(_config.GameDir)
-                ? "Set your game folder in Settings to include the in-car driver animations."
-                : "No incardriver_f1.erp under your game folder — driver animations will be left untouched.";
-            ClearAnimsets();
-            return;
-        }
-
-        var wanted = IncardriverLocator.InferYear(ChassisBox.Text.Trim());
-        var pick = seasons.FirstOrDefault(s => s.Season == wanted) ?? seasons[0];
-
-        _suppressSeasonChange = true;
-        _seasons = seasons;
-        SeasonBox.ItemsSource = seasons;
-        SeasonBox.SelectedItem = pick;
-        _suppressSeasonChange = false;
-
-        SeasonBox.IsEnabled = !_busy;
-        SeasonHint.Text = wanted is not null && pick.Season == wanted
-            ? $"Matched the chassis's year. {seasons.Count} seasons available."
-            : $"The chassis path doesn't name a season, so this defaults to {pick.Season}.";
-
-        await LoadAnimsetsAsync();
-    }
-
-    private void Season_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (_suppressSeasonChange) return;
-        SeasonHint.Text = "Using the season you picked.";
-        _ = LoadAnimsetsAsync();
-    }
-
-    /// <summary>
-    /// Populate the animset dropdowns from the selected season's ERP. The names
-    /// are read from the ERP rather than built from the team names — the tokens
-    /// don't always match (the folder <c>force_india</c> owns the animset
-    /// <c>…_forceindia</c>) — and both picks stay editable so a bad automatic
-    /// match can be corrected instead of silently shipping.
-    /// </summary>
-    private async Task LoadAnimsetsAsync()
-    {
-        if (SeasonBox.SelectedItem is not IncardriverLocator.IncardriverSeason season)
-        {
-            ClearAnimsets();
-            return;
-        }
-
-        if (season.Path != _loadedIncPath)
-        {
-            var token = ++_animsetLoadToken;
-            IncardriverStatus.Text = "Reading driver animations…";
-            ChassisAnimsetBox.IsEnabled = TeamAnimsetBox.IsEnabled = false;
-
-            List<string> names;
-            try
-            {
-                names = await Task.Run(() =>
-                {
-                    ErpFile erp = ErpFileIO.Load(season.Path);
-                    return IncardriverLocator.ListAnimsets(erp);
-                });
-            }
-            catch (Exception ex)
-            {
-                if (token != _animsetLoadToken) return;
-                IncardriverStatus.Text = $"Couldn't read {Path.GetFileName(season.Path)}: {ex.Message}";
-                return;
-            }
-
-            // A newer request already started — its result wins.
-            if (token != _animsetLoadToken) return;
-
-            _loadedIncPath = season.Path;
-            _animsets = names;
-        }
-
-        ChassisAnimsetBox.ItemsSource = _animsets;
-        TeamAnimsetBox.ItemsSource = _animsets;
-        ChassisAnimsetBox.IsEnabled = TeamAnimsetBox.IsEnabled = !_busy && _animsets.Count > 0;
-
-        IncardriverStatus.Text = _animsets.Count > 0
-            ? $"{season.Season} — {_animsets.Count} animation sets"
-            : $"The {season.Season} incardriver_f1.erp contains no animation sets.";
-
-        Preselect(ChassisAnimsetBox, Path.GetFileNameWithoutExtension(ChassisBox.Text.Trim()));
-        Preselect(TeamAnimsetBox, Path.GetFileNameWithoutExtension(TeamBox.Text.Trim()));
-    }
-
-    private void ClearAnimsets()
-    {
-        _loadedIncPath = null;
-        _animsets = new List<string>();
-        ChassisAnimsetBox.ItemsSource = null;
-        TeamAnimsetBox.ItemsSource = null;
-        ChassisAnimsetBox.IsEnabled = TeamAnimsetBox.IsEnabled = false;
-        IncardriverStatus.Text = "";
-    }
-
-    private void Preselect(ComboBox box, string token)
-    {
-        if (token.Length == 0) return;
-        var match = IncardriverLocator.MatchAnimset(_animsets, token);
-        if (match is not null) box.SelectedItem = match;
-    }
-
     // ── Swap ────────────────────────────────────────────────────────────────
+
+
+    // ── What the window's Swap button drives ────────────────────────────────
+    //
+    // The button lives in the title bar so both tabs share one, which means the
+    // panel has to say whether a swap is possible and do it when asked. The
+    // hidden SwapButton is still the state: every validation path already sets
+    // it, so mirroring it is cheaper and safer than a second source of truth.
+
+    /// <summary>Whether a swap could start right now.</summary>
+    public bool CanSwap => SwapButton.IsEnabled;
+
+    /// <summary>Raised when that answer changes, so the window can follow.</summary>
+    public event EventHandler? CanSwapChanged;
+
+
+    /// <summary>What the button should read right now.</summary>
+    public string SwapLabel => (string)SwapButton.Content;
+
+    /// <summary>Start one, as if the panel's own button had been pressed.</summary>
+    public void RunSwap() => Swap_Click(SwapButton, new RoutedEventArgs());
 
     private async void Swap_Click(object sender, RoutedEventArgs e)
     {
         if (FirstProblem() is not null) return;
 
-        var outputPath = OutputBox.Text.Trim();
-        if (File.Exists(outputPath))
-        {
-            var answer = MessageBox.Show(Window.GetWindow(this),
-                $"{Path.GetFileName(outputPath)} already exists. Replace it?",
-                "Simplified Chassis Swapper", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.OK) return;
-        }
+        // Nobody picks where this goes any more: the swap writes to scratch and
+        // the window files it in the open template. Outside the template until
+        // it has finished, so a failed run leaves nothing in there.
+        var outputPath = _host.ScratchErpPath(SwapParts.Chassis);
 
         var options = new ChassisSwapOptions
         {
@@ -447,13 +409,12 @@ public partial class ChassisPanel : UserControl
             NewName = NewNameBox.Text.Trim(),
             GameDir = _config.GameDir,
             OutputPath = outputPath,
-            // Use exactly the season shown in the dropdown rather than letting the
-            // engine re-detect it, so what runs matches what was on screen.
-            IncardriverErpPath = (SeasonBox.SelectedItem as IncardriverLocator.IncardriverSeason)?.Path,
+            // No overrides: the season comes from the chassis's own year and both
+            // animsets from matching their names, which is what this panel used
+            // to do in front of it. One derivation, in the engine, where the
+            // fallback already lived.
             EngineAudio = SelectedEngineChoice?.Source ?? EngineAudioSource.Chassis,
             EngineAudioPick = SelectedEngineChoice?.Entry,
-            ChassisAnimsetOverride = ChassisAnimsetBox.SelectedItem as string,
-            TeamAnimsetOverride = TeamAnimsetBox.SelectedItem as string,
         };
 
         SetBusy(true);
@@ -497,6 +458,8 @@ public partial class ChassisPanel : UserControl
 
     private void ReportSuccess(ChassisSwapResult result, string outputPath)
     {
+        var part = _host.PlaceSwap(outputPath, SwapParts.Chassis);
+
         Log($"resources   {result.ResourcesIn} -> {result.ResourcesOut}");
         Log($"textures    {result.TexturesEmbedded} embedded" +
             (result.TexturesMipsUnreachable > 0
@@ -518,18 +481,13 @@ public partial class ChassisPanel : UserControl
         }
 
         Log("");
-        Log($"Saved to {outputPath}");
-
-        _lastOutput = outputPath;
-        OpenOutputButton.IsEnabled = true;
-        _config.LastOutputFolder = Path.GetDirectoryName(outputPath);
-        _config.Save();
+        Log($"Added to the template as {part}");
 
         SwapProgress.Value = 1;
         ProgressLabel.Text = "100%";
         _completionMessage = result.Warnings.Count > 0
             ? $"Done with {result.Warnings.Count} warning(s) — see the log."
-            : $"Done — saved {Path.GetFileName(outputPath)}.";
+            : "Done — added to the template. Save it to keep it.";
         _completionIsWarning = result.Warnings.Count > 0;
     }
 
@@ -541,12 +499,13 @@ public partial class ChassisPanel : UserControl
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        foreach (var c in new Control[] { ChassisBox, TeamBox, OldNameBox, NewNameBox, OutputBox, EngineAudioBox })
+        foreach (var c in new Control[] { OldNameBox, NewNameBox, EngineAudioBox })
             c.IsEnabled = !busy;
 
-        // The dropdowns stay disabled when there was nothing to populate them with.
-        SeasonBox.IsEnabled = !busy && _seasons.Count > 0;
-        ChassisAnimsetBox.IsEnabled = TeamAnimsetBox.IsEnabled = !busy && _animsets.Count > 0;
+        ChassisCarBox.IsEnabled = !busy && ChassisCarBox.Items.Count > 0;
+
+        // Only ever live when there is more than one slot to choose between.
+        TeamErpBox.IsEnabled = !busy && TeamErpBox.Items.Count > 1;
 
         SwapButton.Content = busy ? "Swapping…" : "Swap";
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
@@ -554,7 +513,7 @@ public partial class ChassisPanel : UserControl
         if (busy)
         {
             SwapButton.IsEnabled = false;
-            StatusLabel.Foreground = HintBrush;
+            StatusLabel.Foreground = StatusBrush;
             _completionMessage = null;
             return;
         }

@@ -4,19 +4,28 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
 using SimplifiedSwapper.Core.Config;
+using SimplifiedSwapper.Core.Project;
 using SimplifiedDriverwearSwapper.Core.Driverwear;
 using SimplifiedDriverwearSwapper.Core.Toolkit;
 
 namespace SimplifiedSwapper;
 
-public partial class DriverwearPanel : UserControl
+public partial class DriverwearPanel : UserControl, ISwapPanel
 {
     private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
     private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
-    private static readonly Brush MutedBrush = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
+
+    /// <summary>
+    /// The status line's own colour. Full strength rather than the muted grey
+    /// the field hints use: it is the one line on the bar, and grey text that
+    /// small picks up a blue cast from subpixel rendering.
+    /// </summary>
+    private static Brush StatusBrush => Themed("TextPrimary", 0xEA, 0xEA, 0xEA);
+
     private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
 
     private UserConfig _config = null!;
+    private ISerpsHost _host = null!;
 
     private List<DriverwearCatalogue.DriverwearEntry> _driverwear = new();
     private List<DriverwearCatalogue.DriverwearEntry> _suits = new();
@@ -26,16 +35,48 @@ public partial class DriverwearPanel : UserControl
     public DriverwearPanel()
     {
         InitializeComponent();
+        SwapButton.IsEnabledChanged += (_, _) => CanSwapChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
-    /// Hand the panel the app's settings and let it start. Separate from the
-    /// constructor because a UserControl is built by XAML with no arguments,
-    /// and there is nothing useful to do before there is a config.
+    /// Hand the panel the app's settings and the template host, and let it
+    /// start. Separate from the constructor because a UserControl is built by
+    /// XAML with no arguments, and there is nothing useful to do before there
+    /// is a config.
     /// </summary>
-    public void Initialise(UserConfig config)
+    public void Initialise(UserConfig config, ISerpsHost host)
     {
         _config = config;
+        _host = host;
+
+        // Opening or closing a template is the difference between a swap having
+        // somewhere to go and not, so it reads as an input like any other.
+        _host.TemplateChanged += (_, _) =>
+        {
+            RefreshDriverwearLists();   // the template decides who wears it
+            RefreshStatus();
+            RefreshSwapButton();
+        };
+
+        RefreshDriverwearLists();
+        RefreshStatus();
+        RefreshSwapButton();
+    }
+
+    /// <summary>
+    /// Back to how the panel opens. Both picks were made for the template that
+    /// has just gone, so neither should still be sitting there for the next one.
+    /// The lists themselves come off the game folder, so they are rebuilt.
+    /// </summary>
+    public void Reset()
+    {
+        if (_config is null) return;   // never initialised — nothing to reset
+
+        DriverwearBox.SelectedItem = null;
+        TeamBox.SelectedItem = null;
+        DriverList.ItemsSource = null;
+        DriversHint.Text = "";
+
         RefreshDriverwearLists();
         RefreshStatus();
         RefreshSwapButton();
@@ -59,25 +100,67 @@ public partial class DriverwearPanel : UserControl
     }
 
     /// <summary>
-    /// Fill the dropdowns. Driverwear offers the team liveries; Team offers those
-    /// plus the MyTeam suits, so a suit can be dressed in a team's wear.
+    /// Fill the dropdowns.
+    ///
+    /// Driverwear offers every set, because which wear you want is the whole
+    /// choice. Team offers only what the open template is for: its drivers are
+    /// the ones being re-dressed, and dressing a team the template isn't for
+    /// would put a part in it that disagrees with the rest.
     /// </summary>
     private void RefreshDriverwearLists()
     {
         _driverwear = DriverwearCatalogue.Scan(_config.GameDir);
         _suits = DriverwearCatalogue.ScanMyTeamSuits(_config.GameDir);
 
-        var teamTargets = _driverwear.Concat(_suits).ToList();
+        var targets = TeamTargets();
 
         DriverwearBox.ItemsSource = _driverwear;
-        TeamBox.ItemsSource = teamTargets;
         DriverwearBox.IsEnabled = _driverwear.Count > 0;
-        TeamBox.IsEnabled = teamTargets.Count > 0;
-
         DriverwearHint.Text = "The suit, gloves and boots you want to use.";
-        TeamHint.Text = _suits.Count > 0
-            ? $"The team that will wear it — or one of your {_suits.Count} MyTeam suits."
-            : "The team that will wear it.";
+
+        TeamBox.ItemsSource = targets;
+        TeamBox.IsEnabled = targets.Count > 1;
+        TeamBox.SelectedItem = targets.Count > 0 ? targets[0] : null;
+        TeamHint.Text = TargetHint(targets);
+    }
+
+    /// <summary>
+    /// Who the open template can dress: the one team it is for, or — for My
+    /// Team, whose drivers wear the player's own suits rather than a team set —
+    /// whichever of those suits they want.
+    /// </summary>
+    private List<DriverwearCatalogue.DriverwearEntry> TeamTargets()
+    {
+        if (!_host.HasTemplate) return new List<DriverwearCatalogue.DriverwearEntry>();
+
+        if (TeamErps.DriverwearSetOf(_host.ShaderPackage) is { } set)
+            return _driverwear
+                .Where(d => d.Name.Equals(set, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        return TeamErps.WearsMyTeamSuits(_host.ShaderPackage)
+            ? _suits
+            : new List<DriverwearCatalogue.DriverwearEntry>();
+    }
+
+    /// <summary>Why the list holds what it holds — the useful half when it's empty.</summary>
+    private string TargetHint(List<DriverwearCatalogue.DriverwearEntry> targets)
+    {
+        if (!_host.HasTemplate)
+            return "Who will wear it. Open a template and it names its own team.";
+
+        var team = TeamErps.TeamNameOf(_host.ShaderPackage);
+        if (team is null)
+            return "This template's shader package isn't one of the 2026 teams, so there is nobody to dress.";
+
+        if (targets.Count == 0)
+            return TeamErps.WearsMyTeamSuits(_host.ShaderPackage)
+                ? "No MyTeam suits in this game folder — check the folder in Settings."
+                : $"{team}'s driverwear isn't in this game folder — check the folder in Settings.";
+
+        return targets.Count == 1
+            ? $"{team}, from the open template. Its drivers are the ones being re-dressed."
+            : $"My Team — {targets.Count} suits. Pick the one you race in.";
     }
 
     private void Selection_Changed(object sender, SelectionChangedEventArgs e)
@@ -87,70 +170,11 @@ public partial class DriverwearPanel : UserControl
         DriverwearHint.Text = Describe(
             DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry,
             "The suit, gloves and boots you want to use.");
-        TeamHint.Text = Describe(
-            TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry,
-            "The team that will wear it.");
+        // The team hint says which template this is for, which a pick doesn't
+        // change — only the source needs re-describing.
 
-        SyncOutputPath();
         RefreshStatus();
         RefreshSwapButton();
-    }
-
-    // ── Output ──────────────────────────────────────────────────────────────
-
-    /// <summary>The path we filled in ourselves, so a typed one is never clobbered.</summary>
-    private string _autoOutput = "";
-
-    /// <summary>
-    /// Default file name for a swap onto a given set. Named after the team, since
-    /// it's the team's ERP being rebuilt, and prefixed so a swapped file is never
-    /// mistaken for the game's own.
-    /// </summary>
-    private static string DefaultOutputName(DriverwearCatalogue.DriverwearEntry team) =>
-        $"swap_{team.Name}.erp";
-
-    /// <summary>
-    /// Keep the output named after the current team, until the user picks a path
-    /// themselves.
-    /// </summary>
-    private void SyncOutputPath()
-    {
-        if (TeamBox.SelectedItem is not DriverwearCatalogue.DriverwearEntry team) return;
-        if (OutputBox.Text.Length != 0 && OutputBox.Text != _autoOutput) return;
-
-        var folder = FirstExistingDir(_config.LastOutputFolder)
-                     ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        try { _autoOutput = Path.Combine(folder, DefaultOutputName(team)); }
-        catch { return; }   // characters the filesystem won't take
-        OutputBox.Text = _autoOutput;
-    }
-
-    private void Output_Changed(object sender, TextChangedEventArgs e)
-    {
-        if (OutputHint is null) return;   // fires during InitializeComponent
-        RefreshSwapButton();
-    }
-
-    private void BrowseOutput_Click(object sender, RoutedEventArgs e)
-    {
-        var team = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
-
-        var dlg = new SaveFileDialog
-        {
-            Title = "Save the swapped ERP",
-            Filter = "ERP archives (*.erp)|*.erp",
-            DefaultExt = ".erp",
-            AddExtension = true,
-            FileName = SafeFileName(OutputBox.Text) ?? (team is null ? "" : DefaultOutputName(team)),
-            InitialDirectory = FirstExistingDir(SafeDirName(OutputBox.Text), _config.LastOutputFolder) ?? "",
-            OverwritePrompt = false,   // confirmed at swap time instead
-        };
-        if (dlg.ShowDialog(Window.GetWindow(this)) != true) return;
-
-        OutputBox.Text = dlg.FileName;
-        _autoOutput = "";              // an explicit choice — stop re-deriving it
-        _config.LastOutputFolder = Path.GetDirectoryName(dlg.FileName);
-        _config.Save();
     }
 
     /// <summary>
@@ -170,7 +194,7 @@ public partial class DriverwearPanel : UserControl
         var gameDir = _config.GameDir;
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
-            SetStatus("Set your game folder in Settings to begin.", HintBrush);
+            SetStatus("Set your game folder in Settings to begin.", StatusBrush);
             return;
         }
 
@@ -184,26 +208,32 @@ public partial class DriverwearPanel : UserControl
         var from = DriverwearBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
         var to = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
 
-        if (from is null || to is null)
+        if (to is null)
         {
-            SetStatus($"{_driverwear.Count} driverwear sets found. Choose which wear goes on which team.",
-                MutedBrush);
+            SetStatus("This template has nobody to dress — see the team box.", StatusBrush);
+            return;
+        }
+
+        if (from is null)
+        {
+            SetStatus($"{_driverwear.Count} driverwear sets found. Choose which wear {to.Name} will race in.",
+                StatusBrush);
             return;
         }
 
         if (from.Name == to.Name)
         {
-            SetStatus($"{from.Name} already wears its own driverwear.", MutedBrush);
+            SetStatus($"{from.Name} already wears its own driverwear.", StatusBrush);
             return;
         }
 
-        if (OutputBox.Text.Trim().Length == 0)
+        if (!_host.HasTemplate)
         {
-            SetStatus("Choose where to save the swapped ERP.", MutedBrush);
+            SetStatus("Open a template to swap into.", StatusBrush);
             return;
         }
 
-        SetStatus($"{from.Name} driverwear on {to.Name}.", MutedBrush);
+        SetStatus($"{from.Name} driverwear on {to.Name}.", StatusBrush);
     }
 
     /// <summary>
@@ -216,9 +246,9 @@ public partial class DriverwearPanel : UserControl
         var to = TeamBox.SelectedItem as DriverwearCatalogue.DriverwearEntry;
 
         SwapButton.IsEnabled =
+            _host.HasTemplate &&
             from is not null && to is not null &&
-            !string.Equals(from.Name, to.Name, StringComparison.OrdinalIgnoreCase) &&
-            OutputBox.Text.Trim().Length > 0;
+            !string.Equals(from.Name, to.Name, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Swap ────────────────────────────────────────────────────────────────
@@ -237,19 +267,36 @@ public partial class DriverwearPanel : UserControl
     ///
     /// Nothing is written to the output ERP yet; this only prepares.
     /// </summary>
+
+    // ── What the window's Swap button drives ────────────────────────────────
+    //
+    // The button lives in the title bar so both tabs share one, which means the
+    // panel has to say whether a swap is possible and do it when asked. The
+    // hidden SwapButton is still the state: every validation path already sets
+    // it, so mirroring it is cheaper and safer than a second source of truth.
+
+    /// <summary>Whether a swap could start right now.</summary>
+    public bool CanSwap => SwapButton.IsEnabled;
+
+    /// <summary>Raised when that answer changes, so the window can follow.</summary>
+    public event EventHandler? CanSwapChanged;
+
+
+    /// <summary>What the button should read right now.</summary>
+    public string SwapLabel => (string)SwapButton.Content;
+
+    /// <summary>Start one, as if the panel's own button had been pressed.</summary>
+    public void RunSwap() => Swap_Click(SwapButton, new RoutedEventArgs());
+
     private async void Swap_Click(object sender, RoutedEventArgs e)
     {
         if (DriverwearBox.SelectedItem is not DriverwearCatalogue.DriverwearEntry from ||
             TeamBox.SelectedItem is not DriverwearCatalogue.DriverwearEntry to) return;
 
-        var outputPath = OutputBox.Text.Trim();
-        if (File.Exists(outputPath))
-        {
-            var answer = MessageBox.Show(Window.GetWindow(this),
-                $"{Path.GetFileName(outputPath)} already exists. Replace it?",
-                "Simplified Driverwear Swapper", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-            if (answer != MessageBoxResult.OK) return;
-        }
+        // Nobody picks where this goes any more: the swap writes to scratch and
+        // the window files it in the open template. Outside the template until
+        // it has finished, so a failed run leaves nothing in there.
+        var outputPath = _host.ScratchErpPath(SwapParts.Driverwear);
 
         var log = new List<string>();
         void Log(string line)
@@ -262,7 +309,7 @@ public partial class DriverwearPanel : UserControl
 
         SetBusy(true);
         DriversHint.Text = $"Working in {WorkingDir}";
-        SetStatus($"Swapping {from.Name} driverwear onto {to.Name}…", MutedBrush);
+        SetStatus($"Swapping {from.Name} driverwear onto {to.Name}…", StatusBrush);
 
         try
         {
@@ -287,10 +334,11 @@ public partial class DriverwearPanel : UserControl
                           $"({result.OutputResources} resources) with {result.Warnings.Count} warning(s).", ErrorBrush);
             else
             {
-                _config.LastOutputFolder = Path.GetDirectoryName(result.OutputPath);
-                _config.Save();
-                SetStatus($"Wrote {Path.GetFileName(result.OutputPath)} — " +
-                          $"{result.OutputResources} resources, {result.DriverCount} driver(s).", OkBrush);
+                var part = _host.PlaceSwap(result.OutputPath, SwapParts.Driverwear);
+                Log($"Added to the template as {part}");
+                SetStatus($"Added {Path.GetFileName(part)} to the template — " +
+                          $"{result.OutputResources} resources, {result.DriverCount} driver(s). " +
+                          "Save it to keep it.", OkBrush);
             }
         }
         catch (Exception ex)
@@ -307,7 +355,7 @@ public partial class DriverwearPanel : UserControl
 
     private void SetBusy(bool busy)
     {
-        foreach (var c in new Control[] { DriverwearBox, TeamBox, OutputBox })
+        foreach (var c in new Control[] { DriverwearBox, TeamBox })
             c.IsEnabled = !busy;
 
         SwapButton.Content = busy ? "Working…" : "Swap";

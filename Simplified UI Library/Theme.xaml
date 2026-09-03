@@ -1010,7 +1010,13 @@
                             <TabPanel IsItemsHost="True" Panel.ZIndex="1"/>
                         </Border>
                         <Border Grid.Row="1" Background="{TemplateBinding Background}">
-                            <ContentPresenter ContentSource="SelectedContent"/>
+                            <!-- The name is not decoration: TabItemAutomationPeer
+                                 looks for PART_SelectedContentHost to hand the
+                                 selected tab's content to accessibility tools.
+                                 Without it a screen reader sees the tab strip
+                                 and nothing inside any tab. -->
+                            <ContentPresenter x:Name="PART_SelectedContentHost"
+                                              ContentSource="SelectedContent"/>
                         </Border>
                     </Grid>
                 </ControlTemplate>

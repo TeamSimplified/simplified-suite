@@ -34,18 +34,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
-                BorderThickness="0,0,0,1" Padding="18,10">
-            <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimary}"
-                           FontWeight="SemiBold" Text="Driverwear swap"/>
-
-                <Button DockPanel.Dock="Right" Name="SwapButton" Content="Swap" Padding="22,6"
-                        FontWeight="SemiBold" IsEnabled="False" Click="Swap_Click"/>
-            </DockPanel>
-        </Border>
+        <!-- The swap button the toolbar used to hold. It is collapsed rather
+             than gone because every validation path in this panel sets its
+             state, and the window's real Swap button reads that state back. -->
+        <Button Name="SwapButton" Content="Swap" IsEnabled="False" Visibility="Collapsed"/>
 
         <!-- Body -->
         <Grid Grid.Row="2" Margin="20,18,20,18">
@@ -78,20 +70,9 @@
                            Text="The team that will wear it."/>
             </StackPanel>
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Save to"/>
-            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,0,16">
-                <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="Browse" Style="{StaticResource BrowseButton}"
-                            Click="BrowseOutput_Click"/>
-                    <TextBox Name="OutputBox" TextChanged="Output_Changed"/>
-                </DockPanel>
-                <TextBlock Name="OutputHint" Style="{StaticResource Hint}"
-                           Text="The swapped ERP the app will write."/>
-            </StackPanel>
-
             <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}"
-                       VerticalAlignment="Top" Margin="0,2,10,0" Text="Files"/>
-            <DockPanel Grid.Row="3" Grid.Column="1">
+                       VerticalAlignment="Top" Margin="0,2,10,0" Text="Files" Visibility="Collapsed"/>
+            <DockPanel Grid.Row="3" Grid.Column="1" Visibility="Collapsed">
                 <TextBlock DockPanel.Dock="Top" Name="DriversHint" Style="{StaticResource Hint}"
                            Margin="0,0,0,4"
                            Text="Press Swap to gather the files each side contributes."/>
@@ -104,7 +85,7 @@
         <!-- Status -->
         <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
                 BorderThickness="0,1,0,0" Padding="20,12">
-            <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
+            <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
         </Border>
     </Grid>
 </UserControl>
