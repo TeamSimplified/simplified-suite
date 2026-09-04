@@ -1,4 +1,4 @@
-using EgoEngineLibrary.Archive.Erp;
+﻿using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Texconv;
 using EgoEngineLibrary.Util;
 
@@ -52,6 +52,16 @@ public static class ErpFiles
         var tallies = ErpOperations.Merge(target, sourceErps, overwrite);
         Write(target, outputPath ?? targetErp);
         return new MergeResult(tallies, target.Resources.Count);
+    }
+
+    /// <summary>Drop every resource whose identifier matches the filter.</summary>
+    public static int RemoveAll(string erpPath, string filter,
+                                string? outputPath = null, Action<string>? log = null)
+    {
+        var erp = ErpFileIO.Load(erpPath);
+        var removed = ErpOperations.RemoveAll(erp, filter, log);
+        Write(erp, outputPath ?? erpPath);
+        return removed;
     }
 
     /// <summary>Substring find/replace across every resource identifier.</summary>

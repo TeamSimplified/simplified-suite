@@ -1,4 +1,5 @@
-using EgoEngineLibrary.Operations;
+﻿using EgoEngineLibrary.Operations;
+using System.Linq;
 
 namespace SimplifiedHelmetSwapper.Core.Toolkit;
 
@@ -36,7 +37,8 @@ public static class Erp
 
     /// <summary>A merge, with the numbers that used to be read back out of console text.</summary>
     /// <param name="Skipped">Resources two pieces both claimed, kept from the first.</param>
-    public sealed record MergeResult(bool Succeeded, string ErrorMessage, int Skipped, int Total);
+    public sealed record MergeResult(bool Succeeded, string ErrorMessage, int Skipped, int Total,
+                                     int Added = 0, int Replaced = 0);
 
     /// <summary>An extract-to-erp: how many resources were taken, out of how many.</summary>
     public sealed record ExtractResult(bool Succeeded, string ErrorMessage, int Taken, int OutOf);
@@ -85,8 +87,14 @@ public static class Erp
         Run(() =>
         {
             var merged = ErpFiles.Merge(targetErp, sourceErps, outputPath, overwrite);
-            return new MergeResult(true, "", merged.Skipped, merged.Total);
+            return new MergeResult(true, "", merged.Skipped, merged.Total,
+                                   merged.Tallies.Sum(t => t.Added), merged.Tallies.Sum(t => t.Replaced));
         }, ex => new MergeResult(false, ex.Message, 0, 0), cancel);
+
+    /// <summary>Drop every resource whose identifier matches the filter.</summary>
+    public static Task<OpResult> RemoveAllAsync(
+        string erpPath, string filter, CancellationToken cancel = default) =>
+        Run(() => ErpFiles.RemoveAll(erpPath, filter), cancel);
 
     /// <summary>Substring find/replace across every resource identifier.</summary>
     public static Task<OpResult> RenameAllAsync(
@@ -95,8 +103,9 @@ public static class Erp
 
     /// <summary>Pull each texture's external mip chain into the archive.</summary>
     public static Task<OpResult> StripMipsAsync(
-        string erpPath, string gameDir, Action<string>? log = null, CancellationToken cancel = default) =>
-        Run(() => ErpFiles.StripMips(erpPath, gameDir, log: log), cancel);
+        string erpPath, string gameDir, string? filter = null,
+        Action<string>? log = null, CancellationToken cancel = default) =>
+        Run(() => ErpFiles.StripMips(erpPath, gameDir, filter: filter, log: log), cancel);
 
     /// <summary>Export every texture as DDS, resolving external mips when asked.</summary>
     public static Task<OpResult> ExportTexturesAsync(

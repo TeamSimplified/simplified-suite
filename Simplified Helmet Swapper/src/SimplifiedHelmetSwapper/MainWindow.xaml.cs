@@ -320,11 +320,12 @@ public partial class MainWindow : Window
                 _config.Save();
 
                 var shell = result.ShellChanged
-                    ? $", on a {Shell(result.DonorShell)} shell"
+                    ? $" on a {Shell(result.DonorShell)} shell in place of the {Shell(result.TargetShell)},"
                     : "";
-                SetStatus($"Wrote {Path.GetFileName(result.OutputPath)} — " +
-                          $"{result.OutputResources} resources{shell}. " +
-                          $"Put it where {to.Driver}_helmet.erp lives.", OkBrush);
+                SetStatus($"Wrote {Path.GetFileName(result.OutputPath)}{shell} " +
+                          $"{result.Replaced} replaced and {result.Added} added, " +
+                          $"{result.Kept} of {Name(to)}'s own left untouched. " +
+                          $"It replaces the file of the same name.", OkBrush);
             }
         }
         catch (Exception ex)

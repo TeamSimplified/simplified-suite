@@ -4,16 +4,30 @@ using SimplifiedHelmetSwapper.Core.Toolkit;
 namespace SimplifiedHelmetSwapper.Core.Helmet;
 
 /// <summary>
-/// Builds one driver's helmet out of another's.
+/// Gives one driver another's helmet, by editing their own.
 ///
-/// The whole helmet moves, not just its paint: the generic shell it is built on,
-/// the driver's own attachments, the four materials and the images behind them.
-/// Afterwards the target is wearing the donor's helmet, down to the shape.
+/// The output is the target's <c>&lt;driver&gt;_helmet.erp</c> with pieces
+/// substituted, not a fresh archive holding only what changed — so the file
+/// that comes out is a complete replacement for the one it is named after, and
+/// everything the swap doesn't touch is still exactly where the game left it.
 ///
-/// Every step is a Toolkit call and every rename is a rename of resource
-/// <i>identifiers</i>, never of bytes inside a payload — which is what lets two
-/// drivers with names of different lengths swap at all. The pieces that keep the
-/// donor's names do so on purpose; see <see cref="RunAsync"/>.
+/// The shell and the rest are handled differently on purpose:
+///
+/// <list type="bullet">
+/// <item>The generic shell — the Bell, Arai, Schuberth or Stilo the helmet is
+/// built on — is swapped whole. The target's model, render and LODs are deleted
+/// and the donor manufacturer's put in under <i>their own</i> names, because
+/// those resources reference each other by name inside their payloads and
+/// re-addressing them would leave every reference pointing at something that is
+/// no longer there.</item>
+/// <item>Everything the driver owns — attachments, materials, images — is
+/// re-addressed to the target instead, the way the driverwear swap does it.
+/// Those are per-driver resources, so they have to arrive under the target's
+/// names to be found at all.</item>
+/// </list>
+///
+/// No bytes inside a payload are ever patched, which is what lets two drivers
+/// with names of different lengths swap at all.
 /// </summary>
 public static class HelmetPrepare
 {
@@ -24,13 +38,13 @@ public static class HelmetPrepare
         /// <summary>The helmet being taken.</summary>
         public required HelmetCatalogue.Entry Donor { get; init; }
 
-        /// <summary>The driver who will wear it.</summary>
+        /// <summary>The driver who will wear it, and whose file is being edited.</summary>
         public required HelmetCatalogue.Entry Target { get; init; }
 
         /// <summary>Where the extracts land. Emptied first, so each run starts clean.</summary>
         public required string WorkingDir { get; init; }
 
-        /// <summary>The single ERP everything is merged into.</summary>
+        /// <summary>The edited copy of the target's helmet.</summary>
         public required string OutputPath { get; init; }
     }
 
@@ -42,12 +56,15 @@ public static class HelmetPrepare
 
         /// <summary>Families actually carried over, and ones the donor didn't have.</summary>
         public List<string> Families { get; } = new();
-        public List<string> MissingFamilies { get; } = new();
 
-        /// <summary>What the donor's helmet is built on, and what the target's was.</summary>
         public string DonorShell { get; set; } = "";
         public string TargetShell { get; set; } = "";
         public bool ShellChanged => !DonorShell.Equals(TargetShell, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>How much of the target's own helmet was left alone.</summary>
+        public int Kept { get; set; }
+        public int Replaced { get; set; }
+        public int Added { get; set; }
 
         public string? OutputPath { get; set; }
         public int OutputResources { get; set; }
@@ -55,17 +72,9 @@ public static class HelmetPrepare
 
     private const string PartsDir = "Parts";
 
-    /// <summary>
-    /// Take the donor's helmet apart, re-address the pieces, and put them back
-    /// together as the target's.
-    ///
-    /// Two pieces deliberately keep the donor's identifiers. The attachment LODs
-    /// stay because the model that references them was renamed but its payload
-    /// was not, so the names it points at have to still exist — the driverwear
-    /// swap ships its LODs the same way for the same reason. The textures stay
-    /// because the materials naming them are the donor's, and shipping both
-    /// unchanged is what makes patching bytes unnecessary.
-    /// </summary>
+    /// <summary>Model, render and the LOD meshes and buffers — the geometry, and nothing else.</summary>
+    private const string GeometrySuffixes = @"\?(model|render|lod=)";
+
     public static async Task<PrepareResult> RunAsync(
         PrepareOptions options, Action<string>? log = null, CancellationToken cancel = default)
     {
@@ -86,42 +95,61 @@ public static class HelmetPrepare
         Directory.CreateDirectory(parts);
 
         log?.Invoke($"{d.Label}  →  {t.Label}");
-        log?.Invoke(result.ShellChanged
-            ? $"    shell               {donor.Shell} replacing {target.Shell}"
-            : $"    shell               {donor.Shell}, the same on both");
         log?.Invoke("");
+
+        // ── Start from the target's own helmet ──────────────────────────────
+        var outputDir = Path.GetDirectoryName(options.OutputPath);
+        if (!string.IsNullOrEmpty(outputDir)) Directory.CreateDirectory(outputDir);
+        File.Copy(t.ErpPath, options.OutputPath, overwrite: true);
+
+        result.Kept = target.ResourceCount;
+        log?.Invoke($"    {Path.GetFileName(t.ErpPath),-24} {target.ResourceCount} resources, copied to edit");
 
         var dRoot = $"drivers/{d.Gender}/{d.Folder}/";
         var tRoot = $"drivers/{t.Gender}/{t.Folder}/";
 
-        // ── The shell ───────────────────────────────────────────────────────
-        // Re-addressed onto the target's shell name rather than added beside it.
-        // Every driver's helmet ships its own copy of these identifiers, so they
-        // resolve per helmet rather than game-wide; taking the target's names
-        // means exactly one shell answers for this driver instead of two.
-        await BuildAsync(d.ErpPath, Path.Combine(parts, "1_shell.erp"),
-            $@"kitpart_assets/generic/helmets/{Regex.Escape(donor.Shell)}/",
-            [(donor.Shell, target.Shell), ($"?context={d.Folder}", $"?context={t.Folder}")],
-            "shell", result, log, cancel);
+        // ── The shell, swapped whole and kept under its own names ───────────
+        if (result.ShellChanged)
+        {
+            var removed = await Erp.RemoveAllAsync(options.OutputPath,
+                $@"helmets/{Regex.Escape(target.Shell)}/.*{GeometrySuffixes}", cancel);
+
+            if (!removed.Succeeded)
+            {
+                result.Warnings.Add($"shell: couldn't remove {target.Shell}: {removed.ErrorMessage}");
+                log?.Invoke($"    {"shell",-24} FAILED — {removed.ErrorMessage}");
+            }
+            else
+            {
+                log?.Invoke($"    {"shell",-24} {target.Shell} geometry removed");
+            }
+        }
+
+        // With the same shell on both sides this replaces like for like, which
+        // is a no-op in effect and keeps the one code path.
+        await StageAsync(d.ErpPath, Path.Combine(parts, "1_shell.erp"),
+            $@"helmets/{Regex.Escape(donor.Shell)}/.*{GeometrySuffixes}",
+            [], $"shell {donor.Shell}", result, log, cancel);
 
         // ── The attachments the driver wears on it ──────────────────────────
         var attach = $"{Regex.Escape(d.Driver)}_helmet_attachments";
 
-        await BuildAsync(d.ErpPath, Path.Combine(parts, "2_attachments.erp"),
+        await StageAsync(d.ErpPath, Path.Combine(parts, "2_attachments.erp"),
             $@"{Regex.Escape(dRoot)}idf/{attach}\.idf\?(model|render)$",
             [(dRoot, tRoot), ($"{d.Driver}_helmet_attachments", $"{t.Driver}_helmet_attachments"),
              ($"?context={d.Folder}", $"?context={t.Folder}")],
             "attachments", result, log, cancel);
 
-        // Their geometry, under the donor's names — see the summary above.
-        await BuildAsync(d.ErpPath, Path.Combine(parts, "3_attachment_lods.erp"),
+        // Their geometry keeps the donor's names: the model above was
+        // re-addressed but its payload was not, so what it points at has to
+        // still be called what it was called.
+        await StageAsync(d.ErpPath, Path.Combine(parts, "3_attachment_lods.erp"),
             $@"{Regex.Escape(dRoot)}idf/{attach}\.idf\?lod=",
             [], "attachment lods", result, log, cancel);
 
         // ── The four materials, and the images they name ────────────────────
         var families = HelmetCatalogue.HelmetFamilies.Where(f => donor.Families.Contains(f)).ToList();
         result.Families.AddRange(families);
-        result.MissingFamilies.AddRange(HelmetCatalogue.HelmetFamilies.Except(families));
 
         if (families.Count == 0)
             result.Warnings.Add($"{d.Label} has no helmet textures of their own, so there is nothing to take.");
@@ -132,34 +160,35 @@ public static class HelmetPrepare
         {
             // Only the folder moves. A material is called the same thing for
             // everyone, and its payload still names the donor's images — which
-            // is why they ship next to it, unrenamed.
-            await BuildAsync(d.ErpPath, Path.Combine(parts, "4_materials.erp"),
+            // is why they go in beside it, unrenamed.
+            await StageAsync(d.ErpPath, Path.Combine(parts, "4_materials.erp"),
                 $@"{Regex.Escape(dRoot)}materials/({group})\.material$",
                 [(dRoot, tRoot)], "materials", result, log, cancel);
 
-            await BuildAsync(d.ErpPath, Path.Combine(parts, "5_textures.erp"),
+            await StageAsync(d.ErpPath, Path.Combine(parts, "5_textures.erp"),
                 $@"{Regex.Escape(dRoot)}textures/{Regex.Escape(d.Driver)}_({group})_[dns]\.tif",
                 [], "textures", result, log, cancel);
         }
 
-        // A family the target has and the donor doesn't would leave the target's
-        // own showing through, which is not the helmet they asked for.
+        // A family the target has and the donor doesn't leaves the target's own
+        // showing through, which is not the helmet that was asked for.
         foreach (var f in target.Families.Except(families))
             result.Warnings.Add(
-                $"{d.Label} has no {f.Replace('_', ' ')} of their own, so {t.Driver.Replace('_', ' ')} keeps theirs.");
+                $"{d.Label} has no {f.Replace('_', ' ')} of their own, so {Pretty(t.Driver)} keeps theirs.");
 
-        await MergeAsync(parts, options.OutputPath, options.GameDir, result, log, cancel);
+        await ApplyAsync(parts, options.OutputPath, options.GameDir,
+            $@"{Regex.Escape(dRoot)}textures/", result, log, cancel);
         return result;
     }
 
     /// <summary>
-    /// Pull one piece out of the donor and re-address it.
+    /// Lift one piece out of the donor and re-address it, ready to go in.
     ///
     /// An extract that matches nothing is a warning rather than a failure: the
     /// helmets are not uniform — most drivers have four texture families, some
     /// have two — and one absent piece shouldn't lose the rest of the helmet.
     /// </summary>
-    private static async Task BuildAsync(
+    private static async Task StageAsync(
         string sourceErp, string destination, string filter,
         (string Find, string Replace)[] renames,
         string label, PrepareResult result, Action<string>? log, CancellationToken cancel)
@@ -168,7 +197,7 @@ public static class HelmetPrepare
         if (!extract.Succeeded || !File.Exists(destination))
         {
             result.Warnings.Add($"{label}: {extract.ErrorMessage}");
-            log?.Invoke($"    {label,-19} nothing matched");
+            log?.Invoke($"    {label,-24} nothing matched");
             return;
         }
 
@@ -179,22 +208,22 @@ public static class HelmetPrepare
             if (run.Succeeded) continue;
 
             result.Warnings.Add($"{label}: renaming '{find}' failed: {run.ErrorMessage}");
-            log?.Invoke($"    {label,-19} FAILED — {run.ErrorMessage}");
+            log?.Invoke($"    {label,-24} FAILED — {run.ErrorMessage}");
             return;
         }
 
         result.Outputs.Add($"{PartsDir}/{Path.GetFileName(destination)}");
-        log?.Invoke($"    {label,-19} {extract.Taken} resources" +
-                    (renames.Length > 0 ? ", re-addressed" : ", under the donor's names"));
+        log?.Invoke($"    {label,-24} {extract.Taken} resources" +
+                    (renames.Length > 0 ? ", re-addressed" : ", under their own names"));
     }
 
     /// <summary>
-    /// Merge the pieces into the finished helmet and pull in the external mip
-    /// chains, so the file carries its own images rather than depending on
-    /// sidecars that belong to the donor.
+    /// Put the pieces into the copy, overwriting where the target already has
+    /// that identifier, and pull in the external mip chains so the file carries
+    /// its own images rather than depending on sidecars belonging to the donor.
     /// </summary>
-    private static async Task MergeAsync(
-        string partsDir, string outputPath, string gameDir,
+    private static async Task ApplyAsync(
+        string partsDir, string outputPath, string gameDir, string mipFilter,
         PrepareResult result, Action<string>? log, CancellationToken cancel)
     {
         log?.Invoke("");
@@ -205,35 +234,42 @@ public static class HelmetPrepare
 
         if (pieces.Count == 0)
         {
-            result.Warnings.Add("Nothing was extracted, so no helmet was written.");
-            log?.Invoke("    (nothing to merge)");
+            result.Warnings.Add("Nothing was taken from the donor, so the helmet is unchanged.");
+            log?.Invoke("    (nothing to put in)");
             return;
         }
 
-        var outputDir = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrEmpty(outputDir)) Directory.CreateDirectory(outputDir);
-
-        var merge = await Erp.MergeAsync(pieces[0], pieces.Skip(1), outputPath, cancel: cancel);
+        var merge = await Erp.MergeAsync(outputPath, pieces, outputPath, overwrite: true, cancel);
         if (!merge.Succeeded)
         {
-            result.Warnings.Add($"Merging the helmet failed: {merge.ErrorMessage}");
-            log?.Invoke($"    merge               FAILED — {merge.ErrorMessage}");
+            result.Warnings.Add($"Putting the pieces in failed: {merge.ErrorMessage}");
+            log?.Invoke($"    {"apply",-24} FAILED — {merge.ErrorMessage}");
             return;
         }
 
-        // The pieces hold disjoint resources by construction, so a skip means
-        // two of them claimed one identifier and it is worth hearing about.
-        if (merge.Skipped > 0)
-            result.Warnings.Add($"{merge.Skipped} resource(s) appeared in more than one piece.");
+        result.Replaced = merge.Replaced;
+        result.Added = merge.Added;
+        result.Kept = merge.Total - merge.Added - merge.Replaced;
+        log?.Invoke($"    {"applied",-24} {merge.Replaced} replaced, {merge.Added} added, {result.Kept} untouched");
 
-        var strip = await Erp.StripMipsAsync(outputPath, gameDir, cancel: cancel);
+        // Only the images that came from the donor. Run over the whole file it
+        // would also inline the mip chains of everything the swap never touched
+        // — the target's boots, cap and team textures — rewriting resources
+        // that were supposed to come through untouched, and bloating the file
+        // to do it. Theirs still resolve against the sidecars they always did.
+        var strip = await Erp.StripMipsAsync(outputPath, gameDir, mipFilter, cancel: cancel);
         if (!strip.Succeeded) result.Warnings.Add($"Embedding the mipmaps failed: {strip.ErrorMessage}");
-        else log?.Invoke("    mipmaps             embedded");
+        else log?.Invoke($"    {"mipmaps",-24} embedded for the new images");
 
         result.OutputPath = outputPath;
         result.OutputResources = merge.Total;
-        log?.Invoke($"    {Path.GetFileName(outputPath)} — {merge.Total} resources");
+        log?.Invoke($"    {Path.GetFileName(outputPath),-24} {merge.Total} resources");
     }
+
+    /// <summary>"charles_leclerc" reads as "Charles Leclerc".</summary>
+    private static string Pretty(string token) => string.Join(' ', token
+        .Split('_', StringSplitOptions.RemoveEmptyEntries)
+        .Select(w => char.ToUpperInvariant(w[0]) + w[1..]));
 
     /// <summary>
     /// Empty the working folder so a run never mixes with the last one's output.

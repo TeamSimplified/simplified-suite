@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedHelmetSwapper.MainWindow"
+﻿<Window x:Class="SimplifiedHelmetSwapper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -136,7 +136,7 @@
                     <TextBox Name="OutputBox" TextChanged="Output_Changed"/>
                 </DockPanel>
                 <TextBlock Name="OutputHint" Style="{StaticResource Hint}"
-                           Text="The swapped helmet the app will write."/>
+                           Text="A full replacement for the wearer&apos;s own _helmet.erp, with the helmet swapped in."/>
             </StackPanel>
 
             <TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Pieces"/>

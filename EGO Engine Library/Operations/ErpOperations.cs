@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Formats.Erp;
@@ -236,6 +236,33 @@ public static class ErpOperations
     // ── resource ──────────────────────────────────────────────────────
 
     /// <summary>Substring find/replace across every resource identifier.</summary>
+    // ── remove ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Drop every resource whose identifier matches, and say how many went.
+    ///
+    /// The counterpart to <see cref="ExtractToErp"/>: that one keeps what
+    /// matches, this one keeps what doesn't. Removing nothing is a legitimate
+    /// answer — a filter aimed at a part the archive happens not to have is a
+    /// no-op, not a mistake — so unlike the extract it doesn't throw on zero.
+    /// </summary>
+    public static int RemoveAll(ErpFile erp, string filter, Action<string>? log = null)
+    {
+        if (string.IsNullOrEmpty(filter))
+            throw new ArgumentException("Removing needs a filter; removing everything would just empty the file.", nameof(filter));
+
+        var regex = new Regex(filter);
+        var doomed = erp.Resources.Where(r => regex.IsMatch(r.Identifier)).ToList();
+
+        foreach (var resource in doomed)
+        {
+            erp.Resources.Remove(resource);
+            log?.Invoke($"removed {resource.Identifier}");
+        }
+
+        return doomed.Count;
+    }
+
     public static int RenameAll(ErpFile erp, string find, string replace, Action<string>? log = null)
     {
         var renamed = 0;
