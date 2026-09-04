@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedStudio.MainWindow"
+﻿<Window x:Class="SimplifiedStudio.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -186,12 +186,13 @@
 
                     <!-- Right-aligned cluster. DockPanel resolves Dock=Right children in declaration order
                          from the outer edge inward, so list them in reverse visual order: Close (rightmost),
-                         Package, Choose parts, Edit project (leftmost). Add/remove ERPs for custom projects
+                         Package, Choose parts, Edit project, Notes (leftmost). Add/remove ERPs for custom projects
                          lives inside the Edit project dialog. -->
                     <Button DockPanel.Dock="Right" Content="Close"         Padding="12,7" Margin="6,0,0,0" Click="CloseProject_Click"  Name="CloseProjectButton"  IsEnabled="False"/>
                     <Button DockPanel.Dock="Right" Content="Package"       Padding="12,7" Margin="6,0,0,0" Click="ExportProject_Click" Name="ExportProjectButton" IsEnabled="False"/>
                     <Button DockPanel.Dock="Right" Content="Choose parts"  Padding="12,7" Margin="6,0,0,0" Click="ChooseParts_Click"   Name="ChoosePartsButton"   IsEnabled="False"/>
-                    <Button DockPanel.Dock="Right" Content="Edit project"  Padding="12,7"                    Click="EditProject_Click"   Name="EditProjectButton"   IsEnabled="False"/>
+                    <Button DockPanel.Dock="Right" Content="Edit project"  Padding="12,7" Margin="6,0,0,0" Click="EditProject_Click"   Name="EditProjectButton"   IsEnabled="False"/>
+                    <Button DockPanel.Dock="Right" Content="Notes"         Padding="12,7"                    Click="Notes_Click"         Name="NotesButton"         IsEnabled="False"/>
 
                 </DockPanel>
             </Border>

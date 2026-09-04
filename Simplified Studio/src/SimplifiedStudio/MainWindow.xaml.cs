@@ -1,4 +1,4 @@
-using SimplifiedUi;
+﻿using SimplifiedUi;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -559,6 +559,12 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Above the unsaved-changes question and above the early return below:
+        // a board open in PureRef is work that hasn't reached the project at
+        // all, so the project can be perfectly clean and there still be
+        // something to lose when its working folder goes.
+        if (!ConfirmBoardsClosed()) { e.Cancel = true; return; }
+
         if (!_isDirty && _pendingMips.Count == 0) return;
 
         var ans = ConfirmUnsavedChanges("You have unsaved changes.", "close");
@@ -1052,7 +1058,10 @@ public partial class MainWindow : Window
     /// </summary>
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (System.Windows.Input.Keyboard.FocusedElement is System.Windows.Controls.TextBox) return;
+        // Typing in a box owns the plain keys — the arrows below would step
+        // through texture slices mid-word. It never owned the Ctrl ones, and
+        // swallowing those meant Ctrl+S did nothing while the filter had focus.
+        var typing = System.Windows.Input.Keyboard.FocusedElement is System.Windows.Controls.TextBox;
 
         var mods = System.Windows.Input.Keyboard.Modifiers;
         var ctrl  = (mods & System.Windows.Input.ModifierKeys.Control) != 0;
@@ -1066,11 +1075,11 @@ public partial class MainWindow : Window
                     OpenErp_Click(sender, new RoutedEventArgs());
                     e.Handled = true;
                     return;
-                case System.Windows.Input.Key.S when shift && SaveAsButton.IsEnabled:
+                case System.Windows.Input.Key.S when shift && (_project is not null || SaveAsButton.IsEnabled):
                     SaveAs_Click(sender, new RoutedEventArgs());
                     e.Handled = true;
                     return;
-                case System.Windows.Input.Key.S when !shift && SaveButton.IsEnabled:
+                case System.Windows.Input.Key.S when !shift && (_project is not null || SaveButton.IsEnabled):
                     Save_Click(sender, new RoutedEventArgs());
                     e.Handled = true;
                     return;
@@ -1090,6 +1099,7 @@ public partial class MainWindow : Window
             }
         }
 
+        if (typing) return;
         if (e.Key != System.Windows.Input.Key.Left && e.Key != System.Windows.Input.Key.Right) return;
 
         var vm = TextureList.SelectedItem as TextureVm;
@@ -1796,6 +1806,32 @@ public partial class MainWindow : Window
     /// shown read-only (they came from the original .serps template and aren't
     /// meant to drift). OK marks the project dirty so mod.json gets rewritten on save.
     /// </summary>
+    /// <summary>
+    /// "Notes" — the project's notes and moodboards.
+    ///
+    /// Everything it writes goes into the project's temp folder like any other
+    /// edit, so the project still has to be saved afterwards for it to reach
+    /// the .simplified on disk.
+    /// </summary>
+    private void Notes_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null) return;
+
+        // Modeless, and only ever one: notes are for keeping beside the work
+        // rather than instead of it, so the main window stays live while it is
+        // open and a second press brings the one already there forward.
+        if (_notesWindow is not null) { _notesWindow.Activate(); return; }
+
+        _notesWindow = new Notes.NotesWindow(_project, this);
+        _notesWindow.ContentChanged += (_, _) => MarkDirty();
+        _notesWindow.SaveRequested += (_, _) => SaveProject_Click(this, new RoutedEventArgs());
+        _notesWindow.Closed += (_, _) => _notesWindow = null;
+        _notesWindow.Show();
+    }
+
+    /// <summary>The notes window while it is open. Belongs to the open project.</summary>
+    private Notes.NotesWindow? _notesWindow;
+
     private void EditProject_Click(object sender, RoutedEventArgs e)
     {
         if (_project is null) return;
@@ -2724,11 +2760,112 @@ public partial class MainWindow : Window
     private void CloseProject_Click(object sender, RoutedEventArgs e)
     {
         if (_project is null) return;
+        // The board check lives inside ConfirmDiscardProject, which asks it
+        // before the save prompt for every path that discards a project.
         if (!ConfirmDiscardProject("close this project")) return;
         var path = _project.ZipPath ?? "(untitled)";
         CloseProjectInternal();
         OnProjectStateChanged();
         Log($"Closed project: {path}");
+    }
+
+    /// <summary>
+    /// Make sure PureRef isn't still holding a board from this project.
+    ///
+    /// Closing deletes the working folder the boards live in, and PureRef
+    /// doesn't lock them or notice they've gone — so a board left open loses
+    /// whatever is done to it next, silently. Returns whether to carry on.
+    /// </summary>
+    private bool ConfirmBoardsClosed()
+    {
+        if (_project is null) return true;
+
+        // A project with no boards has nothing to warn about, and no reason to
+        // go looking through other processes to find that out.
+        var boards = ProjectWorkspace.Boards(_project).Select(b => b.Path).ToList();
+        if (boards.Count == 0) return true;
+
+        while (true)
+        {
+            var open = Notes.PureRef.OpenBoards(boards);
+            if (open.Count == 0) return true;
+
+            var names = string.Join(", ", open);
+            var root = new System.Windows.Controls.StackPanel { Margin = new Thickness(18) };
+
+            var heading = new System.Windows.Controls.TextBlock
+            {
+                Text = open.Count == 1 ? "A board is still open" : "Boards are still open",
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 10),
+            };
+            heading.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimary");
+            root.Children.Add(heading);
+
+            var body = new System.Windows.Controls.TextBlock
+            {
+                Text = $"PureRef still has {names} open." + Environment.NewLine + Environment.NewLine +
+                       "Closing the project deletes the working copy these are opened from, and PureRef " +
+                       "won't notice — anything saved after that goes nowhere. Save and close them in " +
+                       "PureRef first, then check again.",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 16),
+                LineHeight = 19,
+            };
+            body.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextMuted");
+            root.Children.Add(body);
+
+            var row = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            var again = new System.Windows.Controls.Button
+            {
+                Content = "Check again",
+                IsDefault = true,
+                Padding = new Thickness(16, 6, 16, 6),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontWeight = FontWeights.SemiBold,
+            };
+            var anyway = new System.Windows.Controls.Button
+            {
+                Content = "Close anyway",
+                Padding = new Thickness(16, 6, 16, 6),
+                Margin = new Thickness(0, 0, 8, 0),
+            };
+            var cancel = new System.Windows.Controls.Button
+            {
+                Content = "Cancel",
+                IsCancel = true,
+                Padding = new Thickness(16, 6, 16, 6),
+            };
+            row.Children.Add(again);
+            row.Children.Add(anyway);
+            row.Children.Add(cancel);
+            root.Children.Add(row);
+
+            var win = new Window
+            {
+                Title = "Boards still open",
+                Content = root,
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Width = 480,
+                SizeToContent = SizeToContent.Height,
+                ResizeMode = ResizeMode.NoResize,
+                ShowInTaskbar = false,
+            };
+            SimplifiedUi.DialogChrome.Apply(win);
+
+            // true = look again, false = go ahead regardless, null = don't close.
+            again.Click  += (_, _) => { win.Tag = true;  win.DialogResult = true; };
+            anyway.Click += (_, _) => { win.Tag = false; win.DialogResult = true; };
+
+            if (win.ShowDialog() != true) return false;
+            if (win.Tag is false) return true;
+        }
     }
 
     private void CloseProjectInternal()
@@ -2743,6 +2880,12 @@ public partial class MainWindow : Window
             .ToList();
         foreach (var s in stale) _loadedErps.Remove(s);
         if (_loadedErps.Count == 0) UnloadErp(); else RebuildTextureList();
+
+        // The notes window reads and writes inside the temp dir that is about
+        // to be deleted, so it goes with the project rather than being left
+        // pointing at nothing.
+        _notesWindow?.Close();
+
         ProjectStore.Close(_project);
         _project = null;
     }
@@ -2769,6 +2912,13 @@ public partial class MainWindow : Window
     private bool ConfirmDiscardProject(string action)
     {
         if (_project is null) return true;
+
+        // First, and before the dirty check: every one of these discards the
+        // working folder the boards are open from, and a board open in PureRef
+        // is work that never reached the project — so there is something to
+        // lose even when nothing here is dirty.
+        if (!ConfirmBoardsClosed()) return false;
+
         if (!_isDirty && _pendingMips.Count == 0) return true;
 
         var ans = ConfirmUnsavedChanges("The project has unsaved changes.", action);
@@ -2828,6 +2978,7 @@ public partial class MainWindow : Window
         CloseProjectButton.IsEnabled = open;
         ChoosePartsButton.IsEnabled = open;
         EditProjectButton.IsEnabled = open;
+        NotesButton.IsEnabled = open;
         ExportProjectButton.IsEnabled = open;
 
         // v2-simplified-ui: inline mod-info panel replaces the version+modinfo rows.

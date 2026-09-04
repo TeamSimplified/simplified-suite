@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -97,6 +97,14 @@
     <Compile Include="..\..\..\Shared\Model\TexturePreview.cs" Link="Model\TexturePreview.cs" />
     <Compile Include="..\..\..\Shared\Model\TextureVm.cs" Link="Model\TextureVm.cs" />
     <Compile Include="..\..\..\Shared\Util\SyntaxHighlighter.cs" Link="Util\SyntaxHighlighter.cs" />
+  </ItemGroup>
+
+
+  <!-- The blank PureRef board a new moodboard is copied from. PureRef has no
+       command line, so a board can only ever start as a copy of one that
+       already exists — which means the app has to carry one. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Notes/blank.pur" LogicalName="SimplifiedStudio.Notes.blank.pur" />
   </ItemGroup>
 
 </Project>
