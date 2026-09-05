@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedDriverwearSwapper.MainWindow"
+﻿<Window x:Class="SimplifiedDriverwearSwapper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -57,10 +57,12 @@
              for the Swap button a row below. -->
         <Border Grid.Row="0" Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
             <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Text="Simplified Driverwear Swapper"
-                           FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource BrandInk}"/>
+                <!-- The wordmark, from the shared library. Viewbox with only a
+                     Height: the artwork keeps its own proportions and the width
+                     follows. -->
+                <Viewbox DockPanel.Dock="Left" Height="17" VerticalAlignment="Center" Stretch="Uniform">
+                    <Path Data="{DynamicResource BrandWord}" Fill="{DynamicResource BrandInk}"/>
+                </Viewbox>
 
                 <!-- Version pill, set in code from the assembly so it can't drift
                      from what the build actually is. -->

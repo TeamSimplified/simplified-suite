@@ -68,13 +68,12 @@
         <!-- Title bar -->
         <Border Grid.Row="0" Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
             <DockPanel LastChildFill="False">
-                <!-- Text for now. The other two apps draw a wordmark from path
-                     geometry converted out of an SVG; this one shows its name
-                     until it has artwork of its own. -->
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Text="Simplified Team Editor"
-                           FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource BrandInk}"/>
+                <!-- The wordmark, from the shared library. Viewbox with only a
+                     Height: the artwork keeps its own proportions and the width
+                     follows. -->
+                <Viewbox DockPanel.Dock="Left" Height="17" VerticalAlignment="Center" Stretch="Uniform">
+                    <Path Data="{DynamicResource BrandWord}" Fill="{DynamicResource BrandInk}"/>
+                </Viewbox>
 
                 <Border DockPanel.Dock="Left" Background="{DynamicResource Badge}" CornerRadius="3"
                         Padding="6,1" Margin="10,0,0,0" VerticalAlignment="Center">
