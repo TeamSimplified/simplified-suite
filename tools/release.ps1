@@ -145,7 +145,7 @@ function Sync-Directory {
         what the source no longer has. Copy-Item alone only ever adds, which is
         how a dropped native library can sit in a release folder indefinitely.
     #>
-    param([string] $Source, [string] $Destination)
+    param([string] $Source, [string] $Destination, [string] $Prefix = '')
 
     if (-not (Test-Path $Source)) { return @() }
     if (-not (Test-Path $Destination)) { New-Item -ItemType Directory $Destination -Force | Out-Null }
@@ -159,10 +159,26 @@ function Sync-Directory {
     $removed = @()
     foreach ($file in Get-ChildItem $Destination -File) {
         if (-not $wanted.ContainsKey($file.Name)) {
-            $removed += $file.Name
+            $removed += "$Prefix$($file.Name)"
             [System.IO.File]::Delete($file.FullName)
         }
     }
+
+    # Subfolders as well. This used to stop at one level, which was invisible
+    # while every app's only subfolder was a flat runtime\ or tools\ - and then
+    # the Team Editor arrived carrying assets\original\localisation\, and the
+    # zip had it while the folder people run from did not.
+    $wantedDirs = @{}
+    foreach ($dir in Get-ChildItem $Source -Directory) {
+        $wantedDirs[$dir.Name] = $true
+        $removed += Sync-Directory $dir.FullName (Join-Path $Destination $dir.Name) "$Prefix$($dir.Name)\"
+    }
+    foreach ($dir in Get-ChildItem $Destination -Directory) {
+        if ($wantedDirs.ContainsKey($dir.Name)) { continue }
+        $removed += "$Prefix$($dir.Name)\"
+        [System.IO.Directory]::Delete($dir.FullName, $true)
+    }
+
     return $removed
 }
 
