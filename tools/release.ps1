@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, Swapper, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'Swapper', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -111,6 +111,13 @@ $Apps = @(
         Project = 'src\SimplifiedHelmetSwapper\SimplifiedHelmetSwapper.csproj'
         Exe = 'Simplified Helmet Swapper'; Package = 'Simplified Helmet Swapper'
         Tag = 'helmet-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'TeamEditor'; Folder = 'Simplified Team Editor'
+        Project = 'src\SimplifiedTeamEditor\SimplifiedTeamEditor.csproj'
+        Exe = 'Simplified Team Editor'; Package = 'Simplified Team Editor'
+        Tag = 'teameditor-v'; Kind = 'window'
+        Ships = @('*.exe', '*.ico', 'runtime\*', 'assets\*')
     }
     [pscustomobject]@{
         Short = 'Swapper'; Folder = 'Simplified Swapper'

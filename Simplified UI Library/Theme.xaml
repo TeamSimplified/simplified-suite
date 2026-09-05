@@ -1,4 +1,4 @@
-<!--
+﻿<!--
     Application-wide look. Merged from App.xaml rather than the window, because
     a dozen dialogs are built in code as bare Windows and inherit application
     resources only — styling the window would leave them on the stock 2006 look.
@@ -45,6 +45,7 @@
     <Geometry x:Key="IconOpen">F1 M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z</Geometry>
     <Geometry x:Key="IconNew">F1 M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 14h-3v3h-2v-3H8v-2h3v-3h2v3h3v2zm-3-7V3.5L18.5 9H13z</Geometry>
     <Geometry x:Key="IconSave">F1 M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z</Geometry>
+    <Geometry x:Key="IconEyedropper">F1 M17.66 5.41l.92.92-2.69 2.69-.92-.92 2.69-2.69M17.67 3c-.26 0-.51.1-.71.29l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42l-2.34-2.34c-.2-.19-.45-.29-.7-.29zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z</Geometry>
 
     <!-- ─────────────── Preview backdrop ───────────────
          What sits behind the previewed image, set by the slider on the channel

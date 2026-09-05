@@ -1,0 +1,21 @@
+﻿<Project>
+
+  <!-- MSBuild stops at the first Directory.Build.props it finds on the way up,
+       so this file would replace the suite-wide one rather than adding to it.
+       Every setting in the root would then be reaching nothing, and each
+       project would quietly repeat whatever it needed - until one didn't, and
+       shipped a loose .pdb. Importing it explicitly is the way to have both. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- What the app reports for its version, alongside the commit it was
+         built from, so a release tag can be checked against the binary. -->
+    <Version>1.0</Version>
+
+    <!-- The two the root sets differently. Declared after the import, so these
+         win. -->
+    <Company>Simplified Studio</Company>
+    <Copyright>Portions ported from EgoEngineLibrary (MIT) - (c) ryder25</Copyright>
+  </PropertyGroup>
+
+</Project>

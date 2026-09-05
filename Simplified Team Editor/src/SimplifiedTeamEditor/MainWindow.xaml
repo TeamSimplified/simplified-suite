@@ -1,0 +1,179 @@
+﻿<Window x:Class="SimplifiedTeamEditor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Simplified Team Editor"
+        Width="1120" Height="760" MinWidth="900" MinHeight="560"
+        FontFamily="Segoe UI" FontSize="13"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        Background="{DynamicResource Surface}"
+        StateChanged="Window_StateChanged">
+
+    <!-- Our own title bar, but still a real window: WindowChrome keeps the
+         native resize borders, snapping, Aero Snap layouts and double-click to
+         maximise, which WindowStyle=None + AllowsTransparency would all throw
+         away. CaptionHeight matches the bar below so Windows treats it as the
+         caption; the buttons opt out of that via IsHitTestVisibleInChrome. -->
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="56"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- The name fields read as one table rather than as separate boxes, so
+             they lose their own chrome and take a divider from the cell before
+             them. BasedOn matters: without it this would replace the themed
+             TextBox outright and lose its palette and caret with it. -->
+        <Style x:Key="CellInput" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ColumnHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="10,0,0,6"/>
+        </Style>
+
+        <!-- Material icons, from the 24-pixel set rather than the 960 one.
+             That matters more than it looks: the 960 artwork puts every Y
+             coordinate below zero, and IconButton draws the glyph in a Path
+             with no Stretch, which measures from the origin - so the whole
+             shape lands outside the arranged area and is clipped to nothing.
+             It renders as an empty button with a working hover. Every icon in
+             Theme.xaml is 24-box for the same reason.
+
+             The F1 prefix picks the nonzero fill rule SVG uses, matching the
+             icons already in Theme.xaml. -->
+        <Geometry x:Key="IconReset">F1 M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z</Geometry>
+        <Geometry x:Key="IconBack">F1 M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z</Geometry>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.Row="0" Background="{DynamicResource SurfaceAlt}" Height="56" Padding="28,0,14,0">
+            <DockPanel LastChildFill="False">
+                <!-- Text for now. The other two apps draw a wordmark from path
+                     geometry converted out of an SVG; this one shows its name
+                     until it has artwork of its own. -->
+                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Text="Simplified Team Editor"
+                           FontSize="17" FontWeight="SemiBold"
+                           Foreground="{DynamicResource BrandInk}"/>
+
+                <Border DockPanel.Dock="Left" Background="{DynamicResource Badge}" CornerRadius="3"
+                        Padding="6,1" Margin="10,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Name="VersionLabel" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"/>
+                </Border>
+
+                <!-- Reverse visual order, as DockPanel resolves Dock=Right outward-in. -->
+                <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
+                        Content="&#xE8BB;" Click="WindowClose_Click" ToolTip="Close"/>
+                <Button DockPanel.Dock="Right" Name="WindowMaximizeButton" Style="{StaticResource CaptionButton}"
+                        Content="&#xE922;" Click="WindowMaximize_Click" ToolTip="Maximize"/>
+                <Button DockPanel.Dock="Right" Name="WindowMinimizeButton" Style="{StaticResource CaptionButton}"
+                        Content="&#xE921;" Click="WindowMinimize_Click" ToolTip="Minimize"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Action bar -->
+        <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1" Padding="18,12">
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Left" Name="SettingsButton" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconSettings}" Click="Settings_Click"
+                        ToolTip="Settings"/>
+                <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="12,0,12,0"
+                        VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
+
+                <RadioButton DockPanel.Dock="Left" Name="Season2025Chip" Content="2025"
+                             Style="{StaticResource ChannelChip}" Checked="Season_Checked"
+                             IsChecked="True" ToolTip="The grid the game ships with"/>
+                <RadioButton DockPanel.Dock="Left" Name="Season2026Chip" Content="2026"
+                             Style="{StaticResource ChannelChip}" Checked="Season_Checked"
+                             ToolTip="The 2026 grid, with Audi and Cadillac"/>
+
+                <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="12,0,12,0"
+                        VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
+
+                <Button DockPanel.Dock="Left" Name="ResetAllButton" Content="Reset all"
+                        Click="ResetAll_Click" ToolTip="Put this season's teams back as the game has them"/>
+
+                <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package&#x2026;"
+                        Click="Package_Click" Margin="12,0,0,0"
+                        ToolTip="Write these edits out as a mod anyone can install"/>
+                <TextBlock DockPanel.Dock="Right" Name="ModifiedCount" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextMuted}"/>
+            </DockPanel>
+        </Border>
+
+        <!-- The list and the pickers occupy the same space: a picker replaces
+             the list rather than floating over it, so there is one thing on
+             screen at a time and the back arrow is the only way out. -->
+        <Grid Grid.Row="2">
+            <!-- Team list -->
+            <DockPanel Name="ListPage" Margin="18,14,18,14">
+                <Grid DockPanel.Dock="Top" Name="ColumnHeaders" Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="52"/>
+                        <ColumnDefinition Width="44"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="44"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource ColumnHeader}" Text="LOGO"/>
+                    <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="TEAM NAME"/>
+                    <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="SHORT"/>
+                    <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="ABBR"/>
+                </Grid>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Name="TeamList"/>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- Picker page -->
+            <DockPanel Name="PickerPage" Margin="18,14,18,14" Visibility="Collapsed">
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                    <!-- Tag, not a child: IconButton draws its own glyph from Tag
+                         and has no ContentPresenter, so a Path put inside it is
+                         never rendered. -->
+                    <Button DockPanel.Dock="Left" Name="PickerBackButton" Click="PickerBack_Click"
+                            Style="{StaticResource IconButton}" Tag="{StaticResource IconBack}"
+                            ToolTip="Back to the team list"/>
+                    <TextBlock Name="PickerTitle" VerticalAlignment="Center" Margin="10,0,0,0"
+                               FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"/>
+                </DockPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Name="PickerBody"/>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+
+        <!-- Status -->
+        <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}"
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="18,12">
+            <TextBlock Name="StatusLine" Foreground="{DynamicResource TextMuted}"
+                       TextTrimming="CharacterEllipsis"/>
+        </Border>
+    </Grid>
+</Window>

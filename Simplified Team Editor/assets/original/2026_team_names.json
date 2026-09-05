@@ -1,0 +1,52 @@
+{
+  "tool": "team_lng_editor",
+  "type": "team_display_name_lng_keys",
+  "version": 1,
+  "changes": {
+    "mercedes_26": {
+      "display_name": "lng_team_mer_title_26"
+    },
+    "ferrari_26": {
+      "display_name": "lng_team_fer_title_26",
+      "display_name_short": "lng_team_fer_title_short_26",
+      "display_name_super_short": "lng_team_fer_title_super_short_26"
+    },
+    "redbull_26": {
+      "display_name": "lng_team_rbr_title_26"
+    },
+    "renault_26": {
+      "display_name": "lng_team_alp_title_26",
+      "display_name_short": "lng_team_alp_title_short_26",
+      "display_name_super_short": "lng_team_alp_title_super_short_26"
+    },
+    "forceindia_26": {
+      "display_name": "lng_team_ast_title_26"
+    },
+    "tororosso_26": {
+      "display_name": "lng_team_rac_title_26",
+      "display_name_short": "lng_team_rac_title_short_26",
+      "display_name_super_short": "lng_team_rac_title_super_short_26"
+    },
+    "haas_26": {
+      "display_name_short": "lng_team_haas_title_short_26",
+      "display_name_super_short": "lng_team_haas_title_super_short_26"
+    },
+    "mclaren_26": {
+      "display_name_short": "lng_team_mcl_title_short_26",
+      "display_name_super_short": "lng_team_mcl_title_super_short_26"
+    },
+    "sauber_26": {
+      "display_name": "lng_team_audi_title_26",
+      "display_name_short": "lng_team_audi_title_short_26",
+      "display_name_super_short": "lng_team_audi_title_super_short_26"
+    },
+    "gm_cadillac_26": {
+      "display_name": "lng_team_cad_title_26",
+      "display_name_short": "lng_team_cad_title_short_26",
+      "display_name_super_short": "lng_team_cad_title_super_short_26"
+    },
+    "williams_26": {
+      "display_name_super_short": "lng_team_wil_title_super_short_26"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/SimplifiedTeamEditor/SimplifiedTeamEditor.csproj" />
+  <Project Path="src/SimplifiedTeamEditor.Core/SimplifiedTeamEditor.Core.csproj" />
+  <Folder Name="/shared/">
+    <Project Path="../EGO Engine Library/EgoEngineLibrary.csproj" />
+    <Project Path="../Simplified UI Library/SimplifiedUi.csproj" />
+  </Folder>
+</Solution>

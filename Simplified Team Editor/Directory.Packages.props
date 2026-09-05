@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- What the ERP stack needs: two compression formats an archive's
+         fragments can use, and a pooled buffer writer the readers allocate
+         through. -->
+    <PackageVersion Include="ZstdSharp.Port" Version="0.8.6" />
+    <PackageVersion Include="K4os.Compression.LZ4" Version="1.3.8" />
+    <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+    <!-- For System.IO.FileFormatException alone, which the archive and texture
+         readers throw on a malformed file. It reads like a built-in type and
+         is not one. -->
+    <PackageVersion Include="System.IO.Packaging" Version="9.0.0" />
+  </ItemGroup>
+</Project>
