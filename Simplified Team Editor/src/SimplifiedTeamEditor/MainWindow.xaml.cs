@@ -54,7 +54,7 @@ public partial class MainWindow : Window
         LoadTeams();
     }
 
-    private static string AssetsDir => Path.Combine(AppPaths.Root, "assets", "original");
+    private static string AssetsDir => Path.Combine(AppPaths.Root, "runtime", "original");
 
     private static string SeasonLabel(Season season) => season == Season.Y2026 ? "2026" : "2025";
 
@@ -141,7 +141,7 @@ public partial class MainWindow : Window
     /// </summary>
     private string LoadColours()
     {
-        var path = Path.Combine(AppPaths.Root, "assets", "original", "gamedatabases.2025.bin");
+        var path = Path.Combine(AppPaths.Root, "runtime", "original", "gamedatabases.2025.bin");
         if (!File.Exists(path)) return "Team database not found — colours unavailable.";
 
         try

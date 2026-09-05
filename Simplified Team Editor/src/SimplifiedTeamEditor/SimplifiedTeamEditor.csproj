@@ -67,8 +67,8 @@
        rather than read from the install, so a package carries only the user's
        team edits and never whatever else their game happens to have in it. -->
   <ItemGroup>
-    <Content Include="..\..\assets\original\**\*"
-             Link="assets\original\%(RecursiveDir)%(Filename)%(Extension)"
+    <Content Include="..\..\original\**\*"
+             Link="runtime\original\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true"/>

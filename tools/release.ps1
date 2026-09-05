@@ -117,7 +117,7 @@ $Apps = @(
         Project = 'src\SimplifiedTeamEditor\SimplifiedTeamEditor.csproj'
         Exe = 'Simplified Team Editor'; Package = 'Simplified Team Editor'
         Tag = 'teameditor-v'; Kind = 'window'
-        Ships = @('*.exe', '*.ico', 'runtime\*', 'assets\*')
+        Ships = @('*.exe', '*.ico', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Swapper'; Folder = 'Simplified Swapper'
