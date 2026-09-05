@@ -99,12 +99,22 @@ $Apps = @(
         Project = 'src\SimplifiedChassisSwapper\SimplifiedChassisSwapper.csproj'
         Exe = 'Simplified Chassis Swapper'; Package = 'Simplified Chassis Swapper'
         Tag = 'chassis-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+        # Superseded by Simplified Swapper, which does both swaps in one
+        # window. Kept building and kept consistent with the suite, so it
+        # is ready if it is ever wanted; just not shipped alongside the
+        # app that replaced it. -App Chassis still packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Driverwear'; Folder = 'Simplified Driverwear Swapper'
         Project = 'src\SimplifiedDriverwearSwapper\SimplifiedDriverwearSwapper.csproj'
         Exe = 'Simplified Driverwear Swapper'; Package = 'Simplified Driverwear Swapper'
         Tag = 'driverwear-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+        # Superseded by Simplified Swapper, which does both swaps in one
+        # window. Kept building and kept consistent with the suite, so it
+        # is ready if it is ever wanted; just not shipped alongside the
+        # app that replaced it. -App Driverwear still packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Helmet'; Folder = 'Simplified Helmet Swapper'
