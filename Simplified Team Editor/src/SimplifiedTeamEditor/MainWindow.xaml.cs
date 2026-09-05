@@ -322,18 +322,10 @@ public partial class MainWindow : Window
         }
 
         var config = UserConfig.Load();
-        var info = PackageDialog.Show(this, config.DefaultAuthor);
-        if (info is null) return;
+        var request = PackageDialog.Show(this, config.DefaultAuthor, config.LastPackageFolder);
+        if (request is null) return;
 
-        var dialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Title = "Save the package",
-            Filter = "Mod package (*.zip)|*.zip",
-            FileName = SafeFileName(info.Name) + ".zip",
-            InitialDirectory = config.LastPackageFolder is { Length: > 0 } last && Directory.Exists(last)
-                ? last : null,
-        };
-        if (dialog.ShowDialog(this) != true) return;
+        var info = request.Info;
 
         try
         {
@@ -341,14 +333,14 @@ public partial class MainWindow : Window
 
             var runner = new TexconvRunner();
             var result = TeamPackager.Write(
-                dialog.FileName, AssetsDir, y2025, y2026, info,
+                request.Path, AssetsDir, y2025, y2026, info,
                 CollectLogoEdits(), config.GameDir ?? GameDirDetector.Detect()?.Path, runner);
 
             config.DefaultAuthor = info.Author;
-            config.LastPackageFolder = Path.GetDirectoryName(dialog.FileName);
+            config.LastPackageFolder = Path.GetDirectoryName(request.Path);
             try { config.Save(); } catch { /* a read-only app folder shouldn't lose the package */ }
 
-            StatusLine.Text = Describe(result, dialog.FileName);
+            StatusLine.Text = Describe(result, request.Path);
 
             if (result.Warnings.Count > 0)
                 MessageBox.Show(this,
@@ -400,12 +392,6 @@ public partial class MainWindow : Window
              + (parts.Count > 0 ? string.Join(", ", parts) : "nothing") + ".";
     }
 
-    /// <summary>A mod name as a file name, since the mod name is the obvious default.</summary>
-    private static string SafeFileName(string name)
-    {
-        var cleaned = new string(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
-        return cleaned.Trim() is { Length: > 0 } ok ? ok : "team-edits";
-    }
 
     // ───────────────────────────── Chrome ─────────────────────────────
 

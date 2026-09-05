@@ -115,7 +115,7 @@
                 <Button DockPanel.Dock="Left" Name="ResetAllButton" Content="Reset all"
                         Click="ResetAll_Click" ToolTip="Put this season's teams back as the game has them"/>
 
-                <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package&#x2026;"
+                <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
                         Click="Package_Click" Margin="12,0,0,0"
                         ToolTip="Write these edits out as a mod anyone can install"/>
                 <TextBlock DockPanel.Dock="Right" Name="ModifiedCount" VerticalAlignment="Center"
