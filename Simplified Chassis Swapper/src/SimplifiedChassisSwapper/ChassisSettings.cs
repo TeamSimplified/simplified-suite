@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -18,10 +18,6 @@ namespace SimplifiedChassisSwapper;
 /// </summary>
 public static class ChassisSettings
 {
-    private const string GameDirHint =
-        "Your F1 25 install. Used to pull each texture's full-resolution mipmaps into the swap, " +
-        "and to find the in-car driver animations.";
-
     /// <summary>Show the settings. True when they were saved.</summary>
     public static bool Show(Window owner, UserConfig config)
     {
@@ -38,7 +34,7 @@ public static class ChassisSettings
         var browse = new Button { Content = "Browse" };
 
         dialog.Row("Game folder:", gameBox, browse);
-        var status = dialog.Hint(GameDirHint);
+        var status = dialog.Hint("");
 
         browse.Click += (_, _) =>
         {
@@ -78,35 +74,29 @@ public static class ChassisSettings
 
         if (dir.Length == 0)
         {
-            Say(status, GameDirHint, "TextMuted", 0x8A, 0x92, 0x9C);
+            SimplifiedUi.SettingsDialog.Say(status, "");
             return;
         }
 
         if (!Directory.Exists(dir))
         {
-            Say(status, "That folder doesn't exist.", "Danger", 0xB0, 0x2A, 0x2A);
+            SimplifiedUi.SettingsDialog.Say(status, "That folder doesn't exist.", "Danger");
             return;
         }
 
         var incar = IncardriverLocator.FindIncardriverErp(dir);
         if (incar is null)
         {
-            Say(status,
+            SimplifiedUi.SettingsDialog.Say(status,
                 "No incardriver_f1.erp under this folder — this may not be the game root. " +
                 "Swaps will still run, but without the in-car driver animations.",
-                "Danger", 0xB0, 0x2A, 0x2A);
+                "Danger");
             return;
         }
 
-        Say(status,
+        SimplifiedUi.SettingsDialog.Say(status,
             $"Found the game files (driver animations at {Path.GetFileName(Path.GetDirectoryName(incar))}).",
-            "Accent", 0x2E, 0x7D, 0x4F);
+            "Accent");
     }
 
-    private static void Say(TextBlock status, string text, string key, byte r, byte g, byte b)
-    {
-        status.Text = text;
-        status.Foreground = Application.Current?.TryFindResource(key) as Brush
-                            ?? new SolidColorBrush(Color.FromRgb(r, g, b));
-    }
 }

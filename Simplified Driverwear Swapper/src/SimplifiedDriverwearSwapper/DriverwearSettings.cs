@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,9 +17,6 @@ namespace SimplifiedDriverwearSwapper;
 /// </summary>
 public static class DriverwearSettings
 {
-    private const string GameDirHint =
-        "Your F1 25 install — where the game's own files are read from.";
-
     /// <summary>Show the settings. True when they were saved.</summary>
     public static bool Show(Window owner, UserConfig config)
     {
@@ -36,7 +33,7 @@ public static class DriverwearSettings
         var browse = new Button { Content = "Browse" };
 
         dialog.Row("Game folder:", gameBox, browse);
-        var status = dialog.Hint(GameDirHint);
+        var status = dialog.Hint("");
 
         browse.Click += (_, _) =>
         {
@@ -72,13 +69,13 @@ public static class DriverwearSettings
 
         if (dir.Length == 0)
         {
-            Say(status, GameDirHint, "TextMuted", 0x8A, 0x92, 0x9C);
+            SimplifiedUi.SettingsDialog.Say(status, "");
             return;
         }
 
         if (!Directory.Exists(dir))
         {
-            Say(status, "That folder doesn't exist.", "Danger", 0xB0, 0x2A, 0x2A);
+            SimplifiedUi.SettingsDialog.Say(status, "That folder doesn't exist.", "Danger");
             return;
         }
 
@@ -86,15 +83,9 @@ public static class DriverwearSettings
         try { looksLikeGame = Directory.EnumerateDirectories(dir, "*asset_groups*").Any(); }
         catch { looksLikeGame = false; }
 
-        if (looksLikeGame) Say(status, "Found the game files.", "Accent", 0x2E, 0x7D, 0x4F);
-        else Say(status, "No asset group folders here — this may not be the game root.",
-                 "Danger", 0xB0, 0x2A, 0x2A);
+        if (looksLikeGame) SimplifiedUi.SettingsDialog.Say(status, "Found the game files.", "Accent");
+        else SimplifiedUi.SettingsDialog.Say(status, "No asset group folders here — this may not be the game root.",
+                 "Danger");
     }
 
-    private static void Say(TextBlock status, string text, string key, byte r, byte g, byte b)
-    {
-        status.Text = text;
-        status.Foreground = Application.Current?.TryFindResource(key) as Brush
-                            ?? new SolidColorBrush(Color.FromRgb(r, g, b));
-    }
 }

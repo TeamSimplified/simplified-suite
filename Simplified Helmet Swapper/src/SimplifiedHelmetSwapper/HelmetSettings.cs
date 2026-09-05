@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -16,9 +16,6 @@ namespace SimplifiedHelmetSwapper;
 /// </summary>
 public static class HelmetSettings
 {
-    private const string GameDirHint =
-        "Your F1 25 install — where the game's own files are read from.";
-
     /// <summary>Show the settings. True when they were saved.</summary>
     public static bool Show(Window owner, UserConfig config)
     {
@@ -35,7 +32,7 @@ public static class HelmetSettings
         var browse = new Button { Content = "Browse" };
 
         dialog.Row("Game folder:", gameBox, browse);
-        var status = dialog.Hint(GameDirHint);
+        var status = dialog.Hint("");
 
         browse.Click += (_, _) =>
         {
@@ -76,33 +73,27 @@ public static class HelmetSettings
 
         if (dir.Length == 0)
         {
-            Say(status, GameDirHint, "TextMuted", 0x8A, 0x92, 0x9C);
+            SimplifiedUi.SettingsDialog.Say(status, "");
             return;
         }
 
         if (!Directory.Exists(dir))
         {
-            Say(status, "That folder doesn't exist.", "Danger", 0xB0, 0x2A, 0x2A);
+            SimplifiedUi.SettingsDialog.Say(status, "That folder doesn't exist.", "Danger");
             return;
         }
 
         var helmets = Core.Helmet.HelmetCatalogue.Scan(dir).Count;
         if (helmets == 0)
         {
-            Say(status,
+            SimplifiedUi.SettingsDialog.Say(status,
                 "No helmets under this folder — this may not be the game root. " +
                 "Expected character_package/drivers inside an asset group.",
-                "Danger", 0xB0, 0x2A, 0x2A);
+                "Danger");
             return;
         }
 
-        Say(status, $"Found the game files — {helmets} helmets.", "Accent", 0x2E, 0x7D, 0x4F);
+        SimplifiedUi.SettingsDialog.Say(status, $"Found the game files — {helmets} helmets.", "Accent");
     }
 
-    private static void Say(TextBlock status, string text, string key, byte r, byte g, byte b)
-    {
-        status.Text = text;
-        status.Foreground = Application.Current?.TryFindResource(key) as Brush
-                            ?? new SolidColorBrush(Color.FromRgb(r, g, b));
-    }
 }

@@ -41,7 +41,7 @@ public static class TeamSettings
         };
 
         dialog.Row("Game folder:", gameBox, browse, detect);
-        var hint = dialog.Hint("Where the game is installed. Left empty, it is worked out when needed.");
+        var hint = dialog.Hint("");
 
         browse.Click += (_, _) =>
         {
@@ -54,11 +54,11 @@ public static class TeamSettings
             var hit = GameDirDetector.Detect();
             if (hit is null)
             {
-                hint.Text = "Couldn't find it in any Steam library or the usual EA folders — use Browse.";
+                SimplifiedUi.SettingsDialog.Say(hint, "Couldn't find it in any Steam library or the usual EA folders — use Browse.", "Danger");
                 return;
             }
             gameBox.Text = hit.Path;
-            hint.Text = $"Found in {hit.Source}.";
+            SimplifiedUi.SettingsDialog.Say(hint, $"Found in {hit.Source}.", "Accent");
         };
 
         // ── Author ──────────────────────────────────────────────────────────

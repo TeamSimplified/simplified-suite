@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 
@@ -95,7 +95,14 @@ public sealed class SettingsDialog
         _grid.Children.Add(strip);
     }
 
-    /// <summary>A note under the row above, in the muted voice the hints use elsewhere.</summary>
+    /// <summary>
+    /// A note under the row above, in the muted voice the hints use elsewhere.
+    ///
+    /// Empty takes no room. A field whose only note is a problem — a folder
+    /// that isn't there — starts with nothing to say and shouldn't leave a gap
+    /// where the saying would go; set <see cref="Say"/> against the returned
+    /// block and it appears and disappears with its text.
+    /// </summary>
     public TextBlock Hint(string text)
     {
         var row = _grid.RowDefinitions.Count;
@@ -109,11 +116,25 @@ public sealed class SettingsDialog
             Margin = new Thickness(0, 0, 0, 6),
         }.Themed(TextBlock.ForegroundProperty, "TextMuted");
 
+        block.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+
         Grid.SetRow(block, row);
         Grid.SetColumn(block, 1);
         Grid.SetColumnSpan(block, 2);
         _grid.Children.Add(block);
         return block;
+    }
+
+    /// <summary>
+    /// Put something in a hint, or take it away. The palette key names the
+    /// voice — TextMuted for a remark, Danger for a problem, Accent for a
+    /// confirmation.
+    /// </summary>
+    public static void Say(TextBlock hint, string text, string key = "TextMuted")
+    {
+        hint.Text = text;
+        hint.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (text.Length > 0) hint.Themed(TextBlock.ForegroundProperty, key);
     }
 
     /// <summary>

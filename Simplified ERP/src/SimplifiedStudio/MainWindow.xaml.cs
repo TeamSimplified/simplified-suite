@@ -1,4 +1,4 @@
-using SimplifiedUi;
+﻿using SimplifiedUi;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -2152,8 +2152,6 @@ public partial class MainWindow : Window
             VerticalContentAlignment = VerticalAlignment.Center,
             Padding = new Thickness(4),
             Margin = new Thickness(0, 6, 0, 6),
-            ToolTip = "Backup only. External mipmaps are normally found from the ERP's own "
-                    + "location, so this is used when an ERP is opened from outside the game install.",
         };
         System.Windows.Controls.Grid.SetRow(gameBox, 0);
         System.Windows.Controls.Grid.SetColumn(gameBox, 1);
