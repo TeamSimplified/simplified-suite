@@ -111,6 +111,10 @@ $Apps = @(
         Project = 'src\SimplifiedHelmetSwapper\SimplifiedHelmetSwapper.csproj'
         Exe = 'Simplified Helmet Swapper'; Package = 'Simplified Helmet Swapper'
         Tag = 'helmet-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+        # Held back from a suite release: the shell swap has not been
+        # confirmed in game yet. Still releasable on its own with
+        # -App Helmet, which is how it goes out once it has been.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'TeamEditor'; Folder = 'Simplified Team Editor'
@@ -360,8 +364,14 @@ if (-not (Test-Path (Join-Path $Suite '.git'))) {
     throw "No repository at $Suite. Run this from inside the suite."
 }
 
-$targets = if ($App -eq 'All') { $Apps } else { $Apps | Where-Object { $_.Short -eq $App } }
+$targets = if ($App -eq 'All') { $Apps | Where-Object { $_.InAll -ne $false } }
+           else { $Apps | Where-Object { $_.Short -eq $App } }
 if (-not $targets) { throw "No app called '$App'." }
+
+if ($App -eq 'All') {
+    $held = @($Apps | Where-Object { $_.InAll -eq $false } | ForEach-Object { $_.Package })
+    if ($held) { Write-Host "  holding back: $($held -join ', ')" -ForegroundColor DarkYellow }
+}
 
 $head = (git -C $Suite rev-parse HEAD).Trim()
 
