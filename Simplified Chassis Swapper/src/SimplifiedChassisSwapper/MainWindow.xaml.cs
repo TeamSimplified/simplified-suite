@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -121,8 +121,7 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         var before = _config.GameDir;
-        var dlg = new SettingsWindow(_config) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        if (!ChassisSettings.Show(this, _config)) return;
 
         _config.Save();
         if (!string.Equals(before, _config.GameDir, StringComparison.OrdinalIgnoreCase))

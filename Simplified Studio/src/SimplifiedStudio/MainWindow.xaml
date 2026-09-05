@@ -148,7 +148,7 @@
             <!-- Project bar (v2-simplified-ui) — project file ops + inline editable mod info + add ERP. -->
             <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1" Padding="18,12">
                 <DockPanel LastChildFill="False">
-                    <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                    <Button Name="SettingsButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
                             Tag="{StaticResource IconSettings}" Click="Settings_Click"
                             ToolTip="Settings"/>
                     <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 
 namespace SimplifiedStudio.Core.Config;
@@ -20,7 +20,7 @@ public sealed class UserConfig
     /// in the team config — two people sharing a project shouldn't share a
     /// palette.
     /// </summary>
-    public string? Theme { get; set; }
+    public string? Theme { get; set; } = "Dark";
 
     /// <summary>Texture import/export format: "PNG" or "DDS". Defaults to PNG.</summary>
     public string FileFormat { get; set; } = "DDS";

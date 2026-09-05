@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedStudio.MainWindow"
+﻿<Window x:Class="SimplifiedStudio.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -118,7 +118,7 @@
             <Border Background="{DynamicResource SurfaceAlt}" BorderBrush="{DynamicResource BorderSoft}"
                     BorderThickness="0,0,0,1" Padding="18,12">
                 <DockPanel LastChildFill="False">
-                    <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                    <Button Name="SettingsButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
                             Tag="{StaticResource IconSettings}" Click="Settings_Click"
                             ToolTip="Settings"/>
                     <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>

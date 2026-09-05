@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
@@ -444,8 +444,7 @@ public partial class MainWindow : Window, ISerpsHost
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         var before = _config.GameDir;
-        var dlg = new SettingsWindow(_config) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        if (!SwapperSettings.Show(this, _config)) return;
 
         _config.Save();
 

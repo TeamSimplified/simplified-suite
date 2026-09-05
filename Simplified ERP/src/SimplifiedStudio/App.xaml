@@ -1,4 +1,4 @@
-<Application x:Class="SimplifiedStudio.App"
+﻿<Application x:Class="SimplifiedStudio.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SimplifiedStudio"
@@ -14,7 +14,7 @@
                      dictionary, and ThemeManager swaps this entry in place when
                      the theme changes. This is the fallback, not the decision -
                      ThemeManager applies the saved one at startup. -->
-                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Palette.Light.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Palette.Dark.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/SimplifiedUi;component/Theme.xaml"/>
                 <ResourceDictionary Source="Brand.xaml"/>
             </ResourceDictionary.MergedDictionaries>

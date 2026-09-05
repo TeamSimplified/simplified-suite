@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -41,8 +41,7 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new SettingsWindow(_config) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        if (!DriverwearSettings.Show(this, _config)) return;
 
         _config.Save();
         RefreshDriverwearLists();

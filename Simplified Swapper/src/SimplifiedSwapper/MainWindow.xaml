@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedSwapper.MainWindow"
+﻿<Window x:Class="SimplifiedSwapper.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -112,7 +112,7 @@
                         Click="ExtractUv_Click"
                         ToolTip="Save every UV layout in the selected driverwear ERP as a transparent PNG, drawn at each texture's own size"/>
 
-                <Button DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                <Button Name="SettingsButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
                         Tag="{StaticResource IconSettings}" Click="Settings_Click"
                         ToolTip="Settings"/>
                 <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>

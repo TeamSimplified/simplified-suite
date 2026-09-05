@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 
 namespace SimplifiedUi;
@@ -17,18 +17,19 @@ public static class ThemeManager
     public const string Light = "Light";
     public const string Dark = "Dark";
 
-    /// <summary>The palette currently merged. Light until something says otherwise.</summary>
-    public static string Current { get; private set; } = Light;
+    /// <summary>The palette currently merged. Dark until something says otherwise.</summary>
+    public static string Current { get; private set; } = Dark;
 
     public static bool IsDark => Current == Dark;
 
     /// <summary>
-    /// Swap the palette. Anything unrecognised is treated as Light rather than
-    /// left in a half-applied state — a config file can hold anything.
+    /// Swap the palette. Dark is the suite's default, so only an explicit
+    /// Light asks for the other one — a missing setting, or a config file with
+    /// anything else in it, lands on Dark rather than in a half-applied state.
     /// </summary>
     public static void Apply(string? theme)
     {
-        var wanted = theme == Dark ? Dark : Light;
+        var wanted = theme == Light ? Light : Dark;
         var app = Application.Current;
         if (app is null) return;
 
