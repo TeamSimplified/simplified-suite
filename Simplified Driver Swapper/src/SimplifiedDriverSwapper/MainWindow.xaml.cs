@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 // CreateEntryFromFile is an extension method, so this has to be a real using —
 // a fully-qualified ZipArchive won't resolve it.
 using System.IO.Compression;
@@ -150,7 +150,7 @@ public partial class MainWindow : Window
         if (File.Exists(backup))
         {
             // Overwrites the working database, so say exactly what goes.
-            var answer = MessageBox.Show(this,
+            var answer = SimplifiedUi.MessageDialog.Show(this,
                 $"This replaces {Path.GetFileName(path)} with {Path.GetFileName(backup)}, " +
                 "discarding every change saved to it.\n\nContinue?",
                 "Start from the backup", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
@@ -163,7 +163,7 @@ public partial class MainWindow : Window
             catch (Exception ex)
             {
                 SetStatus($"Couldn't restore the backup: {ex.Message}", ErrorBrush);
-                MessageBox.Show(this, ex.Message, "Restore failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                SimplifiedUi.MessageDialog.Show(this, ex.Message, "Restore failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -210,7 +210,7 @@ public partial class MainWindow : Window
 
         if (_seats?.HasChanges == true)
         {
-            var answer = MessageBox.Show(this,
+            var answer = SimplifiedUi.MessageDialog.Show(this,
                 $"Switching to the {chosen.Label} discards the seat changes staged for the {_season.Label}.\n\nContinue?",
                 "Change grid", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
 
@@ -907,7 +907,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             SetStatus($"Couldn't save: {ex.Message}", ErrorBrush);
-            MessageBox.Show(this, ex.Message, "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(this, ex.Message, "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
@@ -978,7 +978,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             SetStatus($"Couldn't package: {ex.Message}", ErrorBrush);
-            MessageBox.Show(this, ex.Message, "Package failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(this, ex.Message, "Package failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
@@ -1104,7 +1104,7 @@ public partial class MainWindow : Window
     {
         if (!HasPendingChanges) return true;
 
-        var answer = MessageBox.Show(this,
+        var answer = SimplifiedUi.MessageDialog.Show(this,
             "There are changes that haven't been saved. Discard them?",
             "Simplified Driver Swapper", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         return answer == MessageBoxResult.OK;

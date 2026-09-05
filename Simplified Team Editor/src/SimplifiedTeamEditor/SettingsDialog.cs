@@ -87,7 +87,7 @@ public static class TeamSettings
         }
         catch (Exception ex)
         {
-            MessageBox.Show(owner, $"Couldn't save the settings: {ex.Message}",
+            MessageDialog.Show(owner, $"Couldn't save the settings: {ex.Message}",
                 "Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 

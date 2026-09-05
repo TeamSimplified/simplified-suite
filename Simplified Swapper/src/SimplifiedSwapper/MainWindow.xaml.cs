@@ -307,7 +307,10 @@ public partial class MainWindow : Window, ISerpsHost
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Couldn't open template:\n{ex.Message}",
+            // Blank line, not one newline: the dialog reads the first paragraph
+            // as the headline and the rest as the muted body, so a single break
+            // would set the whole exception in bold.
+            SimplifiedUi.MessageDialog.Show(this, $"Couldn't open the template.\n\n{ex.Message}",
                 "Open template failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -323,8 +326,8 @@ public partial class MainWindow : Window, ISerpsHost
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Save failed:\n{ex.Message}", "Save failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(this, $"The template couldn't be saved.\n\n{ex.Message}",
+                "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -352,8 +355,8 @@ public partial class MainWindow : Window, ISerpsHost
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Save failed:\n{ex.Message}", "Save failed",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(this, $"The template couldn't be saved.\n\n{ex.Message}",
+                "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -393,7 +396,7 @@ public partial class MainWindow : Window, ISerpsHost
     {
         if (_template is null || !_dirty) return true;
 
-        var answer = MessageBox.Show(this,
+        var answer = SimplifiedUi.MessageDialog.Show(this,
             $"The template has swaps that haven't been saved.\n\nSave before you {action}?",
             "Unsaved changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
 

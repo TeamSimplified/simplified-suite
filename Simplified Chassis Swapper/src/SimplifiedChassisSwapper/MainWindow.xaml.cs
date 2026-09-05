@@ -430,7 +430,7 @@ public partial class MainWindow : Window
         var outputPath = OutputBox.Text.Trim();
         if (File.Exists(outputPath))
         {
-            var answer = MessageBox.Show(this,
+            var answer = SimplifiedUi.MessageDialog.Show(this,
                 $"{Path.GetFileName(outputPath)} already exists. Replace it?",
                 "Simplified Chassis Swapper", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
             if (answer != MessageBoxResult.OK) return;
@@ -484,7 +484,7 @@ public partial class MainWindow : Window
             ProgressLabel.Text = "";
             Log("");
             Log($"FAILED: {ex.Message}");
-            MessageBox.Show(this, ex.Message, "Swap failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(this, ex.Message, "Swap failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {

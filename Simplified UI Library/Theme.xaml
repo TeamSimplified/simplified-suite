@@ -627,9 +627,19 @@
         </Setter>
     </Style>
 
+    <!-- The text field inside an editable ComboBox.
+         Style="{x:Null}" is not an option — that takes the caret and selection
+         colours with it — so this extends the TextBox style and takes its own
+         chrome away instead: the ComboBox's border is already around it, and
+         two nested rounded boxes is what the stock one looks like. -->
+    <Style x:Key="ComboBoxEditor" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Focusable" Value="True"/>
+    </Style>
+
     <!-- Stock template kept; only the colours change. -->
-    <!-- Non-editable only, which is all this app uses: an editable ComboBox
-         needs a PART_EditableTextBox in here as well. -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Padding" Value="8,5"/>
@@ -701,11 +711,27 @@
                                 </ToggleButton.Template>
                             </ToggleButton>
 
-                            <ContentPresenter IsHitTestVisible="False"
+                            <ContentPresenter x:Name="Selection" IsHitTestVisible="False"
                                               Content="{TemplateBinding SelectionBoxItem}"
                                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                               Margin="{TemplateBinding Padding}"
                                               VerticalAlignment="Center" HorizontalAlignment="Left"/>
+
+                            <!-- Where an editable ComboBox puts its text. ComboBox
+                                 finds it by this exact name in OnApplyTemplate;
+                                 without one, IsEditable has nowhere to draw, so
+                                 setting Text shows nothing and typing does nothing.
+
+                                 Declared after the toggle so it takes the clicks
+                                 over the text, and stopped short of the arrow so
+                                 the toggle still gets those. -->
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Style="{StaticResource ComboBoxEditor}"
+                                     Visibility="Collapsed"
+                                     Margin="{TemplateBinding Padding}"
+                                     Padding="0,0,18,0"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     VerticalContentAlignment="Center"/>
 
                             <Path x:Name="Arrow" Data="M0,0 L8,0 L4,5 Z" Width="8" Height="5"
                                   Fill="{DynamicResource TextMuted}" IsHitTestVisible="False"
@@ -729,6 +755,14 @@
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- One or the other, never both: the presenter shows the
+                             selected item, the text box shows what can be typed. -->
+                        <Trigger Property="IsEditable" Value="True">
+                            <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Selection" Property="Visibility" Value="Collapsed"/>
+                            <!-- A text cursor over the field it belongs to. -->
+                            <Setter Property="Cursor" Value="IBeam"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
                         </Trigger>

@@ -338,7 +338,7 @@ public partial class MainWindow
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, $"The image could not be written.\n\n{ex.Message}",
+                MessageDialog.Show(this, $"The image could not be written.\n\n{ex.Message}",
                     "Export", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         };

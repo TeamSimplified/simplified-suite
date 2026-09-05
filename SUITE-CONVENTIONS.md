@@ -182,6 +182,30 @@ Dialogs are built in code and wrapped with `SimplifiedUi.DialogChrome.Apply(win)
 **after** setting `Content` and before `ShowDialog` — it wraps the current
 content, so anything assigned later replaces the title bar along with it.
 
+### No `MessageBox.Show`
+
+`SimplifiedUi.MessageDialog.Show` replaces it, taking the same arguments in the
+same order and answering with the same `MessageBoxResult`, so converting a call
+site only means naming the class:
+
+```csharp
+SimplifiedUi.MessageDialog.Show(this, message, title, MessageBoxButton.OKCancel);
+```
+
+The system box draws itself from Windows' own colours, so in the dark palette it
+arrives as a white rectangle with a system icon — the one thing on screen that
+doesn't belong to the app.
+
+Write the message as a headline, a blank line, then the detail: the first
+paragraph is set as the headline and the rest as muted body text. A single `\n`
+puts the whole message in bold. Of the icons only `Error` is expressed, as a red
+headline — a warning icon on what is really a confirmation reads as alarm.
+
+`MessageDialog.Choose` is the same dialog with buttons that say what they do
+("Save", "Discard", "Cancel") rather than Yes/No, which is what lets the body
+drop the "Yes — save, No — discard" gloss. First answers Enter, last answers Esc,
+so the last should always be the choice that changes nothing.
+
 ---
 
 ## 4. Behaviour rules

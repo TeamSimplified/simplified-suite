@@ -396,7 +396,7 @@ public sealed class NotesWindow : Window
 
         if (template is null)
         {
-            MessageBox.Show(this, "The blank board is missing from this build, so a new one can't be started.",
+            SimplifiedUi.MessageDialog.Show(this, "The blank board is missing from this build, so a new one can't be started.",
                 "New board", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -436,7 +436,7 @@ public sealed class NotesWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this,
+            SimplifiedUi.MessageDialog.Show(this,
                 $"Couldn't open {item.Name}: {ex.Message}\n\n" +
                 "Boards are PureRef files — opening one needs PureRef installed.",
                 "Open board", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -584,7 +584,7 @@ public sealed class NotesWindow : Window
         if (Selected is not { } item) return;
 
         var what = _notes.SelectedItem is not null ? "note" : "board";
-        if (MessageBox.Show(this, $"Delete the {what} \"{item.Name}\"? This can't be undone.",
+        if (SimplifiedUi.MessageDialog.Show(this, $"Delete the {what} \"{item.Name}\"? This can't be undone.",
                 "Delete", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
             return;
 

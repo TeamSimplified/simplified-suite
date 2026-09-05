@@ -316,7 +316,7 @@ public partial class MainWindow : Window
 
         if (!y2025.Any && !y2026.Any)
         {
-            MessageBox.Show(this, "Nothing has been changed yet, so there is nothing to package.",
+            SimplifiedUi.MessageDialog.Show(this, "Nothing has been changed yet, so there is nothing to package.",
                 "Package", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
@@ -343,13 +343,13 @@ public partial class MainWindow : Window
             StatusLine.Text = Describe(result, request.Path);
 
             if (result.Warnings.Count > 0)
-                MessageBox.Show(this,
+                SimplifiedUi.MessageDialog.Show(this,
                     "The package was written, with these notes:\n\n  " + string.Join("\n  ", result.Warnings),
                     "Package", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"The package could not be written.\n\n{ex.Message}",
+            SimplifiedUi.MessageDialog.Show(this, $"The package could not be written.\n\n{ex.Message}",
                 "Package", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally

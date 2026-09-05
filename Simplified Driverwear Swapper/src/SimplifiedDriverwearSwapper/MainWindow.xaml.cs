@@ -236,7 +236,7 @@ public partial class MainWindow : Window
         var outputPath = OutputBox.Text.Trim();
         if (File.Exists(outputPath))
         {
-            var answer = MessageBox.Show(this,
+            var answer = SimplifiedUi.MessageDialog.Show(this,
                 $"{Path.GetFileName(outputPath)} already exists. Replace it?",
                 "Simplified Driverwear Swapper", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
             if (answer != MessageBoxResult.OK) return;

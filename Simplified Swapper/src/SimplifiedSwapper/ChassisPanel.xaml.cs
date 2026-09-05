@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -522,7 +522,7 @@ public partial class ChassisPanel : UserControl, ISwapPanel
             _host.ReportProgress(-1);
             Log("");
             Log($"FAILED: {ex.Message}");
-            MessageBox.Show(Window.GetWindow(this), ex.Message, "Swap failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            SimplifiedUi.MessageDialog.Show(Window.GetWindow(this), ex.Message, "Swap failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {

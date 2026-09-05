@@ -36,138 +36,26 @@ namespace SimplifiedStudio;
 public partial class MainWindow
 {
     /// <summary>
-    /// The app's own dialog in place of a system message box: a headline, a
-    /// muted body and a right-aligned row of named buttons, themed along with
-    /// the rest of the window.
-    ///
-    /// The labels say what each button does, which is what lets the body drop
-    /// the "Yes — save, No — discard" gloss the message-box version needed.
-    ///
-    /// Choices are given in reading order. The first answers Enter; the last
-    /// answers Esc and the title-bar close, so it should always be the choice
-    /// that changes nothing. Only the others close the window themselves — the
-    /// last one is left to the built-in cancel handling, which would fault if it
-    /// tried to set a result on an already-closed window.
-    ///
-    /// The result comes back as a MessageBoxResult so call sites keep switching
-    /// on the values they already used.
-    /// </summary>
-    /// <summary>
     /// The app's own dialog in place of <c>MessageBox.Show</c>, taking the same
     /// arguments in the same order so the call sites read as they did.
     ///
-    /// These messages were already written as a headline, a blank line, then the
-    /// detail, so the first paragraph becomes the headline and the rest the
-    /// body — the shape every other dialog here uses.
-    ///
-    /// The icon argument is kept for the call sites' sake but only Error is
-    /// expressed, as a red headline. A warning icon on what is really a
-    /// confirmation reads as alarm.
+    /// The dialog itself is <see cref="MessageDialog"/> in the shared library —
+    /// it started here, and moved there when the rest of the suite needed it.
+    /// These two stay as thin wrappers so the call sites below, and the ones in
+    /// each app's own MainWindow, don't have to name the owner every time.
     /// </summary>
     private MessageBoxResult ShowMessage(string message, string title,
         MessageBoxButton buttons = MessageBoxButton.OK,
         MessageBoxImage icon = MessageBoxImage.None)
-    {
-        // MessageBox.Show tolerated being called off the UI thread; a Window does
-        // not. Several of these report the outcome of background work, so marshal
-        // rather than leave that to each call site.
-        if (!Dispatcher.CheckAccess())
-            return Dispatcher.Invoke(() => ShowMessage(message, title, buttons, icon));
-
-        var split = message.IndexOf("\n\n", StringComparison.Ordinal);
-        var headline = (split < 0 ? message : message[..split]).Trim();
-        var body = split < 0 ? "" : message[(split + 2)..].Trim('\n');
-
-        var choices = buttons switch
-        {
-            MessageBoxButton.OKCancel => new[]
-            {
-                ("OK", MessageBoxResult.OK),
-                ("Cancel", MessageBoxResult.Cancel),
-            },
-            MessageBoxButton.YesNo => new[]
-            {
-                ("Yes", MessageBoxResult.Yes),
-                ("No", MessageBoxResult.No),
-            },
-            MessageBoxButton.YesNoCancel => new[]
-            {
-                ("Yes", MessageBoxResult.Yes),
-                ("No", MessageBoxResult.No),
-                ("Cancel", MessageBoxResult.Cancel),
-            },
-            _ => new[] { ("OK", MessageBoxResult.OK) },
-        };
-
-        return RunChoiceDialog(title, headline, body, icon == MessageBoxImage.Error, choices);
-    }
+        => MessageDialog.Show(this, message, title, buttons, icon);
 
     private MessageBoxResult RunChoiceDialog(string title, string headline, string body,
         params (string Label, MessageBoxResult Result)[] choices)
-        => RunChoiceDialog(title, headline, body, danger: false, choices);
+        => MessageDialog.Choose(this, title, headline, body, choices);
 
     private MessageBoxResult RunChoiceDialog(string title, string headline, string body,
         bool danger, params (string Label, MessageBoxResult Result)[] choices)
-    {
-        var root = new System.Windows.Controls.StackPanel { Margin = new Thickness(18) };
-        root.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = headline,
-            FontWeight = FontWeights.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = danger ? ThemeBrush("Danger", System.Windows.Media.Brushes.Firebrick)
-                                : ThemeBrush("TextPrimary", System.Windows.Media.Brushes.Black),
-            Margin = new Thickness(0, 0, 0, 8),
-        });
-        root.Children.Add(new System.Windows.Controls.TextBlock
-        {
-            Text = body,
-            TextWrapping = TextWrapping.Wrap,
-            // Palette lookup rather than a literal grey, so the body text follows
-            // the theme instead of staying light-mode grey.
-            Foreground = ThemeBrush("TextMuted"),
-            Margin = new Thickness(0, 0, 0, 4),
-        });
-
-        var win = new Window
-        {
-            Title = title,
-            Content = root,
-            Owner = this,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Width = 520, SizeToContent = SizeToContent.Height,
-            ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false,
-        };
-        DialogChrome.Apply(win);
-
-        var row = new System.Windows.Controls.StackPanel
-        {
-            Orientation = System.Windows.Controls.Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-
-        var picked = (MessageBoxResult?)null;
-        for (var i = 0; i < choices.Length; i++)
-        {
-            var (label, result) = choices[i];
-            var last = i == choices.Length - 1;
-            var button = new System.Windows.Controls.Button
-            {
-                Content = label,
-                MinWidth = 110,
-                Padding = new Thickness(14, 6, 14, 6),
-                Margin = new Thickness(0, 18, last ? 0 : 8, 0),
-                IsDefault = i == 0,
-                IsCancel = last,
-            };
-            if (!last) button.Click += (_, _) => { picked = result; win.DialogResult = true; };
-            row.Children.Add(button);
-        }
-        root.Children.Add(row);
-
-        win.ShowDialog();
-        return picked ?? choices[^1].Result;
-    }
+        => MessageDialog.Choose(this, title, headline, body, danger, choices);
 
     /// <summary>
     /// Show a .material as what it describes rather than as a hex dump: the
