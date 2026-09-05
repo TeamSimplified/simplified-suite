@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -52,6 +52,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
   </ItemGroup>
 
 </Project>

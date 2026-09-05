@@ -39,6 +39,7 @@
        Shared rather than copied, so every app resolves them the same way. -->
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
   </ItemGroup>
 
   <!-- Ship icon.ico loose next to the published EXE. Content items survive

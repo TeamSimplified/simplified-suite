@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using SimplifiedSwapper.Core.Config;
 
 namespace SimplifiedSwapper;
@@ -29,6 +29,25 @@ public partial class App : Application
         {
             // An unreadable config is not a reason to refuse to start; the
             // default palette is already merged.
+        }
+
+
+        // The game folder, the first time the app is run. Every app here needs
+        // one and every one of them used to open with the field empty, so the
+        // first thing anyone did was go to Settings and press Detect. Only when
+        // nothing is saved: a folder the user chose is never second-guessed.
+        try
+        {
+            var config = UserConfig.Load();
+            if (Simplified.Shared.GameDirDetector.DetectIfUnset(config.GameDir) is { } found)
+            {
+                config.GameDir = found;
+                config.Save();
+            }
+        }
+        catch
+        {
+            // Nothing here is required to start; Settings still has Detect.
         }
 
         base.OnStartup(e);

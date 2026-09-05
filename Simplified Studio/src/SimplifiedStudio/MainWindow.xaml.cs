@@ -233,8 +233,8 @@ public partial class MainWindow : Window
     {
         Loaded -= FirstLaunchDetectGameDir;   // run exactly once
 
-        SimplifiedStudio.Util.GameDirDetector.Candidate? hit;
-        try { hit = SimplifiedStudio.Util.GameDirDetector.Detect(); }
+        Simplified.Shared.GameDirDetector.Candidate? hit;
+        try { hit = Simplified.Shared.GameDirDetector.Detect(); }
         catch { return; }
 
         var chosen = hit?.Path;
@@ -3364,7 +3364,7 @@ public partial class MainWindow : Window
         };
         detectBtn.Click += (_, _) =>
         {
-            var hit = SimplifiedStudio.Util.GameDirDetector.Detect();
+            var hit = Simplified.Shared.GameDirDetector.Detect();
             if (hit is null)
             {
                 ShowMessage(

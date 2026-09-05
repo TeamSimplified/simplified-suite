@@ -1,9 +1,10 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using SimplifiedTeamEditor.Core.Config;
 using SimplifiedTeamEditor.Util;
 using SimplifiedUi;
+using Simplified.Shared;
 
 namespace SimplifiedTeamEditor;
 

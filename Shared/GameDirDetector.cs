@@ -1,9 +1,8 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
-using SimplifiedTeamEditor.Core;
 
-namespace SimplifiedTeamEditor.Util;
+namespace Simplified.Shared;
 
 /// <summary>
 /// Auto-discovery for the F1 game install directory. Scans every Steam
@@ -12,27 +11,36 @@ namespace SimplifiedTeamEditor.Util;
 /// an F1 game install (folder named <c>F1 NN</c>/<c>F1 NNNN</c> containing
 /// a matching <c>F1_*.exe</c>).
 ///
-/// Only the one game this app targets — <see cref="GameFiles.GameFolderName"/> —
+/// Only the one game the suite targets — <see cref="GameFolderName"/> —
 /// is ever returned. Older F1 titles sitting in the same Steam library are of
 /// no use here, so the user is never asked to pick from a list.
 /// </summary>
-internal static class GameDirDetector
+public static class GameDirDetector
 {
+    /// <summary>The install folder's own name, as the launcher and the suite use it.</summary>
+    public const string GameFolderName = "F1 25";
+
+    /// <summary>
+    /// Holds the UI shader packages. Also what tells a real install apart
+    /// from a folder that merely shares the name.
+    /// </summary>
+    public const string ShaderFolderName = "shader_package_2025";
+
     /// <summary>Detected install — absolute path + how we found it (Steam / EA), for logging.</summary>
     public sealed record Candidate(string Path, string Source);
 
     /// <summary>
     /// The F1 25 install, or null when it isn't on the machine. When more than
     /// one folder could pass for it (<c>F1 25</c> alongside a renamed copy), the
-    /// one that actually carries <see cref="GameFiles.ShaderFolderName"/>
-    /// wins — that's the folder the shader packages are read from.
+    /// one that actually carries <see cref="ShaderFolderName"/>
+    /// wins — that's the folder every app in the suite reads from.
     /// </summary>
     public static Candidate? Detect()
     {
         // 25, from "F1 25". A local rather than a static field: static
         // initialisers run in declaration order, and this needs F1FolderRegex,
         // which is declared further down the file.
-        var targetGame = GameNumberFromFolder(GameFiles.GameFolderName);
+        var targetGame = GameNumberFromFolder(GameFolderName);
 
         Candidate? fallback = null;
 
@@ -41,13 +49,32 @@ internal static class GameDirDetector
             if (GameNumberFromFolder(System.IO.Path.GetFileName(c.Path)) != targetGame)
                 continue;
 
-            if (Directory.Exists(System.IO.Path.Combine(c.Path, GameFiles.ShaderFolderName)))
+            if (Directory.Exists(System.IO.Path.Combine(c.Path, ShaderFolderName)))
                 return c;
 
             fallback ??= c;
         }
 
         return fallback;
+    }
+
+    /// <summary>
+    /// The install to record when none has been set yet, or null to leave it
+    /// alone.
+    ///
+    /// Every app in the suite needs a game folder and every one of them used to
+    /// open with the field empty, so the first thing anyone did was go to
+    /// Settings and press Detect. This runs the same search at startup and only
+    /// when there is nothing saved — a folder the user chose is never
+    /// second-guessed, and Detect stays where it was for the times the guess is
+    /// wrong or the game moves.
+    /// </summary>
+    public static string? DetectIfUnset(string? current)
+    {
+        if (!string.IsNullOrWhiteSpace(current)) return null;
+
+        try { return Detect()?.Path; }
+        catch { return null; }   // a search that fails is not a reason not to start
     }
 
     /// <summary>

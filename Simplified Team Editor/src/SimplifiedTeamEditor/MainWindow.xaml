@@ -104,10 +104,10 @@
 
                 <RadioButton DockPanel.Dock="Left" Name="Season2025Chip" Content="2025"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
-                             IsChecked="True" ToolTip="The grid the game ships with"/>
+                             ToolTip="The grid the game ships with"/>
                 <RadioButton DockPanel.Dock="Left" Name="Season2026Chip" Content="2026"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
-                             ToolTip="The 2026 grid, with Audi and Cadillac"/>
+                             IsChecked="True" ToolTip="The 2026 grid, with Audi and Cadillac"/>
 
                 <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="12,0,12,0"
                         VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>

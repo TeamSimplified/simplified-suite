@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -81,6 +81,7 @@
        in the other immediately, rather than at the next hand copy. -->
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
     <Compile Include="..\..\..\Shared\MainWindow.Shared.cs" Link="MainWindow.Shared.cs" />
     <Compile Include="..\..\..\Shared\Model\ResourceFileIO.cs" Link="Model\ResourceFileIO.cs" />
     <Compile Include="..\..\..\Shared\Model\ResourceListItem.cs" Link="Model\ResourceListItem.cs" />

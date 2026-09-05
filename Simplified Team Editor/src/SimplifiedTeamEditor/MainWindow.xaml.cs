@@ -15,6 +15,7 @@ using SimplifiedTeamEditor.Core.Teams;
 using Season = SimplifiedTeamEditor.Core.Teams.Season;
 using SimplifiedTeamEditor.Model;
 using SimplifiedTeamEditor.Util;
+using Simplified.Shared;
 
 namespace SimplifiedTeamEditor;
 
@@ -29,7 +30,7 @@ public partial class MainWindow : Window
     /// Which grid is being edited. Each season keeps its own rows, so switching
     /// back and forth doesn't lose edits made to the other one.
     /// </summary>
-    private Season _season = Season.Y2025;
+    private Season _season = Season.Y2026;
 
     private readonly Dictionary<Season, List<TeamRow>> _rowsBySeason = new();
 
