@@ -1036,4 +1036,193 @@
         </Setter>
     </Style>
 
+    <!-- ─────────────── Tables ───────────────
+         DataGrid is the one control here that cannot be left near-stock. It
+         builds its chrome from the system brushes - SystemColors.WindowBrush
+         for the surface, ControlBrush for the headers, HighlightBrush for the
+         selection - so an untouched grid stays light in the dark palette and
+         is the only white rectangle on screen. All four pieces are retemplated
+         for the same reason ComboBox and TabItem were.
+
+         Rows carry the colour, not cells: a cell that paints its own selection
+         leaves the gaps between columns unpainted, so the row reads as striped
+         rather than selected. -->
+    <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="RowBackground" Value="Transparent"/>
+        <Setter Property="AlternatingRowBackground" Value="Transparent"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BorderSoft}"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="RowHeaderWidth" Value="0"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGrid">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" SnapsToDevicePixels="True">
+                        <ScrollViewer x:Name="DG_ScrollViewer" Focusable="False">
+                            <ScrollViewer.Template>
+                                <ControlTemplate TargetType="ScrollViewer">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- The strip carries the header colour,
+                                             not the individual headers: it also
+                                             covers the filler past the last
+                                             column, which the stock presenter
+                                             paints from a system brush. Rounding
+                                             it here rather than clipping the
+                                             whole grid keeps the top corners
+                                             following the border above without
+                                             a size-bound clip geometry.
+
+                                             The headers scroll sideways with the
+                                             rows; PART_ names are what DataGrid
+                                             looks for to wire that up. -->
+                                        <Border Grid.Row="0" Grid.Column="0"
+                                                Background="{DynamicResource SurfaceAlt}"
+                                                CornerRadius="5,5,0,0">
+                                            <DataGridColumnHeadersPresenter
+                                                x:Name="PART_ColumnHeadersPresenter"
+                                                Visibility="{Binding HeadersVisibility,
+                                                    RelativeSource={RelativeSource AncestorType=DataGrid},
+                                                    Converter={x:Static DataGrid.HeadersVisibilityConverter},
+                                                    ConverterParameter={x:Static DataGridHeadersVisibility.Column}}"/>
+                                        </Border>
+
+                                        <ScrollContentPresenter Grid.Row="1" Grid.Column="0"
+                                                                x:Name="PART_ScrollContentPresenter"
+                                                                CanContentScroll="{TemplateBinding CanContentScroll}"/>
+
+                                        <ScrollBar Grid.Row="1" Grid.Column="1" x:Name="PART_VerticalScrollBar"
+                                                   Orientation="Vertical"
+                                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                                   Value="{Binding VerticalOffset, Mode=OneWay,
+                                                           RelativeSource={RelativeSource TemplatedParent}}"
+                                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+
+                                        <ScrollBar Grid.Row="2" Grid.Column="0" x:Name="PART_HorizontalScrollBar"
+                                                   Orientation="Horizontal"
+                                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                                   Value="{Binding HorizontalOffset, Mode=OneWay,
+                                                           RelativeSource={RelativeSource TemplatedParent}}"
+                                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                                    </Grid>
+                                </ControlTemplate>
+                            </ScrollViewer.Template>
+                            <ItemsPresenter SnapsToDevicePixels="True"/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Transparent by default: the strip behind them in the DataGrid template
+         is what carries the header colour, so a header does not have to line up
+         with the filler beside it. -->
+    <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource BorderSoft}"
+                                BorderThickness="0,0,0,1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <!-- The drag handle DataGrid needs by name to resize a
+                             column. Transparent and 8 wide: invisible, but wide
+                             enough to grab. -->
+                        <Thumb x:Name="PART_RightHeaderGripper" Width="8" Cursor="SizeWE"
+                               HorizontalAlignment="Right">
+                            <Thumb.Template>
+                                <ControlTemplate TargetType="Thumb">
+                                    <Border Background="Transparent"/>
+                                </ControlTemplate>
+                            </Thumb.Template>
+                        </Thumb>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="DataGridRow">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridRow">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                            SnapsToDevicePixels="True">
+                        <!-- PART_ name again: DataGrid finds the cells through it. -->
+                        <DataGridCellsPresenter x:Name="PART_CellsPresenter"
+                                                ItemsPanel="{TemplateBinding ItemsPanel}"
+                                                SnapsToDevicePixels="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
+                        </Trigger>
+                        <!-- After hover, so a selected row that is also hovered
+                             keeps reading as selected. Grey rather than accent,
+                             as everywhere else in the suite. -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selected}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridCell">
+                    <Border Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <!-- The focus rectangle is the stock one and draws in a system colour;
+             the row already says which line is current. -->
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
 </ResourceDictionary>

@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -138,6 +138,12 @@ $Apps = @(
         Project = 'src\SimplifiedSwapper\SimplifiedSwapper.csproj'
         Exe = 'Simplified Swapper'; Package = 'Simplified Swapper'
         Tag = 'swapper-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Driver'; Folder = 'Simplified Driver Swapper'
+        Project = 'src\SimplifiedDriverSwapper\SimplifiedDriverSwapper.csproj'
+        Exe = 'Simplified Driver Swapper'; Package = 'Simplified Driver Swapper'
+        Tag = 'driver-v'; Kind = 'window'; Ships = @('*.exe', '*.ico', 'runtime\*')
     }
 )
 

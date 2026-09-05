@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedDriverSwapper/SimplifiedDriverSwapper.csproj" />
+  <Project Path="src/SimplifiedDriverSwapper.Core/SimplifiedDriverSwapper.Core.csproj" />
+</Solution>

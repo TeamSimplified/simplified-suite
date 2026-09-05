@@ -1,13 +1,14 @@
 # Simplified Suite — conventions
 
-What the eight apps in `F:\Claude Code\Simplified Suite` have in common, and
+What the nine apps in `F:\Claude Code\Simplified Suite` have in common, and
 what an app has to do to belong to it. Written while bringing **Simplified Team
 Editor** into line, and §8 records what that took — but everything above it
-applies to any app in the suite.
+applies to any app in the suite. §9 is the second arrival, the **Driver
+Swapper**, which needed a different half of the same list.
 
 The apps: Studio, ERP, Toolkit (`stk`, CLI), Chassis Swapper, Driverwear
-Swapper, Swapper, Helmet Swapper, Team Editor. Two shared libraries and a
-`Shared/` folder of odds and ends sit beside them.
+Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper. Two shared
+libraries and a `Shared/` folder of odds and ends sit beside them.
 
 ---
 
@@ -329,3 +330,59 @@ rather than read from the install. The gaps are all about sharing.
 
 Steps 1–3 are the ones that make it part of the suite rather than an app that
 looks like one. The rest is tidying.
+
+---
+
+## 9. What the Driver Swapper needed, in order
+
+The opposite shape to the Team Editor. Nothing was forked — it reads the game's
+**database**, not its archives, so it carries no format code at all and had no
+theme to replace. What it had instead was no theme at all: `App.xaml` was empty,
+the window wore stock Windows chrome, and every colour in it was a literal.
+
+1. **Move it in**, from `Simplified Apps\Database\Simplified Driver Swapper`.
+   The original stays there as a backup; the copy in the suite is the one that
+   gets edited. `.git`, `bin`, `obj` and the app's own `.gitignore` stay behind,
+   and its `Directory.Packages.props` goes — the root's is the one that should
+   be reached.
+
+2. **Chain `Directory.Build.props`** (§2), and drop `LangVersion`, `Nullable`,
+   `ImplicitUsings` and `Deterministic`, which the root sets. `Copyright` is
+   overridden here rather than inherited: the root's credits EgoEngineLibrary,
+   which this app carries none of.
+
+3. **Reference `Simplified UI Library`**, merge the palette and theme in
+   `App.xaml` (§3), and apply the saved one in `App.OnStartup` before the first
+   window is built.
+
+4. **Frameless window** (§3): `WindowStyle="None"` plus `WindowChrome`, the
+   56px title bar with the wordmark and version pill,
+   `FramelessWindow.Attach` and the three caption handlers.
+
+5. **Every literal colour onto a palette key.** The four brushes the status line
+   used were `static readonly` fields, which is the wrong shape twice over —
+   resolved once at type init, and frozen through a theme change. They became
+   properties looking the key up each time, with the old literal as the
+   fallback (§3).
+
+6. **The table.** This is the first app in the suite with a `DataGrid`, and a
+   near-stock one cannot be themed from the outside: it builds its chrome from
+   `SystemColors`, so it stays white in the dark palette. `DataGrid`,
+   `DataGridColumnHeader`, `DataGridRow` and `DataGridCell` were retemplated in
+   the shared `Theme.xaml`, where the next app to want a table will find them.
+
+7. **Portable config** (§4): `AppPaths.cs` in Core, `config.json` beside the
+   exe, and a `Theme` on `UserConfig`. It was writing to
+   `%APPDATA%\simplified-driver-swapper\`.
+
+8. **Settings on the shared shell** — `SettingsWindow.xaml` deleted, replaced
+   by a `DriverSettings.Show` built from `SimplifiedUi.SettingsDialog`.
+
+9. **Drop the forked `GameDirDetector`** in favour of the linked
+   `Shared/GameDirDetector.cs`, and with it the app's own first-run detection —
+   `App.OnStartup` does that the same way everywhere now.
+
+10. **Register it in `tools\release.ps1`** (§5) as `Driver`, tag `driver-v`.
+
+One thing found on the way: `app.manifest` still identified the assembly as
+`SimplifiedChassisSwapper`, from whichever app it was copied out of.

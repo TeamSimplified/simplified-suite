@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedDriverSwapper.Core</RootNamespace>
+    <AssemblyName>SimplifiedDriverSwapper.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!-- No package references: this app doesn't touch the game's ERP archives, so
+       none of the compression or serialisation libraries the other suite apps
+       carry are needed. Versions stay pinned in Directory.Packages.props if any
+       turn out to be wanted later. -->
+
+</Project>
