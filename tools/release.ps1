@@ -93,6 +93,10 @@ $Apps = @(
         Project = 'src\SimplifiedToolkit\SimplifiedToolkit.csproj'
         Exe = 'stk'; Package = 'Simplified Toolkit'
         Tag = 'stk-v'; Kind = 'cli'; Ships = @('stk.exe', 'tools\*')
+        # Held back from a suite release: the command line is for our own
+        # work rather than something a mod maker installs. Still releasable on
+        # its own with -App Toolkit.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Chassis'; Folder = 'Simplified Chassis Swapper'
