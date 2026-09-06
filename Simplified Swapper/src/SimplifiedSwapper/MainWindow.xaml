@@ -164,7 +164,7 @@
                                  Background="{DynamicResource SurfaceSunken}"
                                  Foreground="{DynamicResource Accent}" BorderThickness="0"/>
                 </DockPanel>
-                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
     </Grid>

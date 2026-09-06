@@ -13,15 +13,20 @@ namespace SimplifiedSwapper;
 
 public partial class ChassisPanel : UserControl, ISwapPanel
 {
-    private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
-    private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
+    private static Brush ErrorBrush => Themed("Danger", 0xE0, 0x44, 0x34);
+    private static Brush HintBrush => Themed("TextMuted", 0xA4, 0xA4, 0xA4);
 
     /// <summary>
     /// The status line's own colour. Full strength rather than the muted grey
     /// the field hints use: it is the one line on the bar, and grey text that
     /// small picks up a blue cast from subpixel rendering.
     /// </summary>
-    private static Brush StatusBrush => Themed("TextPrimary", 0xEA, 0xEA, 0xEA);
+    /// <summary>
+    /// The status line, in the muted grey every app in the suite reads its
+    /// status in. This one was TextPrimary, which made the same sentence look
+    /// like an announcement here and a remark everywhere else.
+    /// </summary>
+    private static Brush StatusBrush => Themed("TextMuted", 0xA4, 0xA4, 0xA4);
 
     /// <summary>
     /// What the status line says after something worked - which is the same

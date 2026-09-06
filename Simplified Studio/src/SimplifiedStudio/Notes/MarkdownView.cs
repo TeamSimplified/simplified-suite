@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -53,7 +53,7 @@ public sealed class MarkdownView : ScrollViewer
             _stack.Children.Add(new TextBlock
             {
                 Text = "This note is empty.",
-                Foreground = Themed("TextMuted", 0x8A, 0x92, 0x9C),
+                Foreground = Themed("TextMuted", 0xA4, 0xA4, 0xA4),
                 FontStyle = FontStyles.Italic,
                 Margin = new Thickness(0, 6, 0, 0),
             });
@@ -136,7 +136,7 @@ public sealed class MarkdownView : ScrollViewer
             var marker = new TextBlock
             {
                 Text = item.Marker ?? "•",
-                Foreground = Themed("TextMuted", 0x8A, 0x92, 0x9C),
+                Foreground = Themed("TextMuted", 0xA4, 0xA4, 0xA4),
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(2, 0, 8, 0),
                 MinWidth = item.Marker is null ? 0 : 18,
@@ -150,7 +150,7 @@ public sealed class MarkdownView : ScrollViewer
         // Done is done: a ticked task steps back so the ones left stand out.
         if (item.Checked == true)
         {
-            text.Foreground = Themed("TextMuted", 0x8A, 0x92, 0x9C);
+            text.Foreground = Themed("TextMuted", 0xA4, 0xA4, 0xA4);
             text.TextDecorations = TextDecorations.Strikethrough;
         }
 
@@ -179,12 +179,12 @@ public sealed class MarkdownView : ScrollViewer
     private UIElement Build(Markdown.Quote quote)
     {
         var text = Text(quote.Text, new Thickness(10, 0, 0, 0));
-        text.Foreground = Themed("TextMuted", 0x8A, 0x92, 0x9C);
+        text.Foreground = Themed("TextMuted", 0xA4, 0xA4, 0xA4);
         text.FontStyle = FontStyles.Italic;
 
         return new Border
         {
-            BorderBrush = Themed("Accent", 0x2E, 0x7D, 0x4F),
+            BorderBrush = Themed("Accent", 0x5B, 0x9B, 0xD5),
             BorderThickness = new Thickness(3, 0, 0, 0),
             Margin = new Thickness(0, 4, 0, 10),
             Child = text,
@@ -226,7 +226,7 @@ public sealed class MarkdownView : ScrollViewer
     {
         var link = new Hyperlink(new Run(span.Text))
         {
-            Foreground = Themed("Accent", 0x2E, 0x7D, 0x4F),
+            Foreground = Themed("Accent", 0x5B, 0x9B, 0xD5),
             ToolTip = span.Url,
         };
 

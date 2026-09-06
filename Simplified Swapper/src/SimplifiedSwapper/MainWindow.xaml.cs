@@ -218,8 +218,8 @@ public partial class MainWindow : Window, ISerpsHost
             // accent-blue to announce success is louder than the news, and the
             // wording already says it. Problem still goes red, because that one
             // is worth interrupting for.
-            SwapStatus.Problem => Themed("Danger", 0xB0, 0x2A, 0x2A),
-            _                  => Themed("TextPrimary", 0xEA, 0xEA, 0xEA),
+            SwapStatus.Problem => Themed("Danger", 0xE0, 0x44, 0x34),
+            _                  => Themed("TextMuted", 0xA4, 0xA4, 0xA4),
         };
     }
 

@@ -13,8 +13,8 @@ namespace SimplifiedChassisSwapper;
 
 public partial class MainWindow : Window
 {
-    private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
-    private static Brush HintBrush => Themed("TextMuted", 0x8A, 0x92, 0x9C);
+    private static Brush ErrorBrush => Themed("Danger", 0xE0, 0x44, 0x34);
+    private static Brush HintBrush => Themed("TextMuted", 0xA4, 0xA4, 0xA4);
     /// <summary>
     /// What the status line says after something worked - which is the same
     /// colour it reads in the rest of the time. A line that turns accent-blue to

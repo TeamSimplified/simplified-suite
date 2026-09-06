@@ -30,8 +30,8 @@ public partial class MainWindow : Window
     private static Brush Themed(string key, byte r, byte g, byte b) =>
         Application.Current?.TryFindResource(key) as Brush ?? new SolidColorBrush(Color.FromRgb(r, g, b));
 
-    private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
-    private static Brush MutedBrush => Themed("TextMuted", 0x66, 0x66, 0x66);
+    private static Brush ErrorBrush => Themed("Danger", 0xE0, 0x44, 0x34);
+    private static Brush MutedBrush => Themed("TextMuted", 0xA4, 0xA4, 0xA4);
     /// <summary>
     /// What the status line says after something worked - which is the same
     /// colour it reads in the rest of the time. A line that turns accent-blue to
@@ -407,7 +407,7 @@ public partial class MainWindow : Window
         ProjectLabel.Text = open
             ? (_project!.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName)
             : "No project open";
-        ProjectLabel.Foreground = open ? MutedBrush : Themed("TextDisabled", 0x8A, 0x92, 0x9C);
+        ProjectLabel.Foreground = open ? MutedBrush : Themed("TextDisabled", 0x66, 0x66, 0x66);
         DirtyLabel.Visibility = open && HasPendingChanges ? Visibility.Visible : Visibility.Collapsed;
 
         SaveButton.IsEnabled = open;
