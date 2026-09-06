@@ -43,18 +43,6 @@
             <Setter Property="Margin" Value="10,0,0,6"/>
         </Style>
 
-        <!-- Material icons, from the 24-pixel set rather than the 960 one.
-             That matters more than it looks: the 960 artwork puts every Y
-             coordinate below zero, and IconButton draws the glyph in a Path
-             with no Stretch, which measures from the origin - so the whole
-             shape lands outside the arranged area and is clipped to nothing.
-             It renders as an empty button with a working hover. Every icon in
-             Theme.xaml is 24-box for the same reason.
-
-             The F1 prefix picks the nonzero fill rule SVG uses, matching the
-             icons already in Theme.xaml. -->
-        <Geometry x:Key="IconReset">F1 M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z</Geometry>
-        <Geometry x:Key="IconBack">F1 M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z</Geometry>
     </Window.Resources>
 
     <Grid>

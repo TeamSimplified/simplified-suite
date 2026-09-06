@@ -1,0 +1,130 @@
+<UserControl x:Class="SimplifiedGridEditor.GridPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Style="{DynamicResource Hint}" Margin="2,0,2,8"
+                   Text="Pick a seat, then choose who sits in it. Seats you don't touch are left empty, which is how the game finds its own default lineup. The helmet follows the driver; suit and gloves become the plain team kit unless you override them."/>
+
+        <DataGrid Grid.Row="1" Name="SeatGrid" Style="{DynamicResource ReadOnlyGrid}"
+                  RowStyle="{DynamicResource GridRow}"
+                  SelectionChanged="SeatGrid_SelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Seat"   Binding="{Binding Slot}"    Width="52"/>
+                <DataGridTextColumn Header="Team"   Binding="{Binding Team}"    Width="130"/>
+                <DataGridTextColumn Header="Driver" Binding="{Binding Driver}"  Width="*" MinWidth="170"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}"  Width="80"/>
+                <DataGridTextColumn Header="Number" Binding="{Binding Number}"  Width="76"/>
+                <DataGridTextColumn Header="Helmet" Binding="{Binding Helmet}"  Width="90"/>
+                <DataGridTextColumn Header="Suit"   Binding="{Binding Suit}"    Width="80"/>
+                <DataGridTextColumn Header="Gloves" Binding="{Binding Gloves}"  Width="80"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="2" Style="{DynamicResource EditorPanel}">
+            <StackPanel>
+                <TextBlock Name="SeatSelectionLabel" FontWeight="SemiBold"
+                           Text="No seat selected" Margin="0,0,0,2"/>
+                <TextBlock Name="SeatDetailLabel" Style="{DynamicResource Hint}" Margin="0,0,0,8"/>
+
+                <!-- Always available: who sits here, and under what number. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{DynamicResource FieldLabel}" Text="Driver"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Name="DriverBox" Margin="0,0,0,4"
+                              IsEditable="True" IsTextSearchEnabled="True" DisplayMemberPath="Display"/>
+                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,4">
+                        <Button Name="AssignButton" Content="Assign" Style="{DynamicResource RowButton}"
+                                IsEnabled="False" Click="Assign_Click"/>
+                        <Button Name="ResetSeatButton" Content="Reset seat" Style="{DynamicResource RowButton}"
+                                IsEnabled="False" Click="ResetSeat_Click"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{DynamicResource FieldLabel}" Text="Number"/>
+                    <DockPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,4">
+                        <TextBlock DockPanel.Dock="Right" Style="{DynamicResource Hint}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Text="0–99, or 255 for the driver's own"/>
+                        <TextBox Name="NumberBox" Width="70" HorizontalAlignment="Left"/>
+                    </DockPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,4">
+                        <Button Name="NumberSetButton" Content="Override" Style="{DynamicResource RowButton}"
+                                IsEnabled="False" Click="NumberOverride_Click"/>
+                        <Button Name="NumberClearButton" Content="Clear" Style="{DynamicResource RowButton}"
+                                IsEnabled="False" Click="NumberClear_Click"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Kit. Hidden unless advanced swapping is on: the rules below
+                     handle it on their own, so this is only for the exceptions. -->
+                <StackPanel Name="AdvancedKitPanel" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{DynamicResource FieldLabel}" Text="Helmet"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Name="HelmetBox" Margin="0,0,0,4"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+                        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Name="HelmetSetButton" Content="Override" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="HelmetOverride_Click"/>
+                            <Button Name="HelmetClearButton" Content="Clear" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="HelmetClear_Click"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{DynamicResource FieldLabel}" Text="Suit"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" Name="SuitBox" Margin="0,0,0,4"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+                        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Name="SuitSetButton" Content="Override" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="SuitOverride_Click"/>
+                            <Button Name="SuitClearButton" Content="Clear" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="SuitClear_Click"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{DynamicResource FieldLabel}" Text="Gloves"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" Name="GloveBox"
+                                  IsEditable="True" IsTextSearchEnabled="True"/>
+                        <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal">
+                            <Button Name="GloveSetButton" Content="Override" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="GloveOverride_Click"/>
+                            <Button Name="GloveClearButton" Content="Clear" Style="{DynamicResource RowButton}"
+                                    IsEnabled="False" Click="GloveClear_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <CheckBox Name="HelmetFollowsBox" Content="Helmet follows the driver" IsChecked="True"
+                                  Click="KitOption_Changed"/>
+                        <CheckBox Name="SuitTeamBox" Content="Suit becomes team kit" IsChecked="True"
+                                  Margin="16,0,0,0" Click="KitOption_Changed"/>
+                        <CheckBox Name="GloveTeamBox" Content="Gloves become team kit" IsChecked="True"
+                                  Margin="16,0,0,0" Click="KitOption_Changed"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

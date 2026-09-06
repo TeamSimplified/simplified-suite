@@ -1,14 +1,14 @@
 # Simplified Suite — conventions
 
-What the nine apps in `F:\Claude Code\Simplified Suite` have in common, and
+What the ten apps in `F:\Claude Code\Simplified Suite` have in common, and
 what an app has to do to belong to it. Written while bringing **Simplified Team
 Editor** into line, and §8 records what that took — but everything above it
 applies to any app in the suite. §9 is the second arrival, the **Driver
 Swapper**, which needed a different half of the same list.
 
 The apps: Studio, ERP, Toolkit (`stk`, CLI), Chassis Swapper, Driverwear
-Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper. Two shared
-libraries and a `Shared/` folder of odds and ends sit beside them.
+Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper, Grid Editor.
+Two shared libraries and a `Shared/` folder of odds and ends sit beside them.
 
 ---
 
@@ -410,3 +410,44 @@ the window wore stock Windows chrome, and every colour in it was a literal.
 
 One thing found on the way: `app.manifest` still identified the assembly as
 `SimplifiedChassisSwapper`, from whichever app it was copied out of.
+
+
+---
+
+## 10. Simplified Grid Editor, and what an app made of two apps needs
+
+The Grid Editor is the Team Editor and the Driver Swapper in one window —
+Teams, Grid, Drivers — over one project. Both of those apps stay exactly as they
+are; this one takes their logic rather than a copy of it, by referencing their
+`.Core` projects. Four things that came out of building it:
+
+1. **One reader, in the library.** Both apps had their own `gamedatabases.bin`
+   reader. Two tabs editing one file cannot each have their own idea of it, so
+   the richer of the two moved to `EgoEngineLibrary.Data.GameDatabases` and all
+   three apps use it. §1 said this already; this is what it looks like when the
+   bill comes due.
+
+2. **Tabs are UserControls, not partials of the window.** Both apps' code has a
+   `ShowSeason`, a `Season_Checked`, a `_config` and a `Settings_Click`, and
+   their two `Season` types mean different things — the Team Editor's is which
+   grid, the Driver Swapper's is that plus the entrant list and its seats.
+   Panels give each file its own `using` block and its own state, which is what
+   makes the two portable at all. `MainWindow.Tabs.cs` is the only place the two
+   season types meet.
+
+3. **A project is where edits land.** The two apps hold edits in memory and
+   materialise them only when a package is written, because they have nowhere
+   else to put them. A project does: Save writes them into the project's files,
+   and Package is then those files at their in-game paths. That is what makes a
+   package reproducible — it ships what was saved, not a second rendering of the
+   same edits.
+
+4. **The project layout is Studio's plus two folders.** `ERPs/` for the UI
+   archives, `Language/` for the eleven `.lng` files, `Database/` for the one
+   database. No `.serps` template: a grid project is always the same three
+   things, so a new one is seeded from the bundled originals and the only
+   question is what to call it.
+
+The `original/` bundle is referenced from the Team Editor's folder rather than
+copied. It is 90 MB of identical bytes, and two copies in the repository is two
+things to keep in step.

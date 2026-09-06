@@ -1,0 +1,58 @@
+<UserControl x:Class="SimplifiedGridEditor.DriversPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="2,0,2,8">
+            <TextBlock DockPanel.Dock="Left" Text="Search" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" VerticalAlignment="Center"
+                       Margin="10,0,0,0"
+                       Text="Name fields hold language keys, not names — pick an existing key or type your own."/>
+            <TextBox Name="AttributeSearchBox" Width="240" HorizontalAlignment="Left"
+                     TextChanged="AttributeSearch_Changed"/>
+        </DockPanel>
+
+        <DataGrid Grid.Row="1" Name="DriverGrid" Style="{StaticResource ReadOnlyGrid}"
+                  RowStyle="{StaticResource GridRow}"
+                  SelectionChanged="DriverGrid_SelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="#"           Binding="{Binding Index}"       Width="50"/>
+                <DataGridTextColumn Header="Driver id"   Binding="{Binding DriverId}"    Width="180"/>
+                <DataGridTextColumn Header="Initials"    Binding="{Binding Initials}"    Width="70"/>
+                <DataGridTextColumn Header="Nationality" Binding="{Binding Nationality}" Width="110"/>
+                <DataGridTextColumn Header="First name"  Binding="{Binding FirstName}"   Width="*" MinWidth="120"/>
+                <DataGridTextColumn Header="Last name"   Binding="{Binding LastName}"    Width="*" MinWidth="120"/>
+                <DataGridTextColumn Header="Full name"   Binding="{Binding FullName}"    Width="*" MinWidth="140"/>
+                <DataGridTextColumn Header="Head"        Binding="{Binding Head}"        Width="*" MinWidth="140"/>
+                <DataGridTextColumn Header="Audio"       Binding="{Binding AudioName}"   Width="*" MinWidth="120"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="2" Style="{StaticResource EditorPanel}">
+            <StackPanel>
+                <TextBlock Name="DriverSelectionLabel" FontWeight="SemiBold"
+                           Text="No driver selected" Margin="0,0,0,8"/>
+                <Grid Name="AttributeFieldGrid">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button Name="AttributeApplyButton" Content="Apply to driver"
+                            IsEnabled="False" Click="AttributeApply_Click"/>
+                    <Button Name="AttributeRevertButton" Content="Discard changes"
+                            Margin="8,0,0,0" IsEnabled="False" Click="AttributeRevert_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,49 @@
+<UserControl x:Class="SimplifiedGridEditor.TeamsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The list and the pickers occupy the same space: a picker replaces the
+         list rather than floating over it, so there is one thing on screen at a
+         time and the back arrow is the only way out. -->
+    <Grid>
+        <!-- Team list -->
+        <DockPanel Name="ListPage">
+            <Grid DockPanel.Dock="Top" Name="ColumnHeaders" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="44"/>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="1.2*"/>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="44"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Style="{StaticResource ColumnHeader}" Text="LOGO"/>
+                <TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="TEAM NAME"/>
+                <TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="SHORT"/>
+                <TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="ABBR"/>
+            </Grid>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Name="TeamList"/>
+            </ScrollViewer>
+        </DockPanel>
+
+        <!-- Picker page -->
+        <DockPanel Name="PickerPage" Visibility="Collapsed">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                <!-- Tag, not a child: IconButton draws its own glyph from Tag
+                     and has no ContentPresenter, so a Path put inside it is
+                     never rendered. -->
+                <Button DockPanel.Dock="Left" Name="PickerBackButton" Click="PickerBack_Click"
+                        Style="{StaticResource IconButton}" Tag="{StaticResource IconBack}"
+                        ToolTip="Back to the team list"/>
+                <TextBlock Name="PickerTitle" VerticalAlignment="Center" Margin="10,0,0,0"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}"/>
+            </DockPanel>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Name="PickerBody"/>
+            </ScrollViewer>
+        </DockPanel>
+    </Grid>
+</UserControl>

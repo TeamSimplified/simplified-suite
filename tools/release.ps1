@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -138,6 +138,16 @@ $Apps = @(
         Project = 'src\SimplifiedSwapper\SimplifiedSwapper.csproj'
         Exe = 'Simplified Swapper'; Package = 'Simplified Swapper'
         Tag = 'swapper-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Grid'; Folder = 'Simplified Grid Editor'
+        Project = 'src\SimplifiedGridEditor\SimplifiedGridEditor.csproj'
+        Exe = 'Simplified Grid Editor'; Package = 'Simplified Grid Editor'
+        Tag = 'grid-v'; Kind = 'window'
+        Ships = @('*.exe', '*.ico', 'runtime\*')
+        # Held back from a suite release until it has been used on a real mod.
+        # Releasable on its own with -App Grid, which is how it goes out.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'

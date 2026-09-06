@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedGridEditor.Core</RootNamespace>
+    <AssemblyName>SimplifiedGridEditor.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    This app is the two editors in one window, so it takes their logic rather
+    than a copy of it: the Team Editor's teams, language files, logos and
+    packaging, and the Driver Swapper's seat plan and driver attributes. Both of
+    those apps stay exactly as they are - this one only reads their Cores.
+
+    The database reader itself is neither of theirs any more; it lives in
+    EgoEngineLibrary and all three use it, which is what lets one project file
+    carry edits from both halves of this window.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+    <ProjectReference Include="..\..\..\Simplified Team Editor\src\SimplifiedTeamEditor.Core\SimplifiedTeamEditor.Core.csproj" />
+    <ProjectReference Include="..\..\..\Simplified Driver Swapper\src\SimplifiedDriverSwapper.Core\SimplifiedDriverSwapper.Core.csproj" />
+  </ItemGroup>
+
+</Project>

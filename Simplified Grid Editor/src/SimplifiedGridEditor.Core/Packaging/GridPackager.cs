@@ -1,0 +1,351 @@
+using System.IO.Compression;
+using System.Text;
+using System.Text.Json;
+using EgoEngineLibrary.Data.GameDatabases;
+using EgoEngineLibrary.Texconv;
+using SimplifiedDriverSwapper.Core.Drivers;
+using SimplifiedGridEditor.Core.Project;
+using SimplifiedTeamEditor.Core;
+using SimplifiedTeamEditor.Core.Lng;
+using SimplifiedTeamEditor.Core.Logos;
+using SimplifiedTeamEditor.Core.Packaging;
+using SimplifiedTeamEditor.Core.Teams;
+
+// Both halves of this app came with a type called Season, and they mean
+// different things: the Team Editor's is which grid, the Driver Swapper's is
+// that plus the entrant list and the seats on it. Neither is wrong, so this
+// file says which it means every time.
+using TeamSeason = SimplifiedTeamEditor.Core.Teams.Season;
+using DriverSeason = SimplifiedDriverSwapper.Core.Drivers.Season;
+
+namespace SimplifiedGridEditor.Core.Packaging;
+
+/// <summary>What a package turned out to contain.</summary>
+public sealed record GridPackageResult(
+    int LanguageFiles,
+    bool Database,
+    int ShaderPackages,
+    IReadOnlyList<string> Warnings);
+
+/// <summary>
+/// Writing a project down, and writing it out.
+///
+/// Two jobs, in that order. <see cref="ApplyToProject"/> turns what the tabs are
+/// holding into the project's own files; <see cref="Write"/> puts those files in
+/// a zip at the paths the game reads them from. Keeping them apart is what makes
+/// a package reproducible: it ships what was saved, not a second rendering of
+/// the same edits.
+///
+/// The Team Editor does both at once, because it has nowhere to put a working
+/// copy. A project is that place.
+/// </summary>
+public static class GridPackager
+{
+    /// <summary>
+    /// Write every staged edit into the project's files.
+    ///
+    /// Order matters within the database: seats and drivers first, then 2025
+    /// colours, the 2026 repointing, and 2026 colours — the repointing rewrites
+    /// fields the colour pass reads.
+    /// </summary>
+    public static void ApplyToProject(
+        GridProject project,
+        GridDocument? document,
+        KitOptions kit,
+        SeasonEdits y2025,
+        SeasonEdits y2026)
+    {
+        ApplyToDatabase(project, document, kit, y2025, y2026);
+        ApplyToLanguageFiles(project, y2025, y2026);
+    }
+
+    private static void ApplyToDatabase(
+        GridProject project, GridDocument? document, KitOptions kit,
+        SeasonEdits y2025, SeasonEdits y2026)
+    {
+        // The document holds the database the tabs have been reading, so it is
+        // the copy the edits belong to. Without one there is nothing to write.
+        if (document is null) return;
+
+        var database = document.Database;
+
+        // Seats, and the kit that follows from them.
+        document.Seats.Apply(kit);
+
+        // Driver identity fields.
+        foreach (var (index, fields) in document.PendingAttributes)
+        {
+            foreach (var (field, value) in fields)
+            {
+                var record = database.Find(DriverSeason.DriverPath(index, field));
+                if (record is null || record.Text == value) continue;
+                record.Text = value;
+            }
+        }
+
+        ApplyColours(database, TeamSeason.Y2025, y2025.ChangedColours);
+
+        if (y2026.AnyNames)
+            Season2026.ApplyReassignment(database, Season2026.LoadReassignment(project.LanguageFolder));
+
+        ApplyColours(database, TeamSeason.Y2026, y2026.ChangedColours);
+
+        // Written through a temporary file and moved into place, so an
+        // interrupted write can't leave the project holding half a database.
+        database.SaveAtomic(project.DatabasePath);
+    }
+
+    private static void ApplyColours(
+        GameDatabase database,
+        TeamSeason season,
+        IReadOnlyDictionary<string, Dictionary<ColourField, string>> changed)
+    {
+        foreach (var team in TeamGrid.For(season))
+        {
+            if (!changed.TryGetValue(team.Id, out var fields)) continue;
+
+            var index = TeamColours.FindIndex(database, team.DatabaseId);
+            if (index is null) continue;
+
+            foreach (var (field, hex) in fields) TeamColours.Write(database, index.Value, field, hex);
+        }
+    }
+
+    /// <summary>
+    /// Every language gets the same edits. A team renamed in English is renamed
+    /// in all of them — the alternative is a game that calls the team one thing
+    /// in menus and another in commentary subtitles.
+    /// </summary>
+    private static void ApplyToLanguageFiles(GridProject project, SeasonEdits y2025, SeasonEdits y2026)
+    {
+        var edits = TeamNameEditing.BuildEdits(y2025.ChangedNames);
+
+        // Seed every 2026 key with its default and let edits override, so a
+        // repointed field can never end up aimed at a key that isn't there.
+        var keys2026 = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (y2026.AnyNames)
+        {
+            keys2026 = Season2026.LoadDefaults(project.LanguageFolder);
+            foreach (var team in y2026.ChangedNames)
+            {
+                if (!string.IsNullOrEmpty(team.Full)) keys2026[team.Team.FullKey] = team.Full;
+                if (!string.IsNullOrEmpty(team.Short)) keys2026[team.Team.ShortKey] = team.Short;
+                if (!string.IsNullOrEmpty(team.SuperShort)) keys2026[team.Team.SuperShortKey] = team.SuperShort;
+            }
+        }
+
+        if (edits.Count == 0 && keys2026.Count == 0) return;
+
+        foreach (var path in project.LanguageFiles.ToList())
+        {
+            var lng = LngFile.Load(path);
+
+            byte[] data;
+            if (keys2026.Count > 0)
+            {
+                // Adding keys changes which bucket everything hashes into, so
+                // the whole file is rebuilt rather than patched.
+                var all = new Dictionary<string, string>(lng.Entries, StringComparer.Ordinal);
+                foreach (var (key, value) in edits) all[key] = value;
+                foreach (var (key, value) in keys2026) all[key] = value;
+                data = lng.BuildRebuiltData(all);
+            }
+            else
+            {
+                data = lng.BuildSaveData(edits);
+            }
+
+            File.WriteAllBytes(path, data);
+        }
+    }
+
+    // ── The package ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Zip the project's files at the paths the game reads them from.
+    ///
+    /// Nothing is rebuilt here: whatever the project holds is what ships, which
+    /// is why the caller saves first. Logos are the exception, because the UI
+    /// shader packages they merge into belong to the install rather than to the
+    /// project.
+    /// </summary>
+    public static GridPackageResult Write(
+        string zipPath,
+        GridProject project,
+        IReadOnlyList<LogoEdit> logoEdits,
+        string? gameDir,
+        TexconvRunner runner)
+    {
+        var warnings = new List<string>();
+
+        // Build beside the destination and move it into place at the end, so a
+        // half-written zip never appears at the path the user is watching.
+        var directory = Path.GetDirectoryName(Path.GetFullPath(zipPath))!;
+        Directory.CreateDirectory(directory);
+        var temporary = Path.Combine(directory, $".{Guid.NewGuid():N}.zip.part");
+
+        var languageFiles = 0;
+        var database = false;
+        var shaderPackages = 0;
+
+        try
+        {
+            using (var stream = File.Create(temporary))
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
+            {
+                foreach (var path in project.LanguageFiles.OrderBy(f => f))
+                {
+                    Add(zip, string.Join('/', GameFiles.PackageLocalisationPath.Append(Path.GetFileName(path))),
+                        File.ReadAllBytes(path));
+                    languageFiles++;
+                }
+                if (languageFiles == 0)
+                    warnings.Add("The project has no language files, so no names were packaged.");
+
+                if (File.Exists(project.DatabasePath))
+                {
+                    Add(zip, string.Join('/', new[] { GameFiles.GameFolderName }.Concat(GameFiles.GameDatabaseRelPath)),
+                        File.ReadAllBytes(project.DatabasePath));
+                    database = true;
+                }
+                else
+                {
+                    warnings.Add("The project has no database, so no teams, seats or drivers were packaged.");
+                }
+
+                if (logoEdits.Count > 0)
+                    shaderPackages = WriteShaderPackages(zip, project, logoEdits, gameDir, runner, warnings);
+
+                Add(zip, "mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(project, gameDir)));
+            }
+
+            File.Move(temporary, zipPath, overwrite: true);
+        }
+        catch
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
+            throw;
+        }
+
+        return new GridPackageResult(languageFiles, database, shaderPackages, warnings);
+    }
+
+    /// <summary>
+    /// Bake the logo edits into both shader packages and add them.
+    ///
+    /// These come from the game rather than from the project, and are the one
+    /// part of a package that cannot be built without an install. A failure here
+    /// is reported and the rest of the package still ships — names, colours and
+    /// the grid are worth having without logos.
+    /// </summary>
+    private static int WriteShaderPackages(
+        ZipArchive zip, GridProject project, IReadOnlyList<LogoEdit> edits,
+        string? gameDir, TexconvRunner runner, List<string> warnings)
+    {
+        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
+        {
+            warnings.Add("Logos need the game's UI shader packages, and F1 25 wasn't found — they were left out.");
+            return 0;
+        }
+
+        var branding = Path.Combine(project.ErpsFolder, "ui_texarrays_team_branding.erp");
+        if (!File.Exists(branding))
+        {
+            warnings.Add("The project's team-branding archive is missing — logos were left out.");
+            return 0;
+        }
+
+        var shaderDirectory = Path.Combine(gameDir, GameFiles.ShaderFolderName);
+        var written = 0;
+
+        try
+        {
+            var (overlay, _) = LogoBaker.BuildOverlay(branding, edits);
+            var (_, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
+            warnings.AddRange(skipped);
+
+            var work = Path.Combine(Path.GetTempPath(), "simplified-grid-editor", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(work);
+            try
+            {
+                foreach (var name in GameFiles.ShaderErpNames)
+                {
+                    var source = Path.Combine(shaderDirectory, name);
+                    if (!File.Exists(source))
+                    {
+                        warnings.Add($"{name} isn't in the game's shader folder — that variant was left out.");
+                        continue;
+                    }
+
+                    var baked = Path.Combine(work, name);
+                    LogoBaker.MergeInto(source, overlay, baked);
+                    Add(zip, $"{GameFiles.GameFolderName}/{GameFiles.ShaderFolderName}/{name}", File.ReadAllBytes(baked));
+                    written++;
+                }
+            }
+            finally
+            {
+                try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"Logos could not be baked: {ex.Message}");
+        }
+
+        return written;
+    }
+
+    /// <summary>
+    /// The manifest, at the root where the launcher looks for it. Name, author
+    /// and version come from the project rather than from a dialog — the project
+    /// already knows them, and asking again is how two answers drift apart.
+    /// </summary>
+    private static string BuildModSerps(GridProject project, string? gameDir)
+    {
+        var manifest = new Dictionary<string, string>
+        {
+            ["mod_name"] = project.Info.Name.Trim().Length > 0 ? project.Info.Name.Trim() : project.DisplayName,
+        };
+        if (!string.IsNullOrWhiteSpace(project.Info.Author)) manifest["author"] = project.Info.Author.Trim();
+        if (!string.IsNullOrWhiteSpace(project.Info.Version)) manifest["version"] = project.Info.Version.Trim();
+        manifest["game_version"] = ReadGameVersion(gameDir) ?? "";
+
+        return JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private static string? ReadGameVersion(string? gameDir)
+    {
+        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir)) return null;
+        try
+        {
+            var exe = Directory.EnumerateFiles(gameDir, "F1_*.exe", SearchOption.TopDirectoryOnly).FirstOrDefault();
+            if (exe is null) return null;
+            return System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).ProductVersion;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>One line saying what was written, for the status bar.</summary>
+    public static string Describe(GridPackageResult result, string zipPath)
+    {
+        var parts = new List<string>();
+        if (result.Database) parts.Add("the database");
+        if (result.LanguageFiles > 0) parts.Add($"{result.LanguageFiles} language file(s)");
+        if (result.ShaderPackages > 0) parts.Add($"{result.ShaderPackages} shader package(s)");
+
+        var what = parts.Count == 0 ? "the manifest only" : string.Join(", ", parts);
+        var line = $"Packaged {Path.GetFileName(zipPath)} — {what}.";
+        return result.Warnings.Count == 0 ? line : line + $" {result.Warnings.Count} note(s).";
+    }
+
+    private static void Add(ZipArchive zip, string entryPath, byte[] data)
+    {
+        var entry = zip.CreateEntry(entryPath, CompressionLevel.Optimal);
+        using var stream = entry.Open();
+        stream.Write(data, 0, data.Length);
+    }
+}

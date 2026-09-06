@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedGridEditor/SimplifiedGridEditor.csproj" />
+  <Project Path="src/SimplifiedGridEditor.Core/SimplifiedGridEditor.Core.csproj" />
+</Solution>
