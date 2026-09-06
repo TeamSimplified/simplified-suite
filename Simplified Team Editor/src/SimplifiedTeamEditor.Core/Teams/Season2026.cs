@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SimplifiedTeamEditor.Core.GameDatabase;
+using EgoEngineLibrary.Data.GameDatabases;
 using SimplifiedTeamEditor.Core.Lng;
 
 namespace SimplifiedTeamEditor.Core.Teams;
@@ -119,7 +119,7 @@ public static class Season2026
     /// different key into it.
     /// </summary>
     public static int ApplyReassignment(
-        GameDatabaseFile db, IReadOnlyDictionary<string, Dictionary<string, string>> reassignment)
+        GameDatabase db, IReadOnlyDictionary<string, Dictionary<string, string>> reassignment)
     {
         if (reassignment.Count == 0) return 0;
 

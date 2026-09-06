@@ -6,7 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SimplifiedTeamEditor.Core;
 using SimplifiedTeamEditor.Core.Config;
-using SimplifiedTeamEditor.Core.GameDatabase;
+using EgoEngineLibrary.Data.GameDatabases;
 using SimplifiedTeamEditor.Core.Lng;
 using SimplifiedTeamEditor.Core.Logos;
 using SimplifiedTeamEditor.Core.Packaging;
@@ -24,7 +24,7 @@ public partial class MainWindow : Window
     private readonly List<TeamRow> _rows = new();
 
     /// <summary>The team database, held so a colour edit can be written back into it.</summary>
-    private GameDatabaseFile? _database;
+    private GameDatabase? _database;
 
     /// <summary>
     /// Which grid is being edited. Each season keeps its own rows, so switching
@@ -147,7 +147,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _database = GameDatabaseFile.Load(path);
+            _database = GameDatabase.Load(path);
 
             var notes = new List<string>();
             foreach (var (season, rows) in _rowsBySeason)

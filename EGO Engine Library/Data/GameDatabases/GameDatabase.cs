@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace SimplifiedDriverSwapper.Core.Database;
+namespace EgoEngineLibrary.Data.GameDatabases;
 
 /// <summary>One entry in the database: a value addressed by the hash of its path.</summary>
 public sealed class DatabaseRecord
@@ -48,9 +48,14 @@ public sealed class GameDatabase
     /// <summary>Which game's key decoded this file.</summary>
     public DatabaseCipher.Key Cipher { get; }
 
-    public static GameDatabase Load(string path)
+    public static GameDatabase Load(string path) => FromBytes(File.ReadAllBytes(path));
+
+    /// <summary>
+    /// Read a database already in memory — one lifted out of a zip, or a copy
+    /// held while something else is written over the file it came from.
+    /// </summary>
+    public static GameDatabase FromBytes(byte[] buf)
     {
-        var buf = File.ReadAllBytes(path);
         if (buf.Length < 8) throw new InvalidDataException("File is too short to be a database.");
 
         var cipher = DatabaseCipher.Detect(buf.AsSpan(0, Math.Min(buf.Length, 65536)))
@@ -101,15 +106,33 @@ public sealed class GameDatabase
 
     /// <summary>
     /// Write the database out. Records are ordered by key, which is the order the
-    /// game's own files are in — and it has to be deterministic, because the
-    /// cipher counter runs across records so order decides the ciphertext.
+    /// game's own files are in — the engine binary searches them, so an
+    /// out-of-order file simply would not resolve. It also has to be
+    /// deterministic because the cipher counter runs across records, which makes
+    /// order decide the ciphertext.
     /// </summary>
     public void Save(string path)
     {
+        using var stream = File.Create(path);
+        Write(stream);
+    }
+
+    /// <summary>
+    /// The file as bytes, for a caller writing it somewhere other than a path —
+    /// into a zip entry, say.
+    /// </summary>
+    public byte[] ToBytes()
+    {
+        using var stream = new MemoryStream();
+        Write(stream);
+        return stream.ToArray();
+    }
+
+    private void Write(Stream stream)
+    {
         Records.Sort((a, b) => a.Key.CompareTo(b.Key));
 
-        using var stream = File.Create(path);
-        using var writer = new BinaryWriter(stream);
+        using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
 
         // BinaryWriter is little-endian for primitives on every platform, which
         // matches the format.

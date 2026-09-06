@@ -1,4 +1,4 @@
-using SimplifiedDriverSwapper.Core.Database;
+using EgoEngineLibrary.Data.GameDatabases;
 
 namespace SimplifiedDriverSwapper.Core.Drivers;
 
@@ -64,16 +64,31 @@ public static class DriverAttributes
     }
 
     /// <summary>
-    /// The values already in use for each field, so the editor can offer real
-    /// choices instead of asking someone to guess a language key.
+    /// What each field's picker offers, so the editor gives real choices instead
+    /// of asking someone to guess a language key.
+    ///
+    /// Mostly the values already in use — but for <see cref="Head"/> and
+    /// <see cref="AudioName"/> that alone is not enough, because both hold a
+    /// driver id and a driver whose own record points elsewhere then vanishes
+    /// from the list. F1 25 ships exactly that: <c>max_verstappen</c>'s record
+    /// has <c>head=leonardo_fornaroli</c>, so his head, which the game does have
+    /// the assets for, was the one value that couldn't be picked. Every driver's
+    /// id joins those two pools for that reason.
     /// </summary>
     public static Dictionary<string, List<string>> ValuePools(IEnumerable<DriverRow> rows)
     {
+        var all = rows as IReadOnlyCollection<DriverRow> ?? rows.ToList();
         var pools = Fields.ToDictionary(f => f, _ => new SortedSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
 
-        foreach (var row in rows)
+        foreach (var row in all)
+        {
             foreach (var field in Fields)
                 if (row[field].Length > 0) pools[field].Add(row[field]);
+
+            if (row.DriverId.Length == 0) continue;
+            pools[Head].Add(row.DriverId);
+            pools[AudioName].Add(row.DriverId);
+        }
 
         return pools.ToDictionary(kv => kv.Key, kv => kv.Value.ToList(), StringComparer.Ordinal);
     }

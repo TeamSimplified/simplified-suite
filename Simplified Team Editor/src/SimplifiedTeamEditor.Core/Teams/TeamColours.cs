@@ -1,5 +1,5 @@
 using System.Globalization;
-using SimplifiedTeamEditor.Core.GameDatabase;
+using EgoEngineLibrary.Data.GameDatabases;
 
 namespace SimplifiedTeamEditor.Core.Teams;
 
@@ -63,7 +63,7 @@ public static class TeamColours
     /// caller walks the whole range and skips the gaps rather than stopping at
     /// the first miss, which would silently drop every team past it.
     /// </summary>
-    private static int TeamSlotCount(GameDatabaseFile db, int cap = 400)
+    private static int TeamSlotCount(GameDatabase db, int cap = 400)
     {
         var record = db.Find("entrants.teams._team_instancecount_");
         if (record is { Data.Length: > 0 }
@@ -73,7 +73,7 @@ public static class TeamColours
     }
 
     /// <summary>The database index for a team id, or null if it isn't there.</summary>
-    public static int? FindIndex(GameDatabaseFile db, string databaseTeamId)
+    public static int? FindIndex(GameDatabase db, string databaseTeamId)
     {
         var slots = TeamSlotCount(db);
         for (var i = 0; i < slots; i++)
@@ -86,7 +86,7 @@ public static class TeamColours
     }
 
     /// <summary>A season's colours, for the teams the database carries.</summary>
-    public static List<TeamColourSet> ReadAll(GameDatabaseFile db, Season season = Season.Y2025)
+    public static List<TeamColourSet> ReadAll(GameDatabase db, Season season = Season.Y2025)
     {
         var sets = new List<TeamColourSet>();
 
@@ -112,7 +112,7 @@ public static class TeamColours
     /// Set one colour. Returns false when the database has no such field for
     /// that team, which is not an error — not every team carries all four.
     /// </summary>
-    public static bool Write(GameDatabaseFile db, int index, ColourField field, string hex)
+    public static bool Write(GameDatabase db, int index, ColourField field, string hex)
     {
         var record = db.Find(RecordPath(index, FieldName(field)));
         if (record is null) return false;

@@ -7,7 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
 using SimplifiedDriverSwapper.Core.Config;
-using SimplifiedDriverSwapper.Core.Database;
+using EgoEngineLibrary.Data.GameDatabases;
 using SimplifiedDriverSwapper.Core.Drivers;
 
 namespace SimplifiedDriverSwapper;

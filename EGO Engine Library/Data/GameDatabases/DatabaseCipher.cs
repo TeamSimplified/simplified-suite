@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace SimplifiedDriverSwapper.Core.Database;
+namespace EgoEngineLibrary.Data.GameDatabases;
 
 /// <summary>
 /// The stream cipher guarding record payloads: each byte is shifted by the next

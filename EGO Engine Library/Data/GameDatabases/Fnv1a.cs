@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace SimplifiedDriverSwapper.Core.Database;
+namespace EgoEngineLibrary.Data.GameDatabases;
 
 /// <summary>
 /// FNV-1a (64-bit). The database has no path strings in it — every record is

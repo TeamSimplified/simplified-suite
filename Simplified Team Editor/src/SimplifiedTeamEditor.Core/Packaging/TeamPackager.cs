@@ -1,7 +1,7 @@
 ﻿using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
-using SimplifiedTeamEditor.Core.GameDatabase;
+using EgoEngineLibrary.Data.GameDatabases;
 using SimplifiedTeamEditor.Core.Lng;
 using SimplifiedTeamEditor.Core.Logos;
 using SimplifiedTeamEditor.Core.Teams;
@@ -119,7 +119,7 @@ public static class TeamPackager
             return (null, empty, (0, 0, 0));
         }
 
-        var db = GameDatabaseFile.Load(path);
+        var db = GameDatabase.Load(path);
 
         // Seed every 2026 key with its default and let edits override, so a
         // repointed field can never end up aimed at a key that isn't there.
@@ -150,7 +150,7 @@ public static class TeamPackager
     }
 
     private static int ApplyColours(
-        GameDatabaseFile db, Season season,
+        GameDatabase db, Season season,
         IReadOnlyDictionary<string, Dictionary<ColourField, string>> changed)
     {
         var applied = 0;

@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using SimplifiedDriverSwapper.Core.Config;
-using SimplifiedDriverSwapper.Core.Database;
+using EgoEngineLibrary.Data.GameDatabases;
 
 namespace SimplifiedDriverSwapper;
 

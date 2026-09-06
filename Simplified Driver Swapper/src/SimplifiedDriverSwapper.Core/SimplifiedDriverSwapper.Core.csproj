@@ -7,9 +7,12 @@
     <DebugType>embedded</DebugType>
   </PropertyGroup>
 
-  <!-- No package references: this app doesn't touch the game's ERP archives, so
-       none of the compression or serialisation libraries the other suite apps
-       carry are needed. Versions stay pinned in Directory.Packages.props if any
-       turn out to be wanted later. -->
+  <!-- gamedatabases.bin is a game format, so it is read by the shared library
+       like every other one. This app carried its own reader and the Team Editor
+       carried a second; they agreed on the format and differed on everything
+       around it, which is the arrangement the library exists to end. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
 
 </Project>
