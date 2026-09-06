@@ -25,9 +25,14 @@ public partial class MainWindow
     /// <summary>Wire the tabs up. Called once, from the constructor.</summary>
     private void InitTabs()
     {
-        Teams.Changed += (_, _) => MarkDirty();
-        Seats.Changed += (_, _) => MarkDirty();
-        Drivers.Changed += (_, _) => MarkDirty();
+        // Recompute rather than latch. A tab says "look again", and what it has
+        // staged is the answer — which is why opening a project no longer
+        // reports unsaved changes before anything has been touched. Filling a
+        // row's text boxes raises TextChanged on the way in, and latching on
+        // that made a freshly-loaded project look edited.
+        Teams.Changed += (_, _) => RefreshEverything();
+        Seats.Changed += (_, _) => RefreshEverything();
+        Drivers.Changed += (_, _) => RefreshEverything();
 
         Teams.Said += TabSaid;
         Seats.Said += TabSaid;

@@ -64,6 +64,15 @@ public partial class MainWindow : Window
 
         InitTabs();
         RefreshEverything();
+
+        // A project handed over by Explorer — a double-click, or "Open with".
+        //
+        // ContentRendered rather than Loaded: Loaded fires before the first
+        // paint, and opening a project reads an 18 MB database, so acting on
+        // Loaded would leave an unpainted window on screen for the several
+        // seconds that takes. Studio defers for the same reason.
+        if (App.StartupFile is { } startupFile)
+            ContentRendered += (_, _) => OpenProject(startupFile);
     }
 
     /// <summary>
@@ -418,7 +427,12 @@ public partial class MainWindow : Window
         RefreshTabs();
     }
 
-    /// <summary>Something in a tab changed. Nothing is written until Save.</summary>
+    /// <summary>
+    /// Something the window itself changed and no tab knows about — the mod's
+    /// name or its author. A tab's own edits aren't latched here: they are
+    /// asked for, through <c>TabsHaveChanges</c>, so that a notification the
+    /// tabs raise while they are being filled can't be mistaken for one.
+    /// </summary>
     private void MarkDirty()
     {
         _dirty = true;

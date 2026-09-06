@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using SimplifiedGridEditor.Core.Config;
 using SimplifiedGridEditor.Core.Project;
@@ -18,8 +19,22 @@ public partial class App : Application
     /// </summary>
     public const int ClosedByUserExitCode = 1000;
 
+    /// <summary>
+    /// The project Explorer handed over, if any — from a double-click, or from
+    /// "Open with" on a <c>.simplified</c>. The window acts on it once it is up,
+    /// since there is nothing to open it into before that.
+    ///
+    /// Matched against the extension this app actually claims, so an unrelated
+    /// argument is ignored rather than guessed at.
+    /// </summary>
+    public static string? StartupFile { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        StartupFile = e.Args.FirstOrDefault(a =>
+            a.EndsWith(ProjectStore.ProjectFileExtension, StringComparison.OrdinalIgnoreCase)
+            && File.Exists(a));
+
         // The saved palette, before the first window is built, so the app never
         // flashes the wrong theme on the way up.
         try
