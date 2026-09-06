@@ -132,6 +132,11 @@ $Apps = @(
         Exe = 'Simplified Team Editor'; Package = 'Simplified Team Editor'
         Tag = 'teameditor-v'; Kind = 'window'
         Ships = @('*.exe', '*.ico', 'runtime\*')
+        # Superseded by the Grid Editor, which is this and the Driver Swapper in
+        # one window over one project. Kept building and kept consistent with
+        # the suite, so it is ready if it is ever wanted; just not shipped
+        # alongside the app that replaced it. -App TeamEditor still packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Swapper'; Folder = 'Simplified Swapper'
@@ -145,15 +150,17 @@ $Apps = @(
         Exe = 'Simplified Grid Editor'; Package = 'Simplified Grid Editor'
         Tag = 'grid-v'; Kind = 'window'
         Ships = @('*.exe', '*.ico', 'runtime\*')
-        # Held back from a suite release until it has been used on a real mod.
-        # Releasable on its own with -App Grid, which is how it goes out.
-        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'
         Project = 'src\SimplifiedDriverSwapper\SimplifiedDriverSwapper.csproj'
         Exe = 'Simplified Driver Swapper'; Package = 'Simplified Driver Swapper'
         Tag = 'driver-v'; Kind = 'window'; Ships = @('*.exe', '*.ico', 'runtime\*')
+        # Superseded by the Grid Editor, which is this and the Team Editor in one
+        # window over one project. Kept building and kept consistent with the
+        # suite, so it is ready if it is ever wanted; just not shipped alongside
+        # the app that replaced it. -App Driver still packages it.
+        InAll = $false
     }
 )
 
