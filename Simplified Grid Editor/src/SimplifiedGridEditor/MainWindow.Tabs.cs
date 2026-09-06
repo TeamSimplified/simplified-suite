@@ -110,12 +110,22 @@ public partial class MainWindow
     {
         if (_project is null) return;
 
+        var notes = new List<string>();
         GridPackager.ApplyToProject(
             _project,
             _document,
             Seats.Kit,
             Teams.EditsFor(TeamSeason.Y2025),
-            Teams.EditsFor(TeamSeason.Y2026));
+            Teams.EditsFor(TeamSeason.Y2026),
+            Teams.LogoEdits,
+            new TexconvRunner(),
+            notes);
+
+        if (notes.Count > 0)
+            SimplifiedUi.MessageDialog.Show(this,
+                "The project was saved, with these notes:" + Environment.NewLine + Environment.NewLine + "  "
+                + string.Join(Environment.NewLine + "  ", notes),
+                "Save", MessageBoxButton.OK, MessageBoxImage.Information);
 
         // Everything the tabs were holding is now in the files, so they read it
         // back rather than keeping a stale copy of what they just wrote.
@@ -143,8 +153,7 @@ public partial class MainWindow
 
         try
         {
-            var result = GridPackager.Write(
-                request.Path, _project, Teams.LogoEdits, _config.GameDir, new TexconvRunner());
+            var result = GridPackager.Write(request.Path, _project, _config.GameDir);
 
             SetStatus(GridPackager.Describe(result, request.Path), OkBrush);
 

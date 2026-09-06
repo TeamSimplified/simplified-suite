@@ -25,4 +25,17 @@ public sealed class ProjectInfo
     /// traced to the build that made it.
     /// </summary>
     [JsonPropertyName("grid_editor_version")] public string EditorVersion { get; set; } = "";
+
+    /// <summary>
+    /// The logo kinds this project has replaced pictures in, by id.
+    ///
+    /// The pictures themselves are not listed, because they are not kept: a
+    /// chosen PNG is imported into the project's own copy of the branding
+    /// archive when the project is saved, and the file the user picked is never
+    /// looked at again. What is left to remember is which resources in that
+    /// archive now differ from the game's — that is what a package has to merge
+    /// into the UI shader packages, and merging the ones that don't differ would
+    /// overwrite the AMD variant with the other one's bytes.
+    /// </summary>
+    [JsonPropertyName("logo_kinds")] public List<string> LogoKinds { get; set; } = new();
 }

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using EgoEngineLibrary.Data.GameDatabases;
 using EgoEngineLibrary.Texconv;
+using EgoEngineLibrary.Util;
 using SimplifiedDriverSwapper.Core.Drivers;
 using SimplifiedGridEditor.Core.Project;
 using SimplifiedTeamEditor.Core;
@@ -53,10 +54,73 @@ public static class GridPackager
         GridDocument? document,
         KitOptions kit,
         SeasonEdits y2025,
-        SeasonEdits y2026)
+        SeasonEdits y2026,
+        IReadOnlyList<LogoEdit> logoEdits,
+        TexconvRunner runner,
+        List<string>? warnings = null)
     {
         ApplyToDatabase(project, document, kit, y2025, y2026);
         ApplyToLanguageFiles(project, y2025, y2026);
+        ApplyLogos(project, logoEdits, runner, warnings ?? []);
+    }
+
+    /// <summary>
+    /// Import the chosen pictures into the project's own branding archive.
+    ///
+    /// This is where a logo choice stops being a file path someone picked and
+    /// becomes part of the project. It used to happen at package time, which
+    /// meant a save threw the choice away — the tabs are rebuilt from the
+    /// project's files afterwards, and the project had no record of it.
+    ///
+    /// Which kinds were touched is written into info.json, because the pixels
+    /// alone don't say: a package merges only the resources that differ from
+    /// the game's, and merging the rest would push one shader variant's bytes
+    /// over the other's.
+    /// </summary>
+    private static void ApplyLogos(
+        GridProject project, IReadOnlyList<LogoEdit> edits, TexconvRunner runner, List<string> warnings)
+    {
+        if (edits.Count == 0) return;
+
+        var branding = project.BrandingErpPath;
+        if (!File.Exists(branding))
+        {
+            warnings.Add("The project's team-branding archive is missing, so the logo changes couldn't be saved.");
+            return;
+        }
+
+        // The whole archive, not an overlay: this one is being written back, so
+        // everything it holds has to survive the round trip.
+        var archive = ErpFileIO.Load(branding);
+
+        var kinds = new SortedSet<string>(project.Info.LogoKinds, StringComparer.Ordinal);
+        var imported = 0;
+
+        foreach (var edit in edits)
+        {
+            try
+            {
+                // One at a time, and a failure is a note rather than the end of
+                // the save. A picture at the wrong size is the common case —
+                // every slice of an array shares one size and format — and it
+                // must not take the names, colours and grid down with it.
+                var (added, skipped) = LogoBaker.ImportAll(archive, [edit], runner);
+                warnings.AddRange(skipped);
+                if (added == 0) continue;
+
+                imported += added;
+                kinds.Add(edit.Kind.Id);
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"{Path.GetFileName(edit.PngPath)} couldn't be used: {ex.Message}");
+            }
+        }
+
+        if (imported == 0) return;
+
+        ErpFileIO.Save(archive, branding);
+        project.Info.LogoKinds = kinds.ToList();
     }
 
     private static void ApplyToDatabase(
@@ -172,9 +236,7 @@ public static class GridPackager
     public static GridPackageResult Write(
         string zipPath,
         GridProject project,
-        IReadOnlyList<LogoEdit> logoEdits,
-        string? gameDir,
-        TexconvRunner runner)
+        string? gameDir)
     {
         var warnings = new List<string>();
 
@@ -213,8 +275,8 @@ public static class GridPackager
                     warnings.Add("The project has no database, so no teams, seats or drivers were packaged.");
                 }
 
-                if (logoEdits.Count > 0)
-                    shaderPackages = WriteShaderPackages(zip, project, logoEdits, gameDir, runner, warnings);
+                if (project.Info.LogoKinds.Count > 0)
+                    shaderPackages = WriteShaderPackages(zip, project, gameDir, warnings);
 
                 Add(zip, "mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(project, gameDir)));
             }
@@ -239,8 +301,7 @@ public static class GridPackager
     /// the grid are worth having without logos.
     /// </summary>
     private static int WriteShaderPackages(
-        ZipArchive zip, GridProject project, IReadOnlyList<LogoEdit> edits,
-        string? gameDir, TexconvRunner runner, List<string> warnings)
+        ZipArchive zip, GridProject project, string? gameDir, List<string> warnings)
     {
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
@@ -248,7 +309,7 @@ public static class GridPackager
             return 0;
         }
 
-        var branding = Path.Combine(project.ErpsFolder, "ui_texarrays_team_branding.erp");
+        var branding = project.BrandingErpPath;
         if (!File.Exists(branding))
         {
             warnings.Add("The project's team-branding archive is missing — logos were left out.");
@@ -260,9 +321,13 @@ public static class GridPackager
 
         try
         {
-            var (overlay, _) = LogoBaker.BuildOverlay(branding, edits);
-            var (_, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
-            warnings.AddRange(skipped);
+            // The pictures went into the project's archive when it was saved, so
+            // there is nothing to import here — only the resources that now
+            // differ from the game's, lifted out and merged over its own.
+            var identifiers = project.Info.LogoKinds
+                .Select(TeamLogos.Kind)
+                .SelectMany(kind => kind.ResourceIdentifiers);
+            var (overlay, _) = LogoBaker.BuildOverlay(branding, identifiers);
 
             var work = Path.Combine(Path.GetTempPath(), "simplified-grid-editor", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(work);

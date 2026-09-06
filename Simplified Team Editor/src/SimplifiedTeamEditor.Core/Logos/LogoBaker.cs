@@ -33,10 +33,18 @@ public static class LogoBaker
     /// </summary>
     public static (ErpFile Overlay, int Removed) BuildOverlay(
         string brandingErpPath, IEnumerable<LogoEdit> edits)
+        => BuildOverlay(brandingErpPath, edits.SelectMany(e => e.Kind.ResourceIdentifiers));
+
+    /// <summary>
+    /// The same, for a caller that knows which resources it wants but no longer
+    /// has the edits that named them — a project whose pictures were imported
+    /// into its own copy of the archive at save time, and which only remembers
+    /// afterwards which kinds were touched.
+    /// </summary>
+    public static (ErpFile Overlay, int Removed) BuildOverlay(
+        string brandingErpPath, IEnumerable<string> keepIdentifiers)
     {
-        var keep = edits
-            .SelectMany(e => e.Kind.ResourceIdentifiers)
-            .ToHashSet(StringComparer.Ordinal);
+        var keep = keepIdentifiers.ToHashSet(StringComparer.Ordinal);
 
         var overlay = ErpFileIO.Load(brandingErpPath);
         var before = overlay.Resources.Count;

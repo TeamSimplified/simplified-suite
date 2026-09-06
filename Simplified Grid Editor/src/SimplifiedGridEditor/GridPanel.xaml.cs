@@ -277,6 +277,18 @@ public partial class GridPanel : UserControl
             return;
         }
 
+        // One driver, one seat. The game shows the same face twice otherwise,
+        // and the save used to refuse the whole grid at the end rather than the
+        // one assignment that caused it — by which point it isn't obvious which
+        // one that was.
+        if (SeatHolding(driver.Id, except: slot) is { } taken)
+        {
+            Say($"{Season.Pretty(driver.Id)} is already in seat {taken} " +
+                $"({_season.Seats[taken].Team}). Move him from there first, or pick someone else.",
+                problem: true);
+            return;
+        }
+
         _document.Seats.Assign(slot, driver.Id);
         var note = _document.Seats.HasOwnHelmet(driver.Id)
             ? ""
@@ -284,6 +296,26 @@ public partial class GridPanel : UserControl
                 ? "  (no helmet of his own — using a generic one)"
                 : "  (no helmet available — keeps the default)";
         Edited($"Seat {slot}: {Season.Pretty(driver.Id)}{note}");
+    }
+
+    /// <summary>
+    /// The seat this driver is already in, if any. Compared against who each
+    /// seat would hold after the pending changes, not against the file — two
+    /// seats staged for the same driver is the case worth catching, and neither
+    /// of them is on disk yet.
+    /// </summary>
+    private int? SeatHolding(string driverId, int except)
+    {
+        var seats = _document?.Seats;
+        if (seats is null) return null;
+
+        foreach (var seat in _season.Seats)
+        {
+            if (seat.Slot == except) continue;
+            if (string.Equals(seats.Occupant(seat.Slot), driverId, StringComparison.Ordinal))
+                return seat.Slot;
+        }
+        return null;
     }
 
     private void ResetSeat_Click(object sender, RoutedEventArgs e)

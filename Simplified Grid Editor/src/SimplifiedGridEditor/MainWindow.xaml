@@ -110,9 +110,9 @@
                 <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
                         Margin="12,0,0,0" IsEnabled="False" Click="Package_Click"
                         ToolTip="Write this project out as a mod anyone can install"/>
-                <Button DockPanel.Dock="Right" Name="SaveButton" Content="Save"
-                        FontWeight="SemiBold" IsEnabled="False" Click="Save_Click"
-                        ToolTip="Write the changes into the project (Ctrl+S)"/>
+                <Button DockPanel.Dock="Right" Name="EditProjectButton" Content="Edit project"
+                        IsEnabled="False" Click="EditProject_Click"
+                        ToolTip="Change the mod name and author"/>
             </DockPanel>
         </Border>
 

@@ -91,33 +91,36 @@ public partial class MainWindow : Window
     {
         if (!ConfirmDiscardChanges("start a new project")) return;
 
-        var request = NewProjectDialog.Show(this, _config.DefaultAuthor);
+        var request = NewProjectDialog.Show(this, _config.DefaultAuthor, _config.LastProjectFolder);
         if (request is null) return;
 
         CloseProject();
 
         try
         {
-            _project = ProjectStore.Create(AppPaths.OriginalsDir, request.Name, request.Author);
+            _project = ProjectStore.Create(AppPaths.OriginalsDir, request.ModName, request.ModAuthor);
+
+            // Written to disk straight away, as Studio does it. The path was
+            // already asked for, and a project that exists only in a temp
+            // directory is one power cut from not existing at all.
+            ProjectStore.Save(_project, request.SavePath);
         }
         catch (Exception ex)
         {
+            _project = null;
             SimplifiedUi.MessageDialog.Show(this,
                 $"The project couldn't be created.\n\n{ex.Message}",
                 "New project", MessageBoxButton.OK, MessageBoxImage.Error);
+            RefreshEverything();
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Author))
-        {
-            _config.DefaultAuthor = request.Author;
-            _config.Save();
-        }
+        _config.LastProjectFolder = Path.GetDirectoryName(request.SavePath);
+        if (!string.IsNullOrWhiteSpace(request.ModAuthor)) _config.DefaultAuthor = request.ModAuthor;
+        _config.Save();
 
-        // A new project has never been saved, so it is dirty from the start —
-        // everything in it exists only in the temp directory.
-        _dirty = true;
-        OpenedProject($"Started {_project.Info.Name}. Everything is in place; save it when you want it on disk.");
+        _dirty = false;
+        OpenedProject($"Created {_project.DisplayName} — the mod is called {_project.Info.Name}.");
     }
 
     private void Open_Click(object sender, RoutedEventArgs e)
@@ -174,8 +177,6 @@ public partial class MainWindow : Window
         SetStatus(message, OkBrush);
     }
 
-    private void Save_Click(object sender, RoutedEventArgs e) => SaveProject(saveAs: false);
-
     private void SaveAs_Click(object sender, RoutedEventArgs e) => SaveProject(saveAs: true);
 
     /// <summary>
@@ -194,7 +195,13 @@ public partial class MainWindow : Window
             {
                 Title = saveAs ? "Save the project as" : "Save the project",
                 Filter = $"Simplified projects (*{ProjectStore.ProjectFileExtension})|*{ProjectStore.ProjectFileExtension}",
-                FileName = SafeFileName(_project.Info.Name.Length > 0 ? _project.Info.Name : "grid"),
+                // The file's own name, not the mod's: this is Save as, so the
+                // thing being renamed is the project on disk. A project saved as
+                // "Bugatti 2026" should not offer to become "Test" again just
+                // because that is what the mod inside it is called.
+                FileName = _project.ZipPath is { } existing
+                    ? Path.GetFileNameWithoutExtension(existing)
+                    : SafeFileName(_project.Info.Name.Length > 0 ? _project.Info.Name : "grid"),
                 DefaultExt = ProjectStore.ProjectFileExtension,
                 InitialDirectory = FirstExistingDir(_config.LastProjectFolder) ?? "",
             };
@@ -332,6 +339,21 @@ public partial class MainWindow : Window
 
     // ── Settings ────────────────────────────────────────────────────────────
 
+    private void EditProject_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null) return;
+
+        var request = EditProjectDialog.Show(this, _project.Info);
+        if (request is null) return;
+        if (request.ModName == _project.Info.Name && request.ModAuthor == _project.Info.Author) return;
+
+        _project.Info.Name = request.ModName;
+        _project.Info.Author = request.ModAuthor;
+
+        MarkDirty();
+        SetStatus($"The mod is now called {request.ModName}.", OkBrush);
+    }
+
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         if (!GridSettings.Show(this, _config)) return;
@@ -377,8 +399,8 @@ public partial class MainWindow : Window
         ProjectLabel.Foreground = open ? MutedBrush : Themed("TextDisabled", 0x8A, 0x92, 0x9C);
         DirtyLabel.Visibility = open && HasPendingChanges ? Visibility.Visible : Visibility.Collapsed;
 
-        SaveButton.IsEnabled = open && HasPendingChanges;
         SaveAsButton.IsEnabled = open;
+        EditProjectButton.IsEnabled = open;
         PackageButton.IsEnabled = open;
         Tabs.IsEnabled = open;
 

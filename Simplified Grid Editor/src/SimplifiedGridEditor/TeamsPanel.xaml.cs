@@ -57,8 +57,7 @@ public partial class TeamsPanel : UserControl
     /// the copy a logo edit is previewed against, so a project carries its
     /// logos the way it carries its names and colours.
     /// </summary>
-    private string BrandingErpPath =>
-        _project is null ? "" : Path.Combine(_project.ErpsFolder, "ui_texarrays_team_branding.erp");
+    private string BrandingErpPath => _project?.BrandingErpPath ?? "";
 
     public TeamsPanel()
     {

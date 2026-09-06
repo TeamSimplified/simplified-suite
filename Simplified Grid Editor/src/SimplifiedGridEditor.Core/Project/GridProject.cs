@@ -49,6 +49,12 @@ public sealed class GridProject
         ? "Untitled project"
         : Path.GetFileNameWithoutExtension(ZipPath);
 
+    /// <summary>
+    /// The team-branding texarray, which logo edits are imported into and which
+    /// a package merges over the game's UI shader packages.
+    /// </summary>
+    public string BrandingErpPath => Path.Combine(ErpsFolder, "ui_texarrays_team_branding.erp");
+
     /// <summary>The eleven language files, in whatever order the folder gives them.</summary>
     public IEnumerable<string> LanguageFiles =>
         Directory.Exists(LanguageFolder)
