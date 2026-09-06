@@ -90,11 +90,13 @@
                 <Button DockPanel.Dock="Left" Name="OpenButton" Style="{StaticResource IconButton}"
                         Tag="{StaticResource IconOpen}" Click="Open_Click" Margin="4,0,0,0"
                         ToolTip="Open a project"/>
-                <!-- A save icon means Save As across the suite; Ctrl+S is the one
-                     that overwrites in place. -->
-                <Button DockPanel.Dock="Left" Name="SaveAsButton" Style="{StaticResource IconButton}"
-                        Tag="{StaticResource IconSave}" Click="SaveAs_Click" Margin="4,0,0,0"
-                        IsEnabled="False" ToolTip="Save the project as… (Ctrl+Shift+S)"/>
+                <!-- Save, not Save as: a project has a file of its own and this
+                     writes to it. An app editing a .serps template asks where
+                     instead, because there the file on disk is the master copy
+                     rather than the working one. Ctrl+Shift+S still saves as. -->
+                <Button DockPanel.Dock="Left" Name="SaveButton" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconSave}" Click="Save_Click" Margin="4,0,0,0"
+                        IsEnabled="False" ToolTip="Save the project    (Ctrl+Shift+S saves as…)"/>
 
                 <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="12,0,12,0"
                         VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>

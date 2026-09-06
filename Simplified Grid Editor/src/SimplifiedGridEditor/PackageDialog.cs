@@ -126,12 +126,24 @@ public static class PackageDialog
 
         if (window.ShowDialog() != true) return null;
 
+        var chosen = versionBox.Text.Trim();
         return new Request(
-            System.IO.Path.Combine(locBox.Text, SafeFileName(projectName) + ".zip"),
-            versionBox.Text.Trim());
+            System.IO.Path.Combine(locBox.Text, PackageFileName(projectName, chosen) + ".zip"),
+            chosen);
     }
 
-    /// <summary>The project name as a file name, with what the filesystem refuses taken out.</summary>
+    /// <summary>
+    /// What the package is called: the mod name, then its version, the way
+    /// Studio names its own. The version goes on verbatim — whether it reads
+    /// "1.2" or "v1.2" is the author's choice, not ours to correct.
+    /// </summary>
+    private static string PackageFileName(string modName, string version)
+    {
+        var name = SafeFileName(modName);
+        return version.Length == 0 ? name : $"{name} {SafeFileName(version)}";
+    }
+
+    /// <summary>A name as a file name, with what the filesystem refuses taken out.</summary>
     private static string SafeFileName(string name)
     {
         var invalid = System.IO.Path.GetInvalidFileNameChars();

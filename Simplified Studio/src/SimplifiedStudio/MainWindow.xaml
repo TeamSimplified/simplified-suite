@@ -159,18 +159,21 @@
                             Tag="{StaticResource IconOpen}" Click="OpenProject_Click"
                             ToolTip="Open project"/>
 
-                    <!-- Save as, not Save: a save icon asks where, in every app in
-                         the suite. Overwriting what you opened is what Ctrl+S is for,
-                         and it should take saying so rather than one click.
+                    <!-- Save, not Save as: a project has a file of its own and
+                         this writes to it. That is the split across the suite -
+                         an app editing a .simplified saves, an app editing a
+                         .serps template asks where, because there the file on
+                         disk is the master copy rather than the working one.
 
-                         SaveProjectButton stays, collapsed, because the shortcut and
-                         OnProjectStateChanged both still drive it. -->
-                    <Button DockPanel.Dock="Left" Name="SaveProjectAsButton" Style="{StaticResource IconButton}"
+                         SaveProjectAsButton stays, collapsed, because
+                         Ctrl+Shift+S and OnProjectStateChanged both still
+                         drive it. -->
+                    <Button DockPanel.Dock="Left" Name="SaveProjectButton" Style="{StaticResource IconButton}"
                             Tag="{StaticResource IconSave}" Margin="6,0,0,0"
-                            Click="SaveProjectAs_Click" IsEnabled="False"
-                            ToolTip="Save project as…    (Ctrl+S saves in place)"/>
-                    <Button DockPanel.Dock="Left" Name="SaveProjectButton" Visibility="Collapsed"
-                            Click="SaveProject_Click" IsEnabled="False"/>
+                            Click="SaveProject_Click" IsEnabled="False"
+                            ToolTip="Save project    (Ctrl+Shift+S saves as…)"/>
+                    <Button DockPanel.Dock="Left" Name="SaveProjectAsButton" Visibility="Collapsed"
+                            Click="SaveProjectAs_Click" IsEnabled="False"/>
 
                     <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
 

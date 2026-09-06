@@ -177,7 +177,7 @@ public partial class MainWindow : Window
         SetStatus(message, OkBrush);
     }
 
-    private void SaveAs_Click(object sender, RoutedEventArgs e) => SaveProject(saveAs: true);
+    private void Save_Click(object sender, RoutedEventArgs e) => SaveProject(saveAs: false);
 
     /// <summary>
     /// Write the project out. Returns false when nothing was written — the user
@@ -395,11 +395,16 @@ public partial class MainWindow : Window
     {
         var open = _project is not null;
 
-        ProjectLabel.Text = open ? _project!.DisplayName : "No project open";
+        // The mod's name, not the file's. The file name is a working detail -
+        // what the thing being made is called is the mod name, and that is what
+        // the package is named after too.
+        ProjectLabel.Text = open
+            ? (_project!.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName)
+            : "No project open";
         ProjectLabel.Foreground = open ? MutedBrush : Themed("TextDisabled", 0x8A, 0x92, 0x9C);
         DirtyLabel.Visibility = open && HasPendingChanges ? Visibility.Visible : Visibility.Collapsed;
 
-        SaveAsButton.IsEnabled = open;
+        SaveButton.IsEnabled = open;
         EditProjectButton.IsEnabled = open;
         PackageButton.IsEnabled = open;
         Tabs.IsEnabled = open;
