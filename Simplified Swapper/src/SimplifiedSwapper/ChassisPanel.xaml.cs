@@ -23,7 +23,13 @@ public partial class ChassisPanel : UserControl, ISwapPanel
     /// </summary>
     private static Brush StatusBrush => Themed("TextPrimary", 0xEA, 0xEA, 0xEA);
 
-    private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
+    /// <summary>
+    /// What the status line says after something worked - which is the same
+    /// colour it reads in the rest of the time. A line that turns accent-blue to
+    /// announce success is louder than the news, and the wording already says
+    /// it. A problem still goes red, because that one is worth interrupting for.
+    /// </summary>
+    private static Brush OkBrush => StatusBrush;
 
     private UserConfig _config = null!;
     private ISerpsHost _host = null!;

@@ -214,8 +214,11 @@ public partial class MainWindow : Window, ISerpsHost
         StatusLabel.Text = text;
         StatusLabel.Foreground = kind switch
         {
+            // Done falls through to Plain on purpose. A status line that turns
+            // accent-blue to announce success is louder than the news, and the
+            // wording already says it. Problem still goes red, because that one
+            // is worth interrupting for.
             SwapStatus.Problem => Themed("Danger", 0xB0, 0x2A, 0x2A),
-            SwapStatus.Done    => Themed("Accent", 0x2E, 0x7D, 0x4F),
             _                  => Themed("TextPrimary", 0xEA, 0xEA, 0xEA),
         };
     }

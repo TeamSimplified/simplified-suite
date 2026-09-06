@@ -28,7 +28,13 @@ public partial class MainWindow : Window
     private static Brush ErrorBrush => Themed("Danger", 0xB0, 0x2A, 0x2A);
     private static Brush HintBrush => Themed("TextDisabled", 0x8A, 0x92, 0x9C);
     private static Brush MutedBrush => Themed("TextMuted", 0x66, 0x66, 0x66);
-    private static Brush OkBrush => Themed("Accent", 0x2E, 0x7D, 0x4F);
+    /// <summary>
+    /// What the status line says after something worked - which is the same
+    /// colour it reads in the rest of the time. A line that turns accent-blue to
+    /// announce success is louder than the news, and the wording already says
+    /// it. A problem still goes red, because that one is worth interrupting for.
+    /// </summary>
+    private static Brush OkBrush => MutedBrush;
 
     private readonly UserConfig _config = UserConfig.Load();
     private readonly KitOptions _kit = new();
