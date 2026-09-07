@@ -45,8 +45,19 @@ public partial class MainWindow : Window
     private GridProject? _project;
     private bool _dirty;
 
-    /// <summary>Which grid the Teams and Grid tabs are showing.</summary>
+    /// <summary>Which season the Teams tab is showing. Always an F1 one.</summary>
     private Season _season = Season.Y2026;
+
+    /// <summary>
+    /// Showing the 2026 Formula 2 grid rather than an F1 one.
+    ///
+    /// Kept beside <see cref="_season"/> rather than folded into it because the
+    /// two tabs want different things: F2 has its own twenty-two seats, but no
+    /// teams the Teams tab can edit — the eleven F2 outfits have no name keys or
+    /// colour records of the kind that tab works in. So the Teams tab stays on
+    /// its F1 season and is switched off while this is set.
+    /// </summary>
+    private bool _f2;
 
     /// <summary>
     /// True while the season chips are being set from code, so putting them back
@@ -263,10 +274,19 @@ public partial class MainWindow : Window
     {
         if (_settingSeasonChip) return;
 
-        var chosen = ReferenceEquals(sender, Season2025Chip) ? Season.Y2025 : Season.Y2026;
-        if (chosen == _season) return;
+        var f2 = ReferenceEquals(sender, SeasonF2Chip);
 
+        // F2 leaves the Teams tab on whichever F1 season it was showing, so
+        // coming back from F2 lands where the user left off rather than jumping.
+        var chosen = f2 ? _season
+            : ReferenceEquals(sender, Season2025Chip) ? Season.Y2025
+            : Season.Y2026;
+
+        if (f2 == _f2 && chosen == _season) return;
+
+        _f2 = f2;
         _season = chosen;
+        ApplyF2ToTabs();
         ShowSeasonInTabs();
         RefreshEverything();
     }
@@ -275,10 +295,24 @@ public partial class MainWindow : Window
     private void ShowSeason(Season season)
     {
         _season = season;
+        _f2 = false;
         _settingSeasonChip = true;
         Season2026Chip.IsChecked = season == Season.Y2026;
         Season2025Chip.IsChecked = season == Season.Y2025;
+        SeasonF2Chip.IsChecked = false;
         _settingSeasonChip = false;
+        ApplyF2ToTabs();
+    }
+
+    /// <summary>
+    /// Turn the Teams tab off for F2, and step off it if it was the one on show
+    /// — a disabled tab that stays selected leaves the window looking broken.
+    /// </summary>
+    private void ApplyF2ToTabs()
+    {
+        TeamsTab.IsEnabled = !_f2;
+        if (_f2 && ReferenceEquals(Tabs.SelectedItem, TeamsTab))
+            Tabs.SelectedIndex = 1;   // Grid
     }
 
     // ── Packaging ───────────────────────────────────────────────────────────

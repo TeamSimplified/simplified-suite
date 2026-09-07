@@ -101,13 +101,17 @@
                 <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="12,0,12,0"
                         VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
 
-                <!-- Which grid the Teams and Grid tabs are showing. -->
+                <!-- Which grid the Teams and Grid tabs are showing. F2 has no
+                     teams of its own to edit, so picking it turns Teams off. -->
                 <RadioButton DockPanel.Dock="Left" Name="Season2026Chip" Content="2026"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
                              IsChecked="True" ToolTip="The 2026 grid, with Audi and Cadillac"/>
                 <RadioButton DockPanel.Dock="Left" Name="Season2025Chip" Content="2025"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
                              ToolTip="The grid the game ships with"/>
+                <RadioButton DockPanel.Dock="Left" Name="SeasonF2Chip" Content="F2 26"
+                             Style="{StaticResource ChannelChip}" Checked="Season_Checked"
+                             ToolTip="The 2026 Formula 2 grid. Teams aren't editable for F2."/>
 
                 <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
                         Margin="12,0,0,0" IsEnabled="False" Click="Package_Click"
@@ -119,11 +123,11 @@
         </Border>
 
         <TabControl Grid.Row="2" Name="Tabs">
-            <TabItem Header="Teams">
+            <TabItem Header="Teams" Name="TeamsTab">
                 <local:TeamsPanel x:Name="Teams" Margin="18,14,18,14"/>
             </TabItem>
 
-            <TabItem Header="Grid">
+            <TabItem Header="Grid" Name="GridTab">
                 <local:GridPanel x:Name="Seats" Margin="18,14,18,14"/>
             </TabItem>
 

@@ -113,6 +113,38 @@ var plan = new SeatPlan(db, cat, season);
 var occupied = season.Seats.Count(s => db.Text(season.SeatPath(s.Slot, "driver")).Length > 0);
 Console.WriteLine($"  {season.Label}: entrant_list_{season.EntrantList}, {occupied}/{season.Seats.Count} seats hold an explicit driver on disk");
 Check(db.Find(season.SeatPath(0, "driver")) is not null, $"entrant_list_{season.EntrantList} exists in this database");
+
+// Every grid has to be where its table says it is. The F2 26 update inserted a
+// list at 20 and shifted every later one down, moving the 2026 grid from 33 to
+// 34 — an app editing by the old number would have written a grid's worth of
+// changes over f1_beta instead. Checking the name catches the next shift on the
+// first run rather than after someone's edits have gone somewhere unintended.
+Console.WriteLine("\n── grids are where their tables say ──");
+foreach (var s in Season.All)
+{
+    var actual = s.FindIn(db);
+    Console.WriteLine($"  {s.Label,-14} expects list {s.EntrantList,3} (\"{s.ListName}\"), " +
+                      $"database has it at {(actual?.ToString() ?? "no such list")}");
+    Check(s.IsWhereExpected(db), $"{s.ListName} is at entrant_list_{s.EntrantList}");
+
+    // A seat's lookup string has to name a kit record the database carries, or
+    // assigning a helmet writes a string nothing will ever match.
+    var unmatched = s.Seats.Where(seat => !cat.Helmets.ContainsKey(seat.LookupString)).ToList();
+    Check(unmatched.Count == 0,
+        $"{s.ListName}: every seat's lookup string names a real helmet record"
+        + (unmatched.Count > 0 ? $" — missing {string.Join(", ", unmatched.Take(4).Select(u => u.LookupString))}" : ""));
+
+    // And the teams have to match the list seat for seat, or the table is
+    // describing a different grid from the one it will edit.
+    var wrongTeam = s.Seats
+        .Where(seat => db.Text($"entrants.entrant_lists.entrant_list_{s.EntrantList}.entrant_{seat.Slot}.team") != seat.Team)
+        .ToList();
+    Check(wrongTeam.Count == 0,
+        $"{s.ListName}: every seat's team matches the entrant list"
+        + (wrongTeam.Count > 0 ? $" — first off at slot {wrongTeam[0].Slot}" : ""));
+}
+
+Console.WriteLine();
 Check(!plan.HasChanges, "a freshly opened plan has no changes");
 Check(plan.Plan(new KitOptions()).Total == 0, "and plans no writes");
 

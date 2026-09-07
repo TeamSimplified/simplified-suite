@@ -56,7 +56,7 @@ public partial class MainWindow
             _document = GridDocument.Read(
                 _project.DatabasePath,
                 Path.Combine(AppPaths.OriginalsDir, ProjectStore.DatabaseFileName),
-                DriverSeasonFor(_season));
+                DriverSeasonNow);
         }
         catch (Exception ex)
         {
@@ -66,18 +66,56 @@ public partial class MainWindow
                 "Open project", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
-        Teams.Show(_project, _document?.Database, TeamSeasonFor(_season));
-        Seats.Show(_document, DriverSeasonFor(_season));
+        Teams.Show(_project, _document?.Database, TeamSeasonNow);
+        Seats.Show(_document, DriverSeasonNow);
         Drivers.Show(_document);
 
         ApplyAdvancedSwapping(_config.EnableAdvancedSwapping);
+        CheckGridIsWhereExpected();
+    }
+
+    /// <summary>
+    /// Refuse to edit a grid this project's database doesn't have where we think.
+    ///
+    /// A project carries its own copy of the database, so one made before the
+    /// F2 26 update still has the grids at their old list numbers — that update
+    /// inserted a list and pushed the 2026 grid from 33 to 34. Editing by the
+    /// new number would write a grid's worth of changes into <c>f1_beta</c> and
+    /// look like it had worked, so the Grid tab is switched off instead.
+    ///
+    /// Teams and Drivers are unaffected: they address records by name and by
+    /// driver index, neither of which the update moved.
+    /// </summary>
+    private void CheckGridIsWhereExpected()
+    {
+        if (_document?.Database is not { } database) { GridTab.IsEnabled = true; return; }
+
+        var season = DriverSeasonNow;
+        var ok = season.IsWhereExpected(database);
+        GridTab.IsEnabled = ok;
+        if (ok) return;
+
+        if (ReferenceEquals(Tabs.SelectedItem, GridTab)) Tabs.SelectedIndex = 0;
+
+        var found = season.FindIn(database);
+        SetStatus($"The Grid tab is off: this project's database doesn't hold {season.Label} where expected.", ErrorBrush);
+        SimplifiedUi.MessageDialog.Show(this,
+            $"This project's database doesn't have the {season.Label} where this version expects it.\n\n" +
+            $"Expected \"{season.ListName}\" at entrant list {season.EntrantList}, but " +
+            (found is null
+                ? "the database hasn't got that grid at all."
+                : $"it is at {found} instead.") +
+            "\n\nThat is what a project made before the F2 26 game update looks like. Editing the " +
+            "grid would write over a different one, so the Grid tab has been switched off. " +
+            "Teams and Drivers are safe to use.",
+            "Open project", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void ClearTabs()
     {
         _document = null;
-        Teams.Show(null, null, TeamSeasonFor(_season));
-        Seats.Show(null, DriverSeasonFor(_season));
+        Teams.Show(null, null, TeamSeasonNow);
+        Seats.Show(null, DriverSeasonNow);
         Drivers.Show(null);
     }
 
@@ -89,16 +127,31 @@ public partial class MainWindow
 
     private void ShowSeasonInTabs()
     {
-        Teams.ShowSeason(TeamSeasonFor(_season));
-        Seats.ShowSeason(DriverSeasonFor(_season));
+        Teams.ShowSeason(TeamSeasonNow);
+        Seats.ShowSeason(DriverSeasonNow);
+
+        // Each grid sits in its own list, so switching season asks the question
+        // again — an old database can hold one of them where we expect and not
+        // the other.
+        CheckGridIsWhereExpected();
     }
 
     private void ApplyAdvancedSwapping(bool show) => Seats.ShowAdvanced(show);
 
-    private static TeamSeason TeamSeasonFor(TeamSeason season) => season;
+    /// <summary>
+    /// What the Teams tab is showing. F2 never changes it: that tab edits the
+    /// F1 outfits either way, and is simply switched off while F2 is selected.
+    /// </summary>
+    private TeamSeason TeamSeasonNow => _season;
 
-    private static DriverSeason DriverSeasonFor(TeamSeason season) =>
-        season == TeamSeason.Y2026 ? DriverSeason.F2026 : DriverSeason.F2025;
+    /// <summary>
+    /// What the Grid tab is showing — the F2 grid when it is selected, otherwise
+    /// the F1 grid for the season the chips are on.
+    /// </summary>
+    private DriverSeason DriverSeasonNow =>
+        _f2 ? DriverSeason.F2_2026
+        : _season == TeamSeason.Y2026 ? DriverSeason.F2026
+        : DriverSeason.F2025;
 
     // ── Writing the edits into the project ──────────────────────────────────
 
