@@ -219,9 +219,14 @@ public partial class ChassisPanel : UserControl, ISwapPanel
         if (candidates.Count == 0)
             return $"{team}'s ERP isn't in this game folder — check the folder in Settings.";
 
-        return candidates.Count == 1
-            ? $"{team}, from the open template. Its livery slot, wing setup and driver animations are used."
-            : $"{team} — one slot per engine. Pick the one you race with.";
+        if (candidates.Count == 1)
+            return $"{team}, from the open template. Its livery slot, wing setup and driver animations are used.";
+
+        // More than one slot now means two different things. My Team's are
+        // engines; everyone else's are the one-off liveries they raced.
+        return TeamErps.HasEngineSlots(_host.ShaderPackage)
+            ? $"{team} — one slot per engine. Pick the one you race with."
+            : $"{team} — its car, and the one-off liveries it ran. Pick the slot to take over.";
     }
 
     private void TeamErp_Changed(object sender, SelectionChangedEventArgs e)

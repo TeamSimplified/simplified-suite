@@ -127,6 +127,24 @@ public static class IncardriverLocator
         return best;
     }
 
+    /// <summary>
+    /// The animset for a car ERP: matched on the file's own name, and failing
+    /// that on its team's.
+    ///
+    /// A special livery has no driver animations of its own. It uses the team's
+    /// — the same ones the official car uses, which is what the game does too —
+    /// and its file name matches nothing, because there is no animset called
+    /// <c>…_toro_rosso_suzuka_26</c>. Without the fallback, a swap into one
+    /// reported that it couldn't match the animations and left the driver alone.
+    /// </summary>
+    public static string? MatchAnimsetForCar(IEnumerable<string> animsets, string erpPath)
+    {
+        var list = animsets as IReadOnlyCollection<string> ?? animsets.ToList();
+
+        return MatchAnimset(list, Path.GetFileNameWithoutExtension(erpPath))
+               ?? (CarErp.TeamOf(erpPath) is { } team ? MatchAnimset(list, team) : null);
+    }
+
     /// <summary>Full resource identifier for an animset name.</summary>
     public static string? FindAnimsetIdentifier(ErpFile erp, string animsetName)
     {

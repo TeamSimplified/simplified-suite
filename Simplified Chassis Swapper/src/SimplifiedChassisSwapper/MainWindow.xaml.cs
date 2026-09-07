@@ -290,6 +290,15 @@ public partial class MainWindow : Window
         if (TeamBox.Text.Trim().Length == 0) return "Choose a team ERP.";
         if (!File.Exists(TeamBox.Text.Trim())) return "That team ERP doesn't exist.";
 
+        // A team's wep/ folder holds its special liveries beside its car, and
+        // those are fair game as slots — each is a whole car with its own /wep/
+        // setup. A few ship as texture overlays instead, with no /wep/ at all,
+        // and the swap grafts exactly that. Building one produces a file that
+        // looks right and loads as nothing, so it is caught here rather than
+        // found later in game.
+        if (NotACar(TeamBox.Text.Trim()) is { } teamProblem) return teamProblem;
+        if (NotACar(ChassisBox.Text.Trim()) is { } chassisProblem) return chassisProblem;
+
         var old = OldNameBox.Text.Trim();
         var neu = NewNameBox.Text.Trim();
         if (old.Length == 0) return "Enter the name to replace.";
@@ -300,6 +309,36 @@ public partial class MainWindow : Window
 
         if (OutputBox.Text.Trim().Length == 0) return "Choose where to save the swapped ERP.";
         return null;
+    }
+
+    /// <summary>
+    /// Why this ERP isn't a car, or null when it is one.
+    ///
+    /// Answered from a cache: the check opens the archive, and this runs on every
+    /// keystroke in the path boxes.
+    /// </summary>
+    private string? NotACar(string path) =>
+        IsCarCached(path) ? null
+            : $"{Path.GetFileName(path)} has no /wep/ setup, so it isn't a car — " +
+              "some special liveries ship as texture overlays rather than whole cars.";
+
+    private readonly Dictionary<(string Path, long Length, DateTime Written), bool> _isCarMemo = new();
+
+    private bool IsCarCached(string path)
+    {
+        (string, long, DateTime) key;
+        try
+        {
+            var info = new FileInfo(path);
+            key = (path, info.Length, info.LastWriteTimeUtc);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (_isCarMemo.TryGetValue(key, out var known)) return known;
+        return _isCarMemo[key] = EgoEngineLibrary.Archive.Erp.CarErp.IsCar(path);
     }
 
     // ── Driver animations ───────────────────────────────────────────────────
@@ -406,8 +445,8 @@ public partial class MainWindow : Window
             ? $"{season.Season} — {_animsets.Count} animation sets"
             : $"The {season.Season} incardriver_f1.erp contains no animation sets.";
 
-        Preselect(ChassisAnimsetBox, Path.GetFileNameWithoutExtension(ChassisBox.Text.Trim()));
-        Preselect(TeamAnimsetBox, Path.GetFileNameWithoutExtension(TeamBox.Text.Trim()));
+        PreselectForCar(ChassisAnimsetBox, ChassisBox.Text.Trim());
+        PreselectForCar(TeamAnimsetBox, TeamBox.Text.Trim());
     }
 
     private void ClearAnimsets()
@@ -420,10 +459,15 @@ public partial class MainWindow : Window
         IncardriverStatus.Text = "";
     }
 
-    private void Preselect(ComboBox box, string token)
+    /// <summary>
+    /// Point an animset box at the car's own set, falling back to its team's —
+    /// the same order the swap uses, so what the box shows is what would be
+    /// picked if it were left alone. A special livery has no set of its own.
+    /// </summary>
+    private void PreselectForCar(ComboBox box, string erpPath)
     {
-        if (token.Length == 0) return;
-        var match = IncardriverLocator.MatchAnimset(_animsets, token);
+        if (erpPath.Length == 0) return;
+        var match = IncardriverLocator.MatchAnimsetForCar(_animsets, erpPath);
         if (match is not null) box.SelectedItem = match;
     }
 

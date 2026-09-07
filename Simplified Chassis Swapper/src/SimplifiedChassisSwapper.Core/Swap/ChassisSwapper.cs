@@ -287,10 +287,12 @@ public sealed class ChassisSwapper
         var chassisToken = Path.GetFileNameWithoutExtension(options.ChassisErpPath);
         var teamToken = DeriveTeamToken(options.TeamErpPath);
 
+        // By the file's own name first, then by its team's: a special livery has
+        // no driver animations of its own and wears the official car's.
         var chassisAnimset = options.ChassisAnimsetOverride
-                             ?? IncardriverLocator.MatchAnimset(animsets, chassisToken);
+                             ?? IncardriverLocator.MatchAnimsetForCar(animsets, options.ChassisErpPath);
         var teamAnimset = options.TeamAnimsetOverride
-                          ?? IncardriverLocator.MatchAnimset(animsets, teamToken);
+                          ?? IncardriverLocator.MatchAnimsetForCar(animsets, options.TeamErpPath);
 
         result.ChassisAnimset = chassisAnimset;
         result.TeamAnimset = teamAnimset;

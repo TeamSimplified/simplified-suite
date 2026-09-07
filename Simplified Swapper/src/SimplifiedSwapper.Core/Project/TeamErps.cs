@@ -1,3 +1,5 @@
+using EgoEngineLibrary.Archive.Erp;
+
 namespace SimplifiedSwapper.Core.Project;
 
 /// <summary>
@@ -84,6 +86,18 @@ public static class TeamErps
            ChassisSwapWorks: false, DriverwearSwapWorks: false),
     };
 
+    /// <summary>
+    /// True for a team whose several slots are engine choices rather than
+    /// liveries — My Team, which ships one folder per engine supplier.
+    ///
+    /// Worth asking because a team can now offer more than one slot for the
+    /// other reason: its own car plus the special liveries it ran. The two read
+    /// very differently to someone choosing between them.
+    /// </summary>
+    public static bool HasEngineSlots(string? shaderPackage) =>
+        shaderPackage is not null &&
+        ByShaderPackage.TryGetValue(shaderPackage, out var t) && t.Folders.Length > 1;
+
     /// <summary>The team a shader package belongs to, or null for one we don't know.</summary>
     public static string? TeamNameOf(string? shaderPackage) =>
         shaderPackage is not null && ByShaderPackage.TryGetValue(shaderPackage, out var t) ? t.Name : null;
@@ -141,9 +155,17 @@ public static class TeamErps
     /// offered. Empty when the shader package is unknown, the game folder isn't
     /// set, or none of the team's ERPs are actually installed.
     ///
-    /// Only the canonical <c>&lt;team&gt;/wep/&lt;team&gt;.erp</c> counts. The
-    /// same folders hold one-off 2025 liveries and whatever copies people have
-    /// left lying about, and neither is the slot a 2026 template replaces.
+    /// The team's own car comes first, then its special liveries — the one-off
+    /// cars a team ran at a single round, which sit in the same folder as
+    /// <c>&lt;team&gt;_&lt;event&gt;_&lt;year&gt;.erp</c>. Those used to be
+    /// filtered out on the grounds that they were leftovers from an older
+    /// season; they are not. Each is a whole car with its own <c>/wep/</c> setup
+    /// and its own slot in the game, so each is somewhere a swap can go, and the
+    /// trailing year is the livery's rather than the season's — a 2026 pack
+    /// carries both.
+    ///
+    /// Archives without a <c>/wep/</c> setup are still left out, because some of
+    /// the liveries ship as texture overlays rather than cars.
     /// </summary>
     public static IReadOnlyList<Candidate> For(string? gameDir, string? shaderPackage)
     {
@@ -156,16 +178,69 @@ public static class TeamErps
         foreach (var folder in team.Folders)
             foreach (var root in roots)
             {
-                var path = Path.Combine(root, folder, "wep", folder + ".erp");
-                if (!File.Exists(path)) continue;
-                // One slot reads as the team; My Team's six need saying which
-                // is which, and there the team is already on the title bar.
-                found.Add(new Candidate(
-                    team.Folders.Length == 1 ? team.Name : EngineLabel(folder), path));
+                var wep = Path.Combine(root, folder, "wep");
+                var cars = CarErp.InFolder(wep, folder, IsCarCached);
+                if (cars.Count == 0) continue;
+
+                foreach (var car in cars)
+                {
+                    // One slot reads as the team; My Team's six need saying which
+                    // is which, and there the team is already on the title bar.
+                    var baseLabel = team.Folders.Length == 1 ? team.Name : EngineLabel(folder);
+                    found.Add(new Candidate(LabelFor(baseLabel, car, folder), car));
+                }
+
                 break;    // first root that has it wins
             }
 
         return found;
+    }
+
+    /// <summary>
+    /// A car's label: the team on its own for the car they race, and the team
+    /// with the event for a special livery — "Racing Bulls — Suzuka 26".
+    /// </summary>
+    private static string LabelFor(string teamLabel, string erpPath, string folder) =>
+        CarErp.LiveryName(erpPath, folder) is { } livery
+            ? $"{teamLabel} — {livery}"
+            : teamLabel;
+
+    /// <summary>
+    /// Whether a file is a car, remembered between calls.
+    ///
+    /// The lists here are rebuilt whenever the panel refreshes, and answering
+    /// this means opening the archive — about forty of them across an install,
+    /// which is long enough to be felt in a dropdown. Keyed on size and write
+    /// time as well as path, so a file that changes on disk is read again.
+    /// </summary>
+    private static readonly Dictionary<(string Path, long Length, DateTime Written), bool> IsCarMemo = new();
+
+    private static bool IsCarCached(string path)
+    {
+        (string, long, DateTime) key;
+        try
+        {
+            var info = new FileInfo(path);
+            key = (path, info.Length, info.LastWriteTimeUtc);
+        }
+        catch
+        {
+            return false;
+        }
+
+        lock (IsCarMemo)
+        {
+            if (IsCarMemo.TryGetValue(key, out var known)) return known;
+        }
+
+        var answer = CarErp.IsCar(path);
+
+        lock (IsCarMemo)
+        {
+            IsCarMemo[key] = answer;
+        }
+
+        return answer;
     }
 
     /// <summary>
@@ -175,6 +250,10 @@ public static class TeamErps
     /// sits in are the same file — but listed across all the teams rather than
     /// the one a template names, because which car you want to drive is the
     /// choice the template doesn't make.
+    ///
+    /// Special liveries are cars in their own right and appear here too: a
+    /// team's one-off is often the one somebody wants to drive, and there was no
+    /// way to pick it before.
     /// </summary>
     public static IReadOnlyList<Candidate> AllCars(string? gameDir)
     {
@@ -187,12 +266,14 @@ public static class TeamErps
             foreach (var folder in team.Folders)
                 foreach (var root in roots)
                 {
-                    var path = Path.Combine(root, folder, "wep", folder + ".erp");
-                    if (!File.Exists(path)) continue;
+                    var found = CarErp.InFolder(Path.Combine(root, folder, "wep"), folder, IsCarCached);
+                    if (found.Count == 0) continue;
 
-                    // One car each, named as the team — everything on the grid
-                    // has exactly one folder, so the loop never adds twice.
-                    cars.Add(new Candidate(team.Name, path));
+                    // Everything on the grid has exactly one folder, so the loop
+                    // never adds a team twice.
+                    foreach (var car in found)
+                        cars.Add(new Candidate(LabelFor(team.Name, car, folder), car));
+
                     break;
                 }
 
