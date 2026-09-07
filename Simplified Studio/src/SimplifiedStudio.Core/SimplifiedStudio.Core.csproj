@@ -29,4 +29,10 @@
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
+  <!-- Which game build a package was made against — shared with the other
+       packagers so all of them spell a build the same way. See Shared. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
+  </ItemGroup>
+
 </Project>

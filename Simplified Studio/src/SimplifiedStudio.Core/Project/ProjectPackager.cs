@@ -423,67 +423,25 @@ public static class ProjectPackager
     }
 
     /// <summary>
-    /// The <c>F1_*.exe</c> at the top of <paramref name="gameDir"/>, or null.
+    /// The F1 game build under <paramref name="gameDir"/>, as a dotted
+    /// <c>Major.Minor.Build.Private</c> string (e.g. <c>1.0.141.2878</c>), or an
+    /// empty string when it can't be read.
+    ///
+    /// The reading is shared with the Team Editor and the Grid Editor, which
+    /// stamp the same field into their own manifests. They used to do it
+    /// differently and disagreed about how a build is spelled; one copy is why
+    /// they no longer can.
     /// </summary>
-    private static string? FindGameExe(string gameDir)
-    {
-        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir)) return null;
-        return Directory
-            .EnumerateFiles(gameDir, "F1_*.exe", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault();
-    }
+    public static string ReadGameVersion(string gameDir) =>
+        Simplified.Shared.GameVersion.Read(gameDir) ?? "";
 
     /// <summary>
-    /// Read the F1 game build version from the <c>F1_*.exe</c> at the top of
-    /// <paramref name="gameDir"/>, as a dotted
-    /// <c>Major.Minor.Build.Private</c> string (e.g. <c>1.0.138.5601</c>).
-    /// Best-effort: returns an empty string when the exe is missing or its
-    /// version info can't be read — never throws.
+    /// The game's name from the same exe — its <c>ProductName</c>, verbatim, so
+    /// <c>F1® 25</c> rather than something inferred. Empty when unreadable;
+    /// neither field ever blocks a package.
     /// </summary>
-    public static string ReadGameVersion(string gameDir)
-    {
-        try
-        {
-            var exe = FindGameExe(gameDir);
-            if (exe is null) return "";
-            var vi = FileVersionInfo.GetVersionInfo(exe);
-            return $"{vi.FileMajorPart}.{vi.FileMinorPart}.{vi.FileBuildPart}.{vi.FilePrivatePart}";
-        }
-        catch
-        {
-            return "";
-        }
-    }
-
-    /// <summary>
-    /// Read the game's name from the same exe — its <c>ProductName</c>, verbatim.
-    ///
-    /// Every F1 title from 2015 to 25 declares one, so this is the title's own
-    /// spelling rather than something inferred: <c>F1 2015</c> through
-    /// <c>F1 23</c>, then <c>F1® 24</c> and <c>F1® 25</c> once the mark was
-    /// added. The exe's file name is only a fallback, for an exe that somehow
-    /// carries no product name at all.
-    ///
-    /// Best-effort like the version: an empty string never blocks a package.
-    /// </summary>
-    public static string ReadGameName(string gameDir)
-    {
-        try
-        {
-            var exe = FindGameExe(gameDir);
-            if (exe is null) return "";
-
-            var productName = FileVersionInfo.GetVersionInfo(exe).ProductName?.Trim();
-            if (!string.IsNullOrEmpty(productName)) return productName;
-
-            // F1_25.exe → F1 25
-            return Path.GetFileNameWithoutExtension(exe).Replace('_', ' ');
-        }
-        catch
-        {
-            return "";
-        }
-    }
+    public static string ReadGameName(string gameDir) =>
+        Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
 
     private static string AllocateStaging()
     {

@@ -374,25 +374,31 @@ public static class GridPackager
         };
         if (!string.IsNullOrWhiteSpace(project.Info.Author)) manifest["author"] = project.Info.Author.Trim();
         if (!string.IsNullOrWhiteSpace(project.Info.Version)) manifest["version"] = project.Info.Version.Trim();
-        manifest["game_version"] = ReadGameVersion(gameDir) ?? "";
 
-        return JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        // Which game build this was made against, named and numbered the same
+        // way Studio does it — so a mod from either app says what it was
+        // packaged for, in one spelling. It matters more than it used to: the
+        // F2 26 update moved entrant lists around, so a grid mod built before it
+        // and one built after are not interchangeable, and the manifest is the
+        // only place that difference is written down.
+        manifest["game"] = Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
+        manifest["game_version"] = Simplified.Shared.GameVersion.Read(gameDir) ?? "";
+
+        return JsonSerializer.Serialize(manifest, SerpsJson);
     }
 
-    private static string? ReadGameVersion(string? gameDir)
+    /// <summary>
+    /// How the manifest is written — the same options Studio uses, so the two
+    /// apps spell a mod.serps identically. The encoder is the reason: the
+    /// default one escapes the game's own name to <c>F1® 25</c>, where
+    /// this writes <c>F1® 25</c>. Both parse the same; only one is readable.
+    /// </summary>
+    private static readonly JsonSerializerOptions SerpsJson = new()
     {
-        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir)) return null;
-        try
-        {
-            var exe = Directory.EnumerateFiles(gameDir, "F1_*.exe", SearchOption.TopDirectoryOnly).FirstOrDefault();
-            if (exe is null) return null;
-            return System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).ProductVersion;
-        }
-        catch
-        {
-            return null;
-        }
-    }
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+    };
+
 
     /// <summary>One line saying what was written, for the status bar.</summary>
     public static string Describe(GridPackageResult result, string zipPath)

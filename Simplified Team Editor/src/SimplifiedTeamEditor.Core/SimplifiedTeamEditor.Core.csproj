@@ -16,4 +16,14 @@
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
+  <!-- Which game build a package was made against. Linked from Shared rather
+       than copied, because three packagers stamp it into mod.serps and they have
+       to agree on how a build is spelled - they did not, and a version nobody can
+       compare records nothing. Linked here rather than in the app project
+       because the packager is Core's; the Grid Editor's Core reads it through
+       its reference to this one. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
+  </ItemGroup>
+
 </Project>

@@ -292,34 +292,37 @@ public static class TeamPackager
     // ──────────────────────────── mod.serps ───────────────────────────
 
     /// <summary>
-    /// The manifest, at the root where the launcher looks for it. The game
-    /// version is stamped from the install when there is one, and left blank
-    /// otherwise, matching what other tools write.
+    /// The manifest, at the root where the launcher looks for it. The game it
+    /// was built against is stamped from the install when there is one, and left
+    /// blank otherwise, matching what other tools write.
     /// </summary>
     private static string BuildModSerps(ModInfo info, string? gameDir)
     {
         var manifest = new Dictionary<string, string> { ["mod_name"] = info.Name.Trim() };
         if (!string.IsNullOrWhiteSpace(info.Author)) manifest["author"] = info.Author.Trim();
         if (!string.IsNullOrWhiteSpace(info.Version)) manifest["version"] = info.Version.Trim();
-        manifest["game_version"] = ReadGameVersion(gameDir) ?? "";
 
-        return JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        // Read the same way Studio and the Grid Editor read it. This used to
+        // take the exe's ProductVersion, which on F1 25 is comma-separated —
+        // so a build this app named 1,0,141,2878 was the one Studio called
+        // 1.0.141.2878, and the two manifests would not compare equal.
+        manifest["game"] = Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
+        manifest["game_version"] = Simplified.Shared.GameVersion.Read(gameDir) ?? "";
+
+        return JsonSerializer.Serialize(manifest, SerpsJson);
     }
 
-    private static string? ReadGameVersion(string? gameDir)
+    /// <summary>
+    /// How the manifest is written — the options Studio uses, so all three apps
+    /// spell a mod.serps identically. The encoder is the reason: the default one
+    /// escapes the game's own name to <c>F1® 25</c>, where this writes
+    /// <c>F1® 25</c>.
+    /// </summary>
+    private static readonly JsonSerializerOptions SerpsJson = new()
     {
-        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir)) return null;
-        try
-        {
-            var exe = Directory.EnumerateFiles(gameDir, "F1_*.exe", SearchOption.TopDirectoryOnly).FirstOrDefault();
-            if (exe is null) return null;
-            return System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).ProductVersion;
-        }
-        catch
-        {
-            return null;
-        }
-    }
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+    };
 
     private static void Write(ZipArchive zip, string entryPath, byte[] data)
     {
