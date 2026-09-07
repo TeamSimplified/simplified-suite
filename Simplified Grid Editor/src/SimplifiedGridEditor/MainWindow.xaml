@@ -146,6 +146,10 @@
             <TabItem Header="Drivers">
                 <local:DriversPanel x:Name="Drivers" Margin="18,14,18,14"/>
             </TabItem>
+
+            <TabItem Header="Start" Name="StartTab">
+                <local:StartPanel x:Name="Start" Margin="18,14,18,14"/>
+            </TabItem>
         </TabControl>
 
         <!-- Status -->

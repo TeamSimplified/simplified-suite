@@ -5,7 +5,7 @@ namespace SimplifiedGridEditor.Core.Project;
 
 /// <summary>
 /// The open project's database and everything read out of it, in one place the
-/// three tabs share.
+/// tabs share.
 ///
 /// In the Driver Swapper this state lives on the window, because there is only
 /// one screen. Here the Grid and Drivers tabs are separate panels looking at the
@@ -20,13 +20,14 @@ public sealed class GridDocument
 {
     private GridDocument(GameDatabase database, DriverCatalogue catalogue,
                          DatabaseSnapshot? reference, SeatPlan seats,
-                         List<DriverAttributes.DriverRow> drivers)
+                         List<DriverAttributes.DriverRow> drivers, StartScreen start)
     {
         Database = database;
         Catalogue = catalogue;
         Reference = reference;
         Seats = seats;
         Drivers = drivers;
+        Start = start;
     }
 
     public GameDatabase Database { get; }
@@ -41,11 +42,14 @@ public sealed class GridDocument
 
     public List<DriverAttributes.DriverRow> Drivers { get; }
 
+    /// <summary>The three drivers on the game's start screen.</summary>
+    public StartScreen Start { get; }
+
     /// <summary>Driver record index → field → new value, before it is written.</summary>
     public Dictionary<int, Dictionary<string, string>> PendingAttributes { get; } = [];
 
     /// <summary>True when a save would change anything in the database.</summary>
-    public bool HasChanges => Seats.HasChanges || PendingAttributes.Count > 0;
+    public bool HasChanges => Seats.HasChanges || PendingAttributes.Count > 0 || Start.HasChanges;
 
     /// <summary>
     /// Read a project's database and the pristine copy beside it.
@@ -74,7 +78,8 @@ public sealed class GridDocument
         return new GridDocument(
             database, catalogue, reference,
             new SeatPlan(database, catalogue, season, reference),
-            DriverAttributes.Read(database));
+            DriverAttributes.Read(database),
+            StartScreen.Read(database, original));
     }
 
     /// <summary>

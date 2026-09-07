@@ -252,6 +252,18 @@ public sealed class GameDatabase
     public DatabaseRecord? Find(string path) =>
         _byKey.TryGetValue(Fnv1a.Hash(path), out var record) ? record : null;
 
+    /// <summary>
+    /// The record with this key, for one whose path isn't known.
+    ///
+    /// Normally a record is found by hashing its path, which is the readable way
+    /// and the one to prefer. But the file holds no paths, so a path that cannot
+    /// be guessed cannot be recovered — and a few records are only ever
+    /// identified by the key itself, as the game's own database editors export
+    /// them. This is how those are reached.
+    /// </summary>
+    public DatabaseRecord? FindByKey(ulong key) =>
+        _byKey.TryGetValue(key, out var record) ? record : null;
+
     /// <summary>Text at a dotted path, or <paramref name="fallback"/> when absent or empty.</summary>
     public string Text(string path, string fallback = "")
     {

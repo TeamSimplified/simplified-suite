@@ -10,7 +10,7 @@ using DriverSeason = SimplifiedDriverSwapper.Core.Drivers.Season;
 namespace SimplifiedGridEditor;
 
 /// <summary>
-/// The half of the window that talks to the three tabs.
+/// The half of the window that talks to the four tabs.
 ///
 /// The two halves of the app came from two apps that each had their own idea of
 /// what a season is — the Team Editor's is an enum, the Driver Swapper's is a
@@ -33,10 +33,12 @@ public partial class MainWindow
         Teams.Changed += (_, _) => RefreshEverything();
         Seats.Changed += (_, _) => RefreshEverything();
         Drivers.Changed += (_, _) => RefreshEverything();
+        Start.Changed += (_, _) => RefreshEverything();
 
         Teams.Said += TabSaid;
         Seats.Said += TabSaid;
         Drivers.Said += TabSaid;
+        Start.Said += TabSaid;
     }
 
     private void TabSaid(object? sender, PanelMessage message) =>
@@ -69,6 +71,7 @@ public partial class MainWindow
         Teams.Show(_project, _document?.Database, TeamSeasonNow);
         Seats.Show(_document, DriverSeasonNow);
         Drivers.Show(_document);
+        Start.Show(_document, DriverSeasonNow);
 
         ApplyAdvancedSwapping(_config.EnableAdvancedSwapping);
         CheckGridIsWhereExpected();
@@ -117,18 +120,21 @@ public partial class MainWindow
         Teams.Show(null, null, TeamSeasonNow);
         Seats.Show(null, DriverSeasonNow);
         Drivers.Show(null);
+        Start.Show(null, DriverSeasonNow);
     }
 
     private void RefreshTabs()
     {
         Seats.Refresh();
         Drivers.Refresh();
+        Start.Refresh();
     }
 
     private void ShowSeasonInTabs()
     {
         Teams.ShowSeason(TeamSeasonNow);
         Seats.ShowSeason(DriverSeasonNow);
+        Start.Show(_document, DriverSeasonNow);
 
         // Each grid sits in its own list, so switching season asks the question
         // again — an old database can hold one of them where we expect and not

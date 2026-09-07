@@ -147,6 +147,9 @@ public static class GridPackager
             }
         }
 
+        // The three drivers on the start screen.
+        document.Start.Apply(database);
+
         ApplyColours(database, TeamSeason.Y2025, y2025.ChangedColours);
 
         if (y2026.AnyNames)
