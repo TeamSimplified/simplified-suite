@@ -151,7 +151,7 @@
                  which the start screen is the first. What it holds says so
                  itself, since the tab name no longer does. -->
             <TabItem Header="Misc" Name="MiscTab">
-                <local:StartPanel x:Name="Start" Margin="18,14,18,14"/>
+                <local:MiscPanel x:Name="Misc" Margin="18,14,18,14"/>
             </TabItem>
         </TabControl>
 

@@ -1,0 +1,17 @@
+<UserControl x:Class="SimplifiedGridEditor.MiscPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+            <TextBlock Style="{StaticResource Hint}" Margin="2,0,2,12" TextWrapping="Wrap"
+                       Text="Where the game shows a driver or a car outside a race. The choices come from the 2026 grid, so a swap made on the Grid tab shows up here straight away."/>
+
+            <TextBlock Name="MiscUnavailableLabel" Visibility="Collapsed"
+                       TextWrapping="Wrap" Margin="2,0,2,12"
+                       Text="This project's database doesn't hold these records, so there is nothing to change here."/>
+
+            <!-- One section per trio, built in code from the list of them. -->
+            <StackPanel Name="Sections"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

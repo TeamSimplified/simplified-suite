@@ -33,12 +33,12 @@ public partial class MainWindow
         Teams.Changed += (_, _) => RefreshEverything();
         Seats.Changed += (_, _) => RefreshEverything();
         Drivers.Changed += (_, _) => RefreshEverything();
-        Start.Changed += (_, _) => RefreshEverything();
+        Misc.Changed += (_, _) => RefreshEverything();
 
         Teams.Said += TabSaid;
         Seats.Said += TabSaid;
         Drivers.Said += TabSaid;
-        Start.Said += TabSaid;
+        Misc.Said += TabSaid;
     }
 
     private void TabSaid(object? sender, PanelMessage message) =>
@@ -71,7 +71,7 @@ public partial class MainWindow
         Teams.Show(_project, _document?.Database, TeamSeasonNow);
         Seats.Show(_document, DriverSeasonNow);
         Drivers.Show(_document);
-        Start.Show(_document, DriverSeasonNow);
+        Misc.Show(_document, DriverSeasonNow);
 
         ApplyAdvancedSwapping(_config.EnableAdvancedSwapping);
         CheckGridIsWhereExpected();
@@ -120,21 +120,21 @@ public partial class MainWindow
         Teams.Show(null, null, TeamSeasonNow);
         Seats.Show(null, DriverSeasonNow);
         Drivers.Show(null);
-        Start.Show(null, DriverSeasonNow);
+        Misc.Show(null, DriverSeasonNow);
     }
 
     private void RefreshTabs()
     {
         Seats.Refresh();
         Drivers.Refresh();
-        Start.Refresh();
+        Misc.Refresh();
     }
 
     private void ShowSeasonInTabs()
     {
         Teams.ShowSeason(TeamSeasonNow);
         Seats.ShowSeason(DriverSeasonNow);
-        Start.Show(_document, DriverSeasonNow);
+        Misc.Show(_document, DriverSeasonNow);
 
         // Each grid sits in its own list, so switching season asks the question
         // again — an old database can hold one of them where we expect and not

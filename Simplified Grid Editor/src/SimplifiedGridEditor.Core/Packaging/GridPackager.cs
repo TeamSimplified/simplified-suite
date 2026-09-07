@@ -147,8 +147,8 @@ public static class GridPackager
             }
         }
 
-        // The three drivers on the start screen.
-        document.Start.Apply(database);
+        // The start screen, the career menu and the featured cars.
+        document.Menus.Apply(database);
 
         ApplyColours(database, TeamSeason.Y2025, y2025.ChangedColours);
 
