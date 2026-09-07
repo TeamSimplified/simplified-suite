@@ -109,10 +109,22 @@
                 <RadioButton DockPanel.Dock="Left" Name="Season2025Chip" Content="2025"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
                              ToolTip="The grid the game ships with"/>
+                <!-- Hidden for now. The grid behind it works — twenty-two seats
+                     read out of the database, with the Teams tab switched off
+                     because F2 has no teams that tab can edit — but the driver
+                     pairing within each team came from kit record order rather
+                     than from the game, and that has been wrong before. Show it
+                     again once the lineup is confirmed in game. -->
                 <RadioButton DockPanel.Dock="Left" Name="SeasonF2Chip" Content="F2 26"
+                             Visibility="Collapsed"
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
                              ToolTip="The 2026 Formula 2 grid. Teams aren't editable for F2."/>
 
+                <!-- Right-docked, so the first declared sits furthest right.
+                     Same order Studio uses: Edit project, Package, Close. -->
+                <Button DockPanel.Dock="Right" Name="CloseProjectButton" Content="Close"
+                        Margin="6,0,0,0" IsEnabled="False" Click="CloseProject_Click"
+                        ToolTip="Put this project away and leave the window open"/>
                 <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
                         Margin="12,0,0,0" IsEnabled="False" Click="Package_Click"
                         ToolTip="Write this project out as a mod anyone can install"/>

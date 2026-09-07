@@ -268,6 +268,22 @@ public partial class MainWindow : Window
         ClearTabs();
     }
 
+    /// <summary>
+    /// Put the open project away without shutting the app, as Studio's Close
+    /// does. New and Open already did this on the way to something else; on its
+    /// own it is how you stop working on a project and leave the window up.
+    /// </summary>
+    private void CloseProject_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null) return;
+        if (!ConfirmDiscardChanges("close this project")) return;
+
+        var name = _project.DisplayName;
+        CloseProject();
+        RefreshEverything();
+        SetStatus($"Closed {name}.", MutedBrush);
+    }
+
     // ── Season ──────────────────────────────────────────────────────────────
 
     private void Season_Checked(object sender, RoutedEventArgs e)
@@ -456,6 +472,7 @@ public partial class MainWindow : Window
         SaveButton.IsEnabled = open;
         EditProjectButton.IsEnabled = open;
         PackageButton.IsEnabled = open;
+        CloseProjectButton.IsEnabled = open;
         Tabs.IsEnabled = open;
 
         RefreshTabs();
