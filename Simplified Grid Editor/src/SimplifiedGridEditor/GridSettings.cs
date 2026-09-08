@@ -32,6 +32,13 @@ public static class GridSettings
         dialog.Row("Game folder:", gameBox, browse);
         var status = dialog.Hint("");
 
+        // Which build the bundled files came from, and whether it is the one
+        // installed. A project is built from those files rather than from the
+        // install, so when the game updates they go stale without saying so —
+        // which is exactly what happened when the F2 26 update moved a grid.
+        var originals = dialog.Hint("");
+        DescribeOriginals(config.GameDir, originals);
+
         browse.Click += (_, _) =>
         {
             var picker = new OpenFolderDialog
@@ -42,7 +49,11 @@ public static class GridSettings
             if (picker.ShowDialog(owner) == true) gameBox.Text = picker.FolderName;
         };
 
-        gameBox.TextChanged += (_, _) => Describe(gameBox.Text, status);
+        gameBox.TextChanged += (_, _) =>
+        {
+            Describe(gameBox.Text, status);
+            DescribeOriginals(gameBox.Text, originals);
+        };
 
         var authorBox = new TextBox
         {
@@ -79,6 +90,39 @@ public static class GridSettings
         config.EnableAdvancedSwapping = advanced.IsChecked == true;
         config.Theme = dialog.Theme;
         return true;
+    }
+
+    /// <summary>
+    /// Say which build the bundled base files are, and whether the install
+    /// agrees with them.
+    ///
+    /// Worth saying out loud because nothing else would: a package is built from
+    /// these files, so an install newer than they are produces a mod made
+    /// against the wrong version of the game, and it would look fine.
+    /// </summary>
+    private static void DescribeOriginals(string? gameDir, TextBlock status)
+    {
+        var info = SimplifiedTeamEditor.Core.OriginalsInfo.Read(Core.AppPaths.OriginalsDir);
+
+        if (info is null || info.Describe().Length == 0)
+        {
+            SimplifiedUi.SettingsDialog.Say(status, "This build doesn't record which game version its base files are.");
+            return;
+        }
+
+        var line = $"Base files: {info.Describe()}.";
+        var matches = info.MatchesInstalled(gameDir);
+
+        // The last argument is a themed resource key, not a colour. An empty one
+        // resolves to nothing and leaves the text whatever the control defaults
+        // to, which is black in either palette; TextMuted is what an ordinary
+        // hint wears, and follows the theme.
+        SimplifiedUi.SettingsDialog.Say(status, matches switch
+        {
+            true => line + " Same as your install.",
+            false => line + " Your install is a different build, so a package would be built against these rather than what you have.",
+            null => line,
+        }, matches == false ? "Danger" : "TextMuted");
     }
 
     /// <summary>

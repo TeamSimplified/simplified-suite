@@ -1,0 +1,12 @@
+{
+  "_comment": "Which build of the game these bundled files were taken from. Read by the apps; update it whenever the files beside it are replaced.",
+  "game": "F1® 25",
+  "game_version": "1.0.141.2878",
+  "taken": "2026-09-07",
+  "note": "The F2 26 update. Adds the f2_2026 entrant list at index 20, which moved every later list down one.",
+  "files": [
+    "gamedatabases.2025.bin",
+    "localisation/language_*.lng",
+    "ui/ui_texarrays_team_branding.erp"
+  ]
+}
