@@ -27,6 +27,21 @@ public partial class MiscPanel : UserControl
     /// <summary>True while the pickers are being filled, so that isn't read as an edit.</summary>
     private bool _filling;
 
+    /// <summary>
+    /// The pickers a person is currently working in.
+    ///
+    /// Whether a selection is somebody's choice cannot be inferred from the
+    /// control's state. Focus in particular is no help: selecting this tab moves
+    /// focus into it, landing on the first picker at the same moment that
+    /// picker's list is built, so the one box most likely to be changed by WPF
+    /// on its own is exactly the one that looks focused while it happens. That
+    /// staged a driver nobody picked.
+    ///
+    /// So intent is taken from the gesture instead — the list opened, or a key
+    /// pressed in the box — and held only until the box is done with.
+    /// </summary>
+    private readonly HashSet<ComboBox> _userDriven = [];
+
     public MiscPanel() => InitializeComponent();
 
     /// <summary>Raised whenever an edit is staged, so the window can mark the project dirty.</summary>
@@ -196,6 +211,20 @@ public partial class MiscPanel : UserControl
                     IsSynchronizedWithCurrentItem = false,
                     Margin = new Thickness(0, 4, 0, 4),
                 };
+                // Opening the list or typing in the box is a person; anything
+                // else changing the selection is not. The flag outlives the
+                // selection event itself, since that arrives while the list is
+                // still open.
+                picker.DropDownOpened += (_, _) => _userDriven.Add(picker);
+                picker.PreviewKeyDown += (_, _) => _userDriven.Add(picker);
+                picker.DropDownClosed += (_, _) => _userDriven.Remove(picker);
+
+                // Deliberately not cleared on lost focus. Opening the list moves
+                // keyboard focus onto the item being hovered, which is the box
+                // losing focus as far as that event is concerned — clearing there
+                // threw the flag away between opening the list and choosing from
+                // it, and no choice registered at all.
+
                 picker.SelectionChanged += (_, _) => Picked(trio, slot);
                 Grid.SetRow(picker, i);
                 Grid.SetColumn(picker, 1);
@@ -268,11 +297,11 @@ public partial class MiscPanel : UserControl
     {
         if (_filling || !trio.Available) return;
 
-        // Only a person choosing counts. WPF re-raises this on its own when a
-        // list is replaced or its containers are first built — which happens the
+        // Only a person choosing counts. WPF raises this on its own when a list
+        // is replaced or its containers are first built — which happens the
         // moment this tab is shown — and that is not an edit.
         var picker = _rows[trio][slot].Picker;
-        if (!picker.IsKeyboardFocusWithin) return;
+        if (!_userDriven.Contains(picker)) return;
 
         if (picker.SelectedItem is not Choice choice || choice.Id == trio.Effective(slot)) return;
 
