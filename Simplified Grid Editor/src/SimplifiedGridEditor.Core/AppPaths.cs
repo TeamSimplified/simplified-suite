@@ -23,10 +23,20 @@ public static class AppPaths
     public static string ConfigFile => Path.Combine(Root, "config.json");
 
     /// <summary>
+    /// What the app needs to run and nobody should be poking at — the native
+    /// libraries, texconv, the icon, the pristine game files. One folder for
+    /// all of it, so the app folder itself is the exe and the user's settings.
+    /// </summary>
+    public static string RuntimeDir => Path.Combine(Root, "runtime");
+
+    /// <summary>The window icon, as a file: see MainWindow.ApplyWindowIcon.</summary>
+    public static string IconFile => Path.Combine(RuntimeDir, "icon.ico");
+
+    /// <summary>
     /// The pristine game files a new project is built from — the database, the
     /// eleven language files, and the team-branding texarray. Bundled rather
     /// than read from the install, so a shared package carries the user's edits
     /// and nothing else their game happens to have in it.
     /// </summary>
-    public static string OriginalsDir => Path.Combine(Root, "runtime", "original");
+    public static string OriginalsDir => Path.Combine(RuntimeDir, "original");
 }

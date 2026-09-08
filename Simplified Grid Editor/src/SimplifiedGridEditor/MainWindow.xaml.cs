@@ -87,7 +87,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The window icon, from the .ico shipped beside the exe. The embedded
+    /// The window icon, from the .ico shipped in runtime\. The embedded
     /// application icon gives the taskbar its picture but not the Alt-Tab entry,
     /// which reads the window's own Icon and otherwise falls back to a blank page.
     /// </summary>
@@ -95,7 +95,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var path = Path.Combine(AppPaths.Root, "icon.ico");
+            var path = AppPaths.IconFile;
             if (!File.Exists(path)) return;
 
             var image = new System.Windows.Media.Imaging.BitmapImage();

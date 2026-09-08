@@ -40,11 +40,13 @@
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
   </ItemGroup>
 
-  <!-- Ship icon.ico loose next to the published EXE. Content items survive
-       PublishSingleFile (None items get stripped); ExcludeFromSingleFile keeps
-       them as separate files instead of embedded. -->
+  <!-- Ship icon.ico in runtime\, joining texconv and the native libraries — one
+       folder of things the app needs and nobody should be poking at, rather
+       than clutter beside the exe. Content items survive PublishSingleFile
+       (None items get stripped); ExcludeFromSingleFile keeps them as separate
+       files instead of embedded. -->
   <ItemGroup>
-    <Content Include="..\..\icon.ico" Link="icon.ico"
+    <Content Include="..\..\icon.ico" Link="runtime\icon.ico"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true"/>

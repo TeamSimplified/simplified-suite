@@ -153,7 +153,7 @@ $Apps = @(
         Project = 'src\SimplifiedGridEditor\SimplifiedGridEditor.csproj'
         Exe = 'Simplified Grid Editor'; Package = 'Simplified Grid Editor'
         Tag = 'grid-v'; Kind = 'window'
-        Ships = @('*.exe', '*.ico', 'runtime\*')
+        Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'
