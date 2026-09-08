@@ -15,16 +15,18 @@ namespace SimplifiedGridEditor.Core.Project;
 /// </summary>
 public sealed class MenuRecords
 {
-    private MenuRecords(MenuTrio startScreen, MenuTrio careerMenu, MenuTrio featuredCars)
+    private MenuRecords(MenuTrio mainMenu, MenuTrio careerMenu, MenuTrio featuredCars)
     {
-        StartScreen = startScreen;
+        MainMenu = mainMenu;
         CareerMenu = careerMenu;
         FeaturedCars = featuredCars;
-        All = [startScreen, careerMenu, featuredCars];
+        All = [mainMenu, careerMenu, featuredCars];
     }
 
-    public MenuTrio StartScreen { get; }
+    public MenuTrio MainMenu { get; }
     public MenuTrio CareerMenu { get; }
+
+    /// <summary>The cars, which are on the career menu rather than the main one.</summary>
     public MenuTrio FeaturedCars { get; }
 
     /// <summary>All three, in the order the tab shows them.</summary>
@@ -45,19 +47,21 @@ public sealed class MenuRecords
     public static MenuRecords Read(GameDatabase database, GameDatabase? original) => new(
         // Export order 1, 2, 3 reads right, left, centre.
         MenuTrio.Read(database, original,
-            "Start screen", "The three drivers standing on the game's start screen.",
+            "Main menu", "The three drivers featured on the main menu.",
             TrioKind.Drivers,
             right: 7405927051429813244, centre: 7405930349964697877, left: 7405929250453069666),
 
         // Export order 1, 2, 3 reads left, right, centre.
         MenuTrio.Read(database, original,
-            "Career menu", "The three drivers on the career menu.",
+            "Career menu", "The three drivers featured on the career menu.",
             TrioKind.Drivers,
             right: 14448577251764907159, centre: 14448579450788163581, left: 14448576152253278948),
 
-        // Export order 1, 2, 3 reads right, centre, left.
+        // Export order 1, 2, 3 reads right, centre, left. These sit on the
+        // career menu, not the main one, despite arriving in the same export as
+        // the main menu's drivers.
         MenuTrio.Read(database, original,
-            "Featured cars", "The three cars featured on the main menu.",
+            "Featured cars", "The three cars featured on the career menu.",
             TrioKind.Cars,
             right: 13435888910351434555, centre: 13435890009863062766, left: 13435891109374690977));
 
