@@ -589,6 +589,19 @@
          Padding and vertical centring carry over from the styles this replaces,
          so nothing in the layout shifts. -->
     <Style TargetType="TextBox">
+        <!-- The little square where the two scrollbars meet belongs to WPF's own
+             ScrollViewer template, which fills it from SystemColors.Control -
+             #F0F0F0, i.e. a white tile in the corner of every dark-mode box with
+             both bars showing. Transparent lets the Chrome border below show
+             through instead, which is right in either palette and for whatever
+             background a caller sets.
+
+             Scoped to this style rather than declared globally: the key is a
+             system brush that stock templates use for real surfaces elsewhere,
+             and making all of those transparent is not the same fix. -->
+        <Style.Resources>
+            <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="Transparent"/>
+        </Style.Resources>
         <Setter Property="Padding" Value="4,4"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Background" Value="{DynamicResource Surface}"/>
@@ -607,6 +620,13 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="4"
                             SnapsToDevicePixels="True">
+                        <!-- The alignment is what centres a one-line field's text,
+                             and it works by letting the host size to its content
+                             rather than fill. In a multi-line box that is wrong
+                             twice over: the horizontal scrollbar rides the bottom
+                             of the TEXT, so it climbs the control as lines are
+                             added, and the vertical bar is only as tall as what
+                             it scrolls. The triggers below stretch it back. -->
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
@@ -615,6 +635,17 @@
                                       VerticalScrollBarVisibility="Hidden"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Multi-line by either route: a box that takes Return,
+                             or one that wraps. Both fill the control. -->
+                        <Trigger Property="AcceptsReturn" Value="True">
+                            <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                        </Trigger>
+                        <Trigger Property="TextWrapping" Value="Wrap">
+                            <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                        </Trigger>
+                        <Trigger Property="TextWrapping" Value="WrapWithOverflow">
+                            <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
                         </Trigger>
@@ -824,10 +855,22 @@
                                 BorderBrush="{DynamicResource BorderStrong}"
                                 BorderThickness="1" CornerRadius="4"
                                 VerticalAlignment="Center" SnapsToDevicePixels="True">
+                            <!-- Stretch, and a size, rather than the geometry at
+                                 its own coordinates. A Shape with Stretch=None
+                                 measures from the origin to the far edge of its
+                                 geometry, so the gap between 0,0 and the tick's
+                                 first point counts as part of the element -
+                                 centring that then puts the ink low and right of
+                                 the box by about a pixel, which is plainly
+                                 visible at 16px. Stretch fits the stroked figure
+                                 to these bounds instead, so centring the element
+                                 centres what you can actually see. -->
                             <Path x:Name="Tick" Visibility="Collapsed"
                                   Data="M 2,6 L 5.5,9.5 L 11,3"
+                                  Stretch="Uniform" Width="10" Height="7.5"
                                   Stroke="White" StrokeThickness="1.8"
                                   StrokeEndLineCap="Round" StrokeStartLineCap="Round"
+                                  StrokeLineJoin="Round"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ContentPresenter x:Name="Label" Margin="8,0,0,0"
