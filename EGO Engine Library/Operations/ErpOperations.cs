@@ -111,9 +111,25 @@ public static class ErpOperations
     /// Fold one or more source archives into <paramref name="target"/>, applied
     /// left to right. <paramref name="overwrite"/> decides who wins when both
     /// hold the same identifier.
+    ///
+    /// <paramref name="include"/> narrows what is taken from each source, by
+    /// identifier. Without it every resource comes across, which is what a plain
+    /// merge means; with it one pass lifts a chosen set out of many archives at
+    /// once. A resource it turns down is not counted as skipped — skipped means
+    /// wanted but already there.
     /// </summary>
-    public static List<MergeTally> Merge(ErpFile target, IEnumerable<string> sourcePaths, bool overwrite)
+    public static List<MergeTally> Merge(ErpFile target, IEnumerable<string> sourcePaths, bool overwrite,
+                                         Func<string, bool>? include = null)
     {
+        // Indexed rather than searched. This used to be a List.Find per source
+        // resource, which is fine for merging a mod into an archive and
+        // quadratic for the job this predicate exists to serve: lifting tens of
+        // thousands of resources out of a whole game install. First-wins on the
+        // way in, matching what Find returned when a target already held two of
+        // the same identifier.
+        var byIdentifier = new Dictionary<string, ErpResource>(target.Resources.Count);
+        foreach (var res in target.Resources) byIdentifier.TryAdd(res.Identifier, res);
+
         var tallies = new List<MergeTally>();
         foreach (var srcPath in sourcePaths)
         {
@@ -121,13 +137,15 @@ public static class ErpOperations
             int added = 0, replaced = 0, skipped = 0;
             foreach (var res in src.Resources)
             {
-                var existing = target.Resources.Find(r => r.Identifier == res.Identifier);
-                if (existing is not null)
+                if (include is not null && !include(res.Identifier)) continue;
+
+                if (byIdentifier.TryGetValue(res.Identifier, out var existing))
                 {
                     if (overwrite)
                     {
                         target.Resources.Remove(existing);
                         RepointAndAdd(target, res);
+                        byIdentifier[res.Identifier] = res;
                         replaced++;
                     }
                     else skipped++;
@@ -135,6 +153,7 @@ public static class ErpOperations
                 else
                 {
                     RepointAndAdd(target, res);
+                    byIdentifier[res.Identifier] = res;
                     added++;
                 }
             }

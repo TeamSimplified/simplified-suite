@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedResourceExtractor.Core</RootNamespace>
+    <AssemblyName>SimplifiedResourceExtractor.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    No archive code of its own. Reading, filtering, merging and stripping are
+    all EgoEngineLibrary operations this calls with paths - including the
+    header-only ErpIndex, which is what makes scanning a whole install
+    affordable. What is here instead is the pattern language, the scan that
+    applies it, and the job that writes the results.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+</Project>

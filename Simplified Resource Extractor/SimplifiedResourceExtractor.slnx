@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedResourceExtractor/SimplifiedResourceExtractor.csproj" />
+  <Project Path="src/SimplifiedResourceExtractor.Core/SimplifiedResourceExtractor.Core.csproj" />
+</Solution>

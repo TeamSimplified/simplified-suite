@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -153,6 +153,17 @@ $Apps = @(
         Project = 'src\SimplifiedGridEditor\SimplifiedGridEditor.csproj'
         Exe = 'Simplified Grid Editor'; Package = 'Simplified Grid Editor'
         Tag = 'grid-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Extractor'; Folder = 'Simplified Resource Extractor'
+        Project = 'src\SimplifiedResourceExtractor\SimplifiedResourceExtractor.csproj'
+        Exe = 'Simplified Resource Extractor'; Package = 'Simplified Resource Extractor'
+        Tag = 'extractor-v'; Kind = 'window'
+        # reference.txt is not in this list on purpose: the app writes it beside
+        # the exe on first run, so it belongs to the user rather than to the
+        # build, and one arriving in a package would mean it had been staged
+        # from a release folder rather than from the publish output.
         Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
