@@ -158,6 +158,16 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(cfg.GameDir))
             GameDirBox.Text = cfg.GameDir;
         UpdateImportExportLabels();
+
+        // An archive handed over by Explorer — "Open with", or a double-click
+        // where somebody has chosen to make that stick.
+        //
+        // ContentRendered rather than Loaded: Loaded fires before the first
+        // paint, and these archives run to hundreds of megabytes, so acting on
+        // Loaded would leave an unpainted window on screen for as long as the
+        // read takes. No ConfirmDiscard, since nothing is open yet to discard.
+        if (App.StartupFile is { } startupFile)
+            ContentRendered += (_, _) => LoadErp(startupFile);
     }
 
     private string? GameDir =>
@@ -465,7 +475,7 @@ public partial class MainWindow : Window
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
         var items = (string[])e.Data.GetData(DataFormats.FileDrop);
-        var erp = items.FirstOrDefault(f => f.EndsWith(".erp", StringComparison.OrdinalIgnoreCase));
+        var erp = items.FirstOrDefault(f => f.EndsWith(App.ErpExtension, StringComparison.OrdinalIgnoreCase));
         if (erp is null) return;
         if (!ConfirmDiscardCurrentErp("open the dropped ERP")) return;
         LoadErp(erp);

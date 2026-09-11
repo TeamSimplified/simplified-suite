@@ -1,6 +1,7 @@
 ﻿using SimplifiedUi;
 using System.Configuration;
 using System.Data;
+using System.IO;
 using System.Windows;
 
 namespace SimplifiedStudio;
@@ -10,6 +11,23 @@ namespace SimplifiedStudio;
 /// </summary>
 public partial class App : Application
 {
+    /// <summary>The only thing this app opens.</summary>
+    public const string ErpExtension = ".erp";
+
+    /// <summary>
+    /// An archive Explorer handed over — from "Open with", or from a
+    /// double-click if somebody has chosen to make that stick.
+    ///
+    /// The app does not register itself for <c>.erp</c> and does not offer to.
+    /// The extension belongs to the game, several tools read it, and one of them
+    /// quietly claiming it is how the others stop being reachable. Taking the
+    /// argument is all "Open with" needs: Windows lists any app a file has been
+    /// pointed at once, whether or not it owns the type.
+    ///
+    /// Matched against the extension this app actually reads, so an unrelated
+    /// argument is ignored rather than guessed at.
+    /// </summary>
+    public static string? StartupFile { get; private set; }
 
     /// <summary>
     /// Put the saved palette in place before the first window is built, so the
@@ -17,6 +35,9 @@ public partial class App : Application
     /// </summary>
     protected override void OnStartup(StartupEventArgs e)
     {
+        StartupFile = e.Args.FirstOrDefault(a =>
+            a.EndsWith(ErpExtension, StringComparison.OrdinalIgnoreCase) && File.Exists(a));
+
         try
         {
             ThemeManager.Apply(Core.Config.UserConfig.Load().Theme);
