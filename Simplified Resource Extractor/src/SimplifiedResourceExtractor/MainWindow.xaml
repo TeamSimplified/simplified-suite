@@ -109,61 +109,133 @@
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Search in:"/>
                 <TextBox   Grid.Row="0" Grid.Column="1" Name="SearchBox" Margin="0,0,0,6"
-                           ToolTip="Every .erp under this folder is looked at. Usually the game install."/>
-                <Button    Grid.Row="0" Grid.Column="2" Style="{StaticResource RowButton}" Margin="6,0,0,6"
-                           Content="Browse" Click="BrowseSearch_Click"/>
+                           TextChanged="SearchBox_TextChanged"
+                           ToolTip="A folder of archives — usually the game install — or one .erp on its own."/>
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button Style="{StaticResource RowButton}" Content="Folder" Click="BrowseSearchFolder_Click"
+                            ToolTip="Search a folder of archives"/>
+                    <Button Style="{StaticResource RowButton}" Content="File" Click="BrowseSearchFile_Click"
+                            ToolTip="Search one archive"/>
+                </StackPanel>
 
                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FieldLabel}" Text="Output to:"/>
                 <TextBox   Grid.Row="1" Grid.Column="1" Name="OutputBox"
                            ToolTip="Where the extracted archives are written."/>
+                <!-- Stretched because the column is sized by the two buttons
+                     above, and a lone Auto-width button would sit against its
+                     left edge with a gap after it. -->
                 <Button    Grid.Row="1" Grid.Column="2" Style="{StaticResource RowButton}" Margin="6,0,0,0"
+                           HorizontalAlignment="Stretch"
                            Content="Browse" Click="BrowseOutput_Click"/>
 
                 <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
                             Orientation="Horizontal" Margin="0,12,0,0">
+                    <CheckBox Name="RecursiveCheck" Content="Search subfolders" IsChecked="True"
+                              Margin="0,0,22,0"
+                              ToolTip="Look in everything beneath the folder, not just the folder itself"/>
                     <CheckBox Name="StripCheck" Content="Strip mipmaps"
                               ToolTip="Pull each texture's full resolution in from the game's .mipmaps files, so the result stands on its own. Needs the game folder, which is in Settings."/>
                     <CheckBox Name="IndividualCheck" Content="Extract individually" Margin="22,0,0,0"
                               ToolTip="One archive per source, rather than everything merged into one"/>
                     <CheckBox Name="PrefixCheck" Content="Add folder name prefix" Margin="22,0,0,0"
-                              ToolTip="Name outputs after the output folder too, for telling one run's results from another's"/>
+                              ToolTip="Put the folder each archive came out of in front of its name, for telling apart archives called the same thing"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Rules on the left, what happened on the right -->
+        <!-- Rules on the left, what happened on the right.
+
+             The buttons are a row of the outer grid rather than a bar docked
+             inside the rules pane. Docked, they took their height out of the
+             rules box alone and the log ran on 34px past its bottom edge; as a
+             row, both panes end level and the buttons sit under the one they
+             belong to. -->
         <Grid Grid.Row="3" Margin="18,4,18,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" MinWidth="240"/>
+                <!-- The minimum is the button row underneath, which measures
+                     304px: a star column clips rather than refusing to shrink,
+                     so at the old 240 dragging the divider left cut Import off
+                     the end. A column cannot be allowed narrower than its own
+                     controls. -->
+                <ColumnDefinition Width="2*" MinWidth="320"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="3*" MinWidth="280"/>
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <DockPanel Grid.Column="0">
+            <DockPanel Grid.Row="0" Grid.Column="0">
                 <DockPanel DockPanel.Dock="Top" LastChildFill="False">
                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource PaneHeading}" Text="RULES"/>
                     <TextBlock DockPanel.Dock="Right" Name="RulesCountLabel"
                                Style="{StaticResource PaneHeading}"/>
                 </DockPanel>
-                <TextBox Name="RulesBox" Style="{StaticResource Editor}"
-                         TextChanged="Rules_TextChanged" LostFocus="Rules_LostFocus"/>
+                <!-- One border around the pair, so the gutter reads as part of
+                     the editor rather than as a second control beside it. -->
+                <Border Background="{DynamicResource Surface}"
+                        BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"
+                        CornerRadius="4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox Name="RulesGutter" Grid.Column="0" Style="{StaticResource Gutter}"/>
+
+                        <!-- A rule between the numbers and the text, the way an
+                             editor draws one. Zero width until there is
+                             something to separate. -->
+                        <Border Grid.Column="1" Width="1" HorizontalAlignment="Left"
+                                Background="{DynamicResource BorderSoft}"/>
+
+                        <TextBox Name="RulesBox" Grid.Column="1" Margin="1,0,0,0"
+                                 Style="{StaticResource BareEditor}"
+                                 TextChanged="Rules_TextChanged" LostFocus="Rules_LostFocus"/>
+                    </Grid>
+                </Border>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch"
+            <!-- Row 0 only. Spanning both rows ran the theme's divider line down
+                 past the bottom of the two panes and alongside the buttons,
+                 which belong to the left one.
+
+                 The width is the spacing: the template centres a 1px line in
+                 whatever room it is given, so 18 leaves the line clear of both
+                 boxes and makes a bigger thing to grab at the same time. -->
+            <GridSplitter Grid.Row="0" Grid.Column="1" Width="18"
+                          HorizontalAlignment="Stretch"
                           Background="Transparent" ResizeBehavior="PreviousAndNext"/>
 
-            <DockPanel Grid.Column="2">
+            <DockPanel Grid.Row="0" Grid.Column="2">
                 <TextBlock DockPanel.Dock="Top" Style="{StaticResource PaneHeading}" Text="LOG"/>
                 <TextBox Name="LogBox" Style="{StaticResource Editor}" IsReadOnly="True"
                          Background="{DynamicResource SurfaceSunken}"/>
             </DockPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Style="{StaticResource RowButton}" Margin="0" Content="Reset"
+                        Click="RulesReset_Click"
+                        ToolTip="Put the list back to the worked example it starts as"/>
+                <Button Style="{StaticResource RowButton}" Content="List from ERP"
+                        Click="RulesFromErp_Click"
+                        ToolTip="Add every resource in an archive to the list, one per line"/>
+                <Button Style="{StaticResource RowButton}" Content="Export"
+                        Click="RulesExport_Click"
+                        ToolTip="Save the list to a text file"/>
+                <Button Style="{StaticResource RowButton}" Content="Import"
+                        Click="RulesImport_Click"
+                        ToolTip="Replace the list with one from a text file"/>
+            </StackPanel>
         </Grid>
 
         <!-- Status -->
         <Border Grid.Row="4" Background="{DynamicResource SurfaceAlt}"
                 BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,10">
             <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"
-                       Text="Point it at a folder, write some rules, and press Scan."/>
+                       Text="Point it at a folder or a single archive, write some rules, and press Scan."/>
         </Border>
     </Grid>
 </Window>

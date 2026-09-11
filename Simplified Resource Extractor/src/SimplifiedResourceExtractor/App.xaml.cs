@@ -45,7 +45,7 @@ public partial class App : Application
             if (Simplified.Shared.GameDirDetector.DetectIfUnset(config.GameDir) is { } found)
             {
                 config.GameDir = found;
-                config.SearchDir ??= found;
+                config.SearchPath ??= found;
                 config.Save();
             }
         }

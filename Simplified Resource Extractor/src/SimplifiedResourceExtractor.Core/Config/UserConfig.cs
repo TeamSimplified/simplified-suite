@@ -16,8 +16,18 @@ public sealed class UserConfig
     /// </summary>
     public string? Theme { get; set; } = "Dark";
 
-    /// <summary>The folder to search. Usually the game install, but any will do.</summary>
-    public string? SearchDir { get; set; }
+    /// <summary>
+    /// What to search: a folder of archives, usually the game install, or a
+    /// single archive named directly.
+    /// </summary>
+    public string? SearchPath { get; set; }
+
+    /// <summary>
+    /// Whether a folder's subfolders are searched too. On by default: the
+    /// question this tool answers is usually "where in the game is this", and
+    /// the game keeps nothing at the top level.
+    /// </summary>
+    public bool Recursive { get; set; } = true;
 
     /// <summary>
     /// The F1 25 install, for the <c>.mipmaps</c> sidecars a texture's full
@@ -42,8 +52,8 @@ public sealed class UserConfig
     public bool ExtractIndividually { get; set; }
 
     /// <summary>
-    /// Name outputs after the output folder as well as themselves, for keeping
-    /// several runs' results apart once they have been moved somewhere together.
+    /// Name outputs after the folder their archive came out of, which is what
+    /// tells apart results whose file names are otherwise the same.
     /// </summary>
     public bool AddFolderPrefix { get; set; }
 
@@ -57,7 +67,25 @@ public sealed class UserConfig
         if (!File.Exists(path)) return new UserConfig();
         try
         {
-            return JsonSerializer.Deserialize<UserConfig>(File.ReadAllText(path)) ?? new UserConfig();
+            var json = File.ReadAllText(path);
+            var config = JsonSerializer.Deserialize<UserConfig>(json) ?? new UserConfig();
+
+            // The setting was called SearchDir while a folder was the only thing
+            // it could be. Carried over so an existing install doesn't open with
+            // the field blank after an update.
+            //
+            // Read from the document rather than from a property kept for the
+            // purpose: a legacy name that lives on the class is one the class
+            // then has to write out as null forever.
+            if (config.SearchPath is null
+                && JsonDocument.Parse(json).RootElement is { ValueKind: JsonValueKind.Object } root
+                && root.TryGetProperty("SearchDir", out var legacy)
+                && legacy.ValueKind == JsonValueKind.String)
+            {
+                config.SearchPath = legacy.GetString();
+            }
+
+            return config;
         }
         catch
         {

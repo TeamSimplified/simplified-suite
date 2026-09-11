@@ -38,7 +38,7 @@ public partial class MainWindow : Window
     private ScanResult? _scan;
 
     /// <summary>What <see cref="_scan"/> was produced from, to know when it is stale.</summary>
-    private (string Folder, string Rules)? _scannedFor;
+    private (string Path, string Rules, bool Recursive)? _scannedFor;
 
     private const int LogFlushMs = 100;
 
@@ -50,7 +50,8 @@ public partial class MainWindow : Window
         SimplifiedUi.FramelessWindow.Attach(this, WindowMaximizeButton);
         ApplyWindowIcon();
 
-        SearchBox.Text = _config.SearchDir ?? "";
+        SearchBox.Text = _config.SearchPath ?? "";
+        RecursiveCheck.IsChecked = _config.Recursive;
         OutputBox.Text = _config.OutputDir ?? "";
         StripCheck.IsChecked = _config.StripMipmaps;
         IndividualCheck.IsChecked = _config.ExtractIndividually;
@@ -61,6 +62,10 @@ public partial class MainWindow : Window
         _logTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(LogFlushMs),
                                         DispatcherPriority.Background, (_, _) => FlushLog(), Dispatcher);
         _logTimer.Stop();
+
+        // The gutter needs the editor's template to exist before it can follow
+        // its scrolling, and that isn't built until the window loads.
+        Loaded += (_, _) => HookGutter();
     }
 
     /// <summary>
@@ -94,9 +99,15 @@ public partial class MainWindow : Window
     {
         try
         {
-            RulesBox.Text = File.Exists(AppPaths.ReferenceFile)
+            // Whitespace counts as absent, not as a list of nothing. A file left
+            // empty - by a half-finished write, or by somebody clearing it -
+            // would otherwise open the app on a blank box with no hint that
+            // there is a syntax at all.
+            var saved = File.Exists(AppPaths.ReferenceFile)
                 ? File.ReadAllText(AppPaths.ReferenceFile)
-                : ReferenceList.DefaultText;
+                : "";
+
+            RulesBox.Text = saved.Trim().Length > 0 ? saved : ReferenceList.DefaultText;
         }
         catch (Exception e)
         {
@@ -133,6 +144,7 @@ public partial class MainWindow : Window
         _scan = null;
         _scannedFor = null;
         DescribeRules();
+        UpdateGutter();
     }
 
     private void Rules_LostFocus(object sender, RoutedEventArgs e) => SaveRules();
@@ -162,13 +174,14 @@ public partial class MainWindow : Window
 
     private async void Run(bool extract)
     {
-        var searchDir = SearchBox.Text.Trim();
+        var searchPath = SearchBox.Text.Trim();
         var outputDir = OutputBox.Text.Trim();
 
-        if (!Directory.Exists(searchDir))
+        if (!Directory.Exists(searchPath) && !File.Exists(searchPath))
         {
             SimplifiedUi.MessageDialog.Show(this,
-                "That folder isn't there.\n\nPick the folder to search — usually the game install.",
+                "That path isn't there.\n\nPick a folder of archives — usually the game install — " +
+                "or one .erp on its own.",
                 "Nothing to search", MessageBoxButton.OK);
             return;
         }
@@ -208,7 +221,13 @@ public partial class MainWindow : Window
         var individual = IndividualCheck.IsChecked == true;
         var prefix = PrefixCheck.IsChecked == true;
         var gameDir = _config.GameDir;
-        var reuse = _scan is not null && _scannedFor == (searchDir, rulesText) ? _scan : null;
+
+        // Recursion only means something for a folder, and the box is disabled
+        // for a single archive - but a disabled box keeps whatever it was last
+        // ticked to, so the value is settled here rather than read raw.
+        var recursive = Directory.Exists(searchPath) && RecursiveCheck.IsChecked == true;
+
+        var reuse = _scan is not null && _scannedFor == (searchPath, rulesText, recursive) ? _scan : null;
 
         // Cleared before anything is written to it, or the first lines of the
         // run would be wiped by their own preamble.
@@ -225,30 +244,37 @@ public partial class MainWindow : Window
 
             if (scan is null)
             {
-                Log($"Scanning {searchDir}...");
+                Log(Directory.Exists(searchPath)
+                    ? $"Scanning {searchPath}{(recursive ? " and everything under it" : ", top level only")}..."
+                    : $"Scanning {searchPath}...");
+
                 var progress = new Progress<ScanProgress>(p =>
                     Status($"Scanned {p.Scanned:N0} of {p.Total:N0} archives — {p.Matches:N0} match(es)"));
 
                 var started = DateTime.UtcNow;
-                scan = await Task.Run(() => ArchiveScanner.Scan(searchDir, rules, progress, token), token);
+                scan = await Task.Run(() => ArchiveScanner.Scan(searchPath, rules, recursive, progress, token), token);
                 var took = DateTime.UtcNow - started;
 
-                Log($"  {scan.ArchivesSeen:N0} archives, {scan.ResourcesSeen:N0} resources, " +
+                Log($"  {Count(scan.ArchivesSeen, "archive")}, {scan.ResourcesSeen:N0} resources, " +
                     $"{took.TotalSeconds:F1}s" +
                     (scan.ArchivesUnreadable > 0 ? $", {scan.ArchivesUnreadable:N0} not readable as ERP" : ""));
 
                 _scan = scan;
-                _scannedFor = (searchDir, rulesText);
+                _scannedFor = (searchPath, rulesText, recursive);
             }
             else
             {
                 Log("Using the last scan — nothing about it has changed.");
             }
 
-            Log($"Matched {scan.MatchedResources:N0} resource(s) in {scan.Matched.Count:N0} archive(s).");
+            Log($"Matched {Count(scan.MatchedResources, "resource")} in {Count(scan.Matched.Count, "archive")}.");
+
+            // Relative to the folder being searched, or to the one holding the
+            // archive when a single file was named.
+            var root = Directory.Exists(searchPath) ? searchPath : Path.GetDirectoryName(searchPath) ?? searchPath;
             foreach (var archive in scan.Matched)
             {
-                Log($"  {archive.Identifiers.Count,6:N0}  {Relative(archive.Path, searchDir)}");
+                Log($"  {archive.Identifiers.Count,6:N0}  {Relative(archive.Path, root)}");
             }
 
             if (scan.Matched.Count == 0)
@@ -259,7 +285,7 @@ public partial class MainWindow : Window
 
             if (!extract)
             {
-                Status($"{scan.MatchedResources:N0} resource(s) in {scan.Matched.Count:N0} archive(s). " +
+                Status($"{Count(scan.MatchedResources, "resource")} in {Count(scan.Matched.Count, "archive")}. " +
                        "Press Extract to write them out.");
                 return;
             }
@@ -271,8 +297,8 @@ public partial class MainWindow : Window
             var result = await Task.Run(() => ExtractionJob.Run(request, Log, token), token);
 
             Log("");
-            Log($"Wrote {result.Written.Count:N0} archive(s), {result.Resources:N0} resource(s) in total.");
-            Status($"Done — {result.Written.Count:N0} archive(s) in {outputDir}");
+            Log($"Wrote {Count(result.Written.Count, "archive")}, {Count(result.Resources, "resource")} in total.");
+            Status($"Done — {Count(result.Written.Count, "archive")} in {outputDir}");
         }
         catch (OperationCanceledException)
         {
@@ -293,6 +319,13 @@ public partial class MainWindow : Window
             _cancel = null;
         }
     }
+
+    /// <summary>
+    /// A count with its noun, pluralised. Searching one archive is now an
+    /// ordinary thing to do, and "1 archive(s)" is what a tool says when nobody
+    /// expected that case.
+    /// </summary>
+    private static string Count(int n, string noun) => $"{n:N0} {noun}{(n == 1 ? "" : "s")}";
 
     /// <summary>
     /// Archive paths under the folder being searched, shown relative to it. A
@@ -359,21 +392,60 @@ public partial class MainWindow : Window
 
     // ── Folders ───────────────────────────────────────────────────────
 
-    private void BrowseSearch_Click(object sender, RoutedEventArgs e) =>
+    private void BrowseSearchFolder_Click(object sender, RoutedEventArgs e) =>
         Browse(SearchBox, "Select the folder to search");
 
     private void BrowseOutput_Click(object sender, RoutedEventArgs e) =>
         Browse(OutputBox, "Select where the results should go");
+
+    private void BrowseSearchFile_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new OpenFileDialog
+        {
+            Title = "Select the archive to search",
+            Filter = "ERP archives|*.erp|All files|*.*",
+            CheckFileExists = true,
+            InitialDirectory = StartingFolder(SearchBox.Text),
+        };
+
+        if (picker.ShowDialog(this) == true) SearchBox.Text = picker.FileName;
+    }
 
     private void Browse(TextBox box, string title)
     {
         var picker = new OpenFolderDialog
         {
             Title = title,
-            InitialDirectory = Directory.Exists(box.Text) ? box.Text : "",
+            InitialDirectory = StartingFolder(box.Text),
         };
 
         if (picker.ShowDialog(this) == true) box.Text = picker.FolderName;
+    }
+
+    /// <summary>
+    /// Where a picker should open, given whatever is in the box. A path naming
+    /// an archive opens the folder holding it, so switching between the two
+    /// buttons doesn't send you back to the top of the drive.
+    /// </summary>
+    private static string StartingFolder(string text)
+    {
+        var path = text.Trim();
+        if (Directory.Exists(path)) return path;
+
+        var parent = Path.GetDirectoryName(path);
+        return Directory.Exists(parent) ? parent : "";
+    }
+
+    /// <summary>
+    /// Subfolders are a question about a folder. Pointed at one archive there is
+    /// nothing beneath it, so the checkbox goes quiet rather than sitting there
+    /// implying the search could be wider than it is.
+    /// </summary>
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var isFolder = !File.Exists(SearchBox.Text.Trim());
+        RecursiveCheck.IsEnabled = isFolder;
+        RecursiveCheck.Opacity = isFolder ? 1 : 0.5;
     }
 
     // ── Chrome ────────────────────────────────────────────────────────
@@ -417,7 +489,8 @@ public partial class MainWindow : Window
 
     private void SaveConfig()
     {
-        _config.SearchDir = Blank(SearchBox.Text);
+        _config.SearchPath = Blank(SearchBox.Text);
+        _config.Recursive = RecursiveCheck.IsChecked == true;
         _config.OutputDir = Blank(OutputBox.Text);
         _config.StripMipmaps = StripCheck.IsChecked == true;
         _config.ExtractIndividually = IndividualCheck.IsChecked == true;

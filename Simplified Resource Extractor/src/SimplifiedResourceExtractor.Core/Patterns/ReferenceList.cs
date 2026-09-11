@@ -79,6 +79,21 @@ public sealed class ReferenceList
             var line = raw.Trim();
             if (line.Length == 0 || line[0] == '#') continue;
 
+            // A line naming a resource outright is that resource, not a pattern
+            // that happens to look like one. Nothing is parsed out of it and
+            // nothing but that identifier matches it.
+            //
+            // This is what makes a list pulled off an archive behave: as
+            // substrings those identifiers over-match, since every one of them
+            // is a prefix of its own .image and of anything else built on the
+            // same name. It also stops a ? or a stray operator inside an eaid
+            // from being read as syntax.
+            if (line.Contains(IdentifierScheme, StringComparison.OrdinalIgnoreCase))
+            {
+                conditions.Add(new Condition(new Exactly(line), []));
+                continue;
+            }
+
             // The first part is what to include; everything after a top-level
             // " - " is a separate reason to reject.
             var parts = SplitTopLevel(line, " - ");
@@ -115,6 +130,9 @@ public sealed class ReferenceList
         return Parse(File.ReadAllText(path));
     }
 
+    /// <summary>What marks a line out as naming one resource rather than describing many.</summary>
+    public const string IdentifierScheme = "eaid://";
+
     /// <summary>What a new <c>reference.txt</c> starts as.</summary>
     public const string DefaultText = """
         # One rule per line. A resource is taken when any line matches it.
@@ -125,10 +143,57 @@ public sealed class ReferenceList
         #   livery_v?_d           ? stands for any one digit
         #
         # The spaces around + | - are part of them, so a hyphen inside a term is
-        # just a hyphen. Terms match anywhere in the resource's eaid, so pasting
-        # a whole identifier works as a rule on its own.
+        # just a hyphen. Terms match anywhere in the resource's eaid.
+        #
+        # A line containing eaid:// is that one resource exactly. None of the
+        # above applies to it - which is what "List from ERP" writes.
 
         """;
+
+    /// <summary>
+    /// Add identifiers to a rule list, under a heading saying where they came
+    /// from, skipping any the list already has.
+    ///
+    /// Appended rather than substituted: the archive is a source of rules to
+    /// pick over, not the whole answer, and somebody has usually written
+    /// something above it already.
+    /// </summary>
+    public static string Append(string rulesText, IEnumerable<string> identifiers, string source)
+    {
+        var existing = rulesText
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var added = identifiers
+            .Select(i => i.Trim())
+            .Where(i => i.Length > 0 && existing.Add(i))
+            .ToList();
+
+        if (added.Count == 0) return rulesText;
+
+        var text = new StringBuilder(rulesText.TrimEnd());
+        if (text.Length > 0) text.AppendLine().AppendLine();
+
+        text.Append("# ").Append(added.Count).Append(added.Count == 1 ? " resource from " : " resources from ")
+            .AppendLine(source);
+        foreach (var identifier in added) text.AppendLine(identifier);
+
+        return text.ToString();
+    }
+
+    /// <summary>How many of these are already in the list, for reporting.</summary>
+    public static int CountAlreadyPresent(string rulesText, IEnumerable<string> identifiers)
+    {
+        var existing = rulesText
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return identifiers.Count(i => existing.Contains(i.Trim()));
+    }
 
     // ── Parsing ───────────────────────────────────────────────────────
 
@@ -282,6 +347,13 @@ public sealed class ReferenceList
     private interface INode
     {
         bool Matches(string identifier);
+    }
+
+    /// <summary>One named resource, and only that one.</summary>
+    private sealed class Exactly(string identifier) : INode
+    {
+        public bool Matches(string candidate) =>
+            string.Equals(candidate, identifier, StringComparison.Ordinal);
     }
 
     /// <summary>Every part, for <c> + </c>.</summary>

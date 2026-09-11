@@ -10,7 +10,7 @@ namespace SimplifiedResourceExtractor.Core.Extract;
 /// <param name="OutputDir">Where results land.</param>
 /// <param name="Individual">One output per source archive rather than one merged.</param>
 /// <param name="StripMipmaps">Fold external mip chains in, so the output stands alone.</param>
-/// <param name="AddFolderPrefix">Name outputs after the output folder too.</param>
+/// <param name="AddFolderPrefix">Name outputs after the folder they came out of.</param>
 /// <param name="GameDir">The install the <c>.mipmaps</c> sidecars live in. Stripping needs it.</param>
 public sealed record JobRequest(
     ScanResult Scan,
@@ -77,7 +77,7 @@ public static class ExtractionJob
 
         log?.Invoke($"  {output.Resources.Count:N0} resources collected.");
 
-        var name = Decorate(request, MergedName);
+        var name = Decorate(request, MergedName, SourceFolderName(paths));
         var written = Finish(output, Path.Combine(request.OutputDir, name + ".erp"), request, log);
 
         return new JobResult([written], output.Resources.Count);
@@ -103,12 +103,15 @@ public static class ExtractionJob
 
             // Two archives under different folders can share a file name -
             // every team's wep\ holds one - so the second gets a number rather
-            // than overwriting the first.
-            var stem = Path.GetFileNameWithoutExtension(archive.Path) + "_extracted";
+            // than overwriting the first. The folder prefix usually tells them
+            // apart before it comes to that, since the folder is what differs.
+            var stem = Decorate(request, Path.GetFileNameWithoutExtension(archive.Path) + "_extracted",
+                                SourceFolderName([archive.Path]));
+
             used[stem] = used.GetValueOrDefault(stem) + 1;
             if (used[stem] > 1) stem += "_" + used[stem];
 
-            var path = Path.Combine(request.OutputDir, Decorate(request, stem) + ".erp");
+            var path = Path.Combine(request.OutputDir, stem + ".erp");
 
             log?.Invoke($"{Path.GetFileName(archive.Path)} - {output.Resources.Count:N0} resource(s)");
             written.Add(Finish(output, path, request, log));
@@ -180,15 +183,49 @@ public static class ExtractionJob
     }
 
     /// <summary>
-    /// The output folder's name in front, when asked for. It exists for the
-    /// case where several runs' results end up in one place and nothing about
-    /// the file says which run it came from.
+    /// The source folder's name in front, when asked for.
+    ///
+    /// The folder the archives came OUT of, not the one they are going in to:
+    /// the destination is the same for everything in a run and says nothing
+    /// about any of it, while the source is exactly what tells two outputs apart
+    /// — the install holds six <c>liam_lawson.erp</c>, identical in name and
+    /// different only in which asset group they sit under.
     /// </summary>
-    private static string Decorate(JobRequest request, string name)
-    {
-        if (!request.AddFolderPrefix) return name;
+    private static string Decorate(JobRequest request, string name, string sourceFolder) =>
+        request.AddFolderPrefix && sourceFolder.Length > 0 ? sourceFolder + "_" + name : name;
 
-        var folder = new DirectoryInfo(request.OutputDir).Name;
-        return string.IsNullOrEmpty(folder) ? name : folder + "_" + name;
+    /// <summary>
+    /// The deepest folder holding everything that went into one output: an
+    /// archive's own folder when it is the only one, and the folder they share
+    /// when several were merged.
+    ///
+    /// Merging has no single source, so the honest answer is the point at which
+    /// they meet. Matches scattered across an install meet at its root, which
+    /// still names the thing they came out of.
+    /// </summary>
+    private static string SourceFolderName(IReadOnlyList<string> archivePaths)
+    {
+        if (archivePaths.Count == 0) return "";
+
+        var common = Path.GetDirectoryName(archivePaths[0])?.Split(Path.DirectorySeparatorChar) ?? [];
+
+        foreach (var path in archivePaths.Skip(1))
+        {
+            var parts = Path.GetDirectoryName(path)?.Split(Path.DirectorySeparatorChar) ?? [];
+            var shared = 0;
+            while (shared < common.Length && shared < parts.Length
+                   && string.Equals(common[shared], parts[shared], StringComparison.OrdinalIgnoreCase))
+            {
+                shared++;
+            }
+
+            common = common[..shared];
+            if (common.Length == 0) break;
+        }
+
+        // A drive root splits to "D:" and an empty segment; neither is a name
+        // worth putting in front of a file.
+        var last = common.LastOrDefault(p => p.Length > 0 && !p.EndsWith(':')) ?? "";
+        return last;
     }
 }

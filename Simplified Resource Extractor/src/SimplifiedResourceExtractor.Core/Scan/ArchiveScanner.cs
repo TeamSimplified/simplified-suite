@@ -49,12 +49,43 @@ public static class ArchiveScanner
     /// </summary>
     private const int ReportEvery = 64;
 
-    /// <summary>Search <paramref name="folder"/> and everything under it.</summary>
-    public static ScanResult Scan(string folder, ReferenceList rules,
+    /// <summary>
+    /// The archives a path stands for: the one named, when it is a file, or the
+    /// ones under it when it is a folder.
+    ///
+    /// A folder is decided by <see cref="Directory.Exists"/> rather than by
+    /// looking at the extension — a folder can be called anything, and an
+    /// archive is not always called .erp when somebody has renamed it to open it
+    /// here.
+    /// </summary>
+    public static string[] Archives(string path, bool recursive)
+    {
+        if (Directory.Exists(path))
+        {
+            return Directory.GetFiles(path, "*" + ErpExtension,
+                recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+        }
+
+        // Named directly, so it is taken at its word. Whether it is really an
+        // archive is ErpIndex's question, and it answers it by reading the file.
+        return File.Exists(path) ? [path] : [];
+    }
+
+    /// <summary>What an archive is normally called.</summary>
+    public const string ErpExtension = ".erp";
+
+    /// <summary>
+    /// Search <paramref name="path"/> — one archive, or a folder of them.
+    /// </summary>
+    /// <param name="recursive">
+    /// Whether a folder's subfolders are searched too. Ignored when the path is
+    /// a single archive, which has no subfolders to have an opinion about.
+    /// </param>
+    public static ScanResult Scan(string path, ReferenceList rules, bool recursive = true,
                                   IProgress<ScanProgress>? progress = null,
                                   CancellationToken cancel = default)
     {
-        var files = Directory.GetFiles(folder, "*.erp", SearchOption.AllDirectories);
+        var files = Archives(path, recursive);
 
         var matched = new List<ScannedArchive>();
         var scanned = 0;

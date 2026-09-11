@@ -58,6 +58,46 @@
                 <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
                 <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
             </Style>
+
+            <!-- The rules editor and its line-number gutter sit inside one
+                 border of their own, so each drops the chrome the TextBox
+                 template would otherwise draw around it. -->
+            <Style x:Key="BareEditor" TargetType="TextBox" BasedOn="{StaticResource Editor}">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+            </Style>
+
+            <!--
+                The line numbers.
+
+                A TextBox, sharing the editor's style, because the numbers have
+                to sit on the same baselines as the text beside them and two
+                TextBoxes with the same font agree by construction. A TextBlock
+                does not: it places the baseline differently inside the line box,
+                and lining the boxes up still left the digits half a row out.
+
+                Deliberately NOT IsReadOnly. The shared template repaints the
+                background SurfaceAlt when that is set, and a TargetName trigger
+                inside a template cannot be overridden from outside it - the
+                gutter came out as a grey stripe. Unfocusable and untouchable
+                gets the same result: there is no way to put a caret in it.
+
+                HorizontalScrollBarVisibility must be Disabled rather than
+                Hidden. Hidden leaves the content scrollable, and right-aligned
+                text in a box only as wide as its digits then sits scrolled out
+                of sight - a gutter that draws nothing at all.
+            -->
+            <Style x:Key="Gutter" TargetType="TextBox" BasedOn="{StaticResource BareEditor}">
+                <Setter Property="Focusable" Value="False"/>
+                <Setter Property="IsHitTestVisible" Value="False"/>
+                <Setter Property="IsTabStop" Value="False"/>
+                <Setter Property="IsUndoEnabled" Value="False"/>
+                <Setter Property="TextAlignment" Value="Right"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
+                <Setter Property="Padding" Value="8,6,6,6"/>
+                <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
+                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
