@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedSponsorEditor.Core</RootNamespace>
+    <AssemblyName>SimplifiedSponsorEditor.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    No archive or texture code of its own. Reading the sponsor archives,
+    encoding a PNG into one and merging the result into a shader package are all
+    EgoEngineLibrary operations this calls with paths.
+
+    No image code either, which is why this is still plain net10.0 rather than
+    net10.0-windows: the one picture operation the app needs - letterboxing a
+    square decal onto the menu thumbnail's aspect - happens where the artwork is
+    chosen, so what reaches here is always a PNG that texconv can take as it is.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+</Project>

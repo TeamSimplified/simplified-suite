@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedSponsorEditor/SimplifiedSponsorEditor.csproj" />
+  <Project Path="src/SimplifiedSponsorEditor.Core/SimplifiedSponsorEditor.Core.csproj" />
+</Solution>

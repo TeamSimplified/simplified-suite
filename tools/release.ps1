@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -164,6 +164,13 @@ $Apps = @(
         # the exe on first run, so it belongs to the user rather than to the
         # build, and one arriving in a package would mean it had been staged
         # from a release folder rather than from the publish output.
+        Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Sponsor'; Folder = 'Simplified Sponsor Editor'
+        Project = 'src\SimplifiedSponsorEditor\SimplifiedSponsorEditor.csproj'
+        Exe = 'Simplified Sponsor Editor'; Package = 'Simplified Sponsor Editor'
+        Tag = 'sponsor-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{

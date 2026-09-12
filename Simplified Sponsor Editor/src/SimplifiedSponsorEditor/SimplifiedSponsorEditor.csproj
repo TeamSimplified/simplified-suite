@@ -1,0 +1,89 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedSponsorEditor</RootNamespace>
+    <AssemblyName>Simplified Sponsor Editor</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- Off deliberately. Turning it on embeds the native libraries in the
+         single file, and the host then extracts them to %TEMP%\.net at startup:
+         once per build, never cleaned up, and outside the app folder - which
+         this app does not do. They publish as files instead, and
+         MoveNativesIntoRuntimeFolder below tidies them away. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimplifiedSponsorEditor.Core\SimplifiedSponsorEditor.Core.csproj" />
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
+  <!-- The other half of MoveNativesIntoRuntimeFolder below: nothing looks in a
+       subfolder by default, so the app has to say where they went. Linked from
+       Shared rather than copied, so every app resolves them the same way - and
+       finds the game install the same way. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+  </ItemGroup>
+
+  <!-- Everything the app needs and nobody should be poking at goes in runtime\,
+       so what sits beside the exe is the exe and the user's config.json.
+       Content items survive PublishSingleFile (None items get stripped);
+       ExcludeFromSingleFile keeps them as separate files instead of embedded. -->
+  <ItemGroup>
+    <Content Include="..\..\icon.ico" Link="runtime\icon.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+
+    <!-- texconv, which encodes a PNG into the compressed form a texture holds.
+         It is a separate process, so it has to stay a real file on disk;
+         TexconvRunner looks for it here. Taken from the Team Editor's copy
+         rather than a second one of our own. -->
+    <Content Include="..\..\..\Simplified Team Editor\tools\texconv.exe"
+             Link="runtime\texconv.exe"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <!-- The pristine sponsor archives every project is read against: what decals
+       exist, what they are called, and what each one currently looks like.
+
+       Shared by every project rather than copied into each. They are read-only
+       reference - a project holds the pictures somebody chose, and these say
+       what those pictures replace - so there is nothing for a project to own. -->
+  <ItemGroup>
+    <Content Include="..\..\original\**\*"
+             Link="runtime\original\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+      <PublishedNativeLibrary Include="$(PublishDir)x64\*.dll"/>
+      <UnusedArchitectureNative Include="$(PublishDir)x86\**\*"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+    <Delete Files="@(UnusedArchitectureNative)"/>
+    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86"/>
+  </Target>
+
+</Project>
