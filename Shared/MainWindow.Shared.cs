@@ -1,6 +1,7 @@
-using SimplifiedUi;
+﻿using SimplifiedUi;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using SimplifiedStudio.Core.Config;
@@ -1006,6 +1007,429 @@ public partial class MainWindow
             .ToList();
 
         return parts.Count == 0 ? "All files|*.*" : string.Join("|", parts);
+    }
+
+    // ─────────────────────── Drop onto a row ──────────────────────────
+    //
+    // Dragging a file onto the row it replaces. The same import the Import
+    // button runs, aimed by the pointer instead of by the selection — which is
+    // the whole gain: replacing six textures stops being six rounds of select,
+    // Import, find the file, confirm.
+    //
+    // Deliberately narrow. The list takes exactly one file that one row can be
+    // replaced from; anything else is left alone and bubbles up to the window,
+    // so dropping an ERP on the list still opens it as it always did.
+
+    /// <summary>The row lit up as the drop target, so it can be put back.</summary>
+    private System.Windows.Controls.ListBoxItem? _dropRow;
+
+    /// <summary>
+    /// True while this list is the source of a drag, which makes it refuse to
+    /// be the target of one.
+    ///
+    /// The two halves would otherwise meet in the middle: a drag started to
+    /// take a texture out, then let go of over the list — a change of mind, a
+    /// slipped button — would land those very bytes on whatever row happened to
+    /// be underneath. It is undoable and the log says so, but it is not
+    /// something anybody meant, and dropping a resource onto a resource has no
+    /// agreed meaning to be worth the accident.
+    /// </summary>
+    private bool _draggingOut;
+
+    private void TextureList_DragOver(object sender, DragEventArgs e)
+    {
+        if (_draggingOut)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        var (container, row) = RowUnderPointer(e);
+        if (row is null)
+        {
+            // Not ours. Left unhandled so the window's own handler still sees
+            // it — an ERP dropped anywhere, including on the list, opens.
+            ClearDropRow();
+            return;
+        }
+
+        e.Handled = true;
+        var file = DroppedFile(e)!;
+
+        if (!CanDropOnto(row, file, out _))
+        {
+            // The cursor says no rather than a dialog: the answer is needed
+            // while the file is still in the air, and there is nowhere to put
+            // a sentence at that point.
+            ClearDropRow();
+            e.Effects = DragDropEffects.None;
+            return;
+        }
+
+        LightUp(container!);
+        e.Effects = DragDropEffects.Copy;
+    }
+
+    private void TextureList_DragLeave(object sender, DragEventArgs e) => ClearDropRow();
+
+    private async void TextureList_Drop(object sender, DragEventArgs e)
+    {
+        ClearDropRow();
+        if (_draggingOut) return;
+
+        var (_, row) = RowUnderPointer(e);
+        if (row is null) return;
+
+        e.Handled = true;
+        var file = DroppedFile(e)!;
+
+        // Refused at DragOver, so this only arrives from a drop the cursor
+        // already said no to — a race, or a shell that ignored the effect.
+        if (!CanDropOnto(row, file, out var why))
+        {
+            ShowMessage(why, "Import", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        await ImportDropped(row, file);
+    }
+
+    /// <summary>
+    /// The row under the pointer and its container, or nulls when this drag is
+    /// not one the list should take: more than one file, an ERP, or open space.
+    /// </summary>
+    private (System.Windows.Controls.ListBoxItem? Container, ResourceListItem? Row) RowUnderPointer(DragEventArgs e)
+    {
+        if (DroppedFile(e) is null) return (null, null);
+
+        var hit = TextureList.InputHitTest(e.GetPosition(TextureList)) as DependencyObject;
+        while (hit is not null and not System.Windows.Controls.ListBoxItem)
+            hit = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+
+        return hit is System.Windows.Controls.ListBoxItem container
+            ? (container, container.DataContext as ResourceListItem)
+            : (null, null);
+    }
+
+    /// <summary>
+    /// The one file being dragged, or null when the drag is not a single file
+    /// this list has any business with.
+    ///
+    /// An ERP is excluded on purpose: it belongs to the window, which loads it.
+    /// Several files at once are excluded too — one file into one row is a rule
+    /// with no ambiguity in it, where a handful of files over a list would have
+    /// to guess at pairing them up, and guessing wrong overwrites a texture.
+    /// </summary>
+    private static string? DroppedFile(DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return null;
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: 1 } files) return null;
+
+        var file = files[0];
+        if (!File.Exists(file)) return null;
+        return Path.GetExtension(file).Equals(".erp", StringComparison.OrdinalIgnoreCase) ? null : file;
+    }
+
+    /// <summary>Whether this row can be replaced from this file, and why not when it can't.</summary>
+    private static bool CanDropOnto(ResourceListItem row, string file, out string why)
+    {
+        var name = Path.GetFileName(file);
+
+        if (!ImportAccepts(row, file))
+        {
+            var takes = ImportExtensionsFor(row);
+            why = takes.Length == 0
+                ? $"{row.FileName} isn't a resource this app can replace."
+                : $"{name} can't replace {row.FileName} — that row takes {string.Join(" or ", takes)}.";
+            return false;
+        }
+
+        if (row is TextureVm texture
+            && Path.GetExtension(file).Equals(".png", StringComparison.OrdinalIgnoreCase)
+            && !TexconvRunner.IsSupportedForPngConversion(texture.ImageType))
+        {
+            why = $"{row.FileName} is {texture.ImageType}, which can't be replaced from PNG " +
+                  "(BC6H/HDR isn't supported). Drop a DDS in the same format instead.";
+            return false;
+        }
+
+        why = "";
+        return true;
+    }
+
+    private async Task ImportDropped(ResourceListItem row, string file)
+    {
+        var name = Path.GetFileName(file);
+        var fromPng = Path.GetExtension(file).Equals(".png", StringComparison.OrdinalIgnoreCase);
+
+        // A texture array is previewed one slice at a time, and the slice picker
+        // belongs to whatever is selected. So a drop onto the selected row lands
+        // on the slice being looked at, and a drop onto any other row — which
+        // has no visible slice — lands on the first.
+        var onSelection = ReferenceEquals(row, TextureList.SelectedItem);
+        var slice = onSelection ? _sliceIndex : 0u;
+
+        SetBulkButtonsEnabled(false);
+        try
+        {
+            TakeUndoSnapshot($"import {name} into {row.FileName}");
+            var gd = GameDir;
+
+            if (row is TextureVm texture)
+            {
+                var result = await Task.Run(() => fromPng
+                    ? TextureIO.ImportPng(texture, file, _runner, gd, slice, _pendingMips)
+                    : TextureIO.ImportDds(texture, file, gd, slice, _pendingMips));
+
+                var sliceTag = texture.ArraySize > 1 ? $" [slice {slice + 1}/{texture.ArraySize}]" : "";
+                Log($"Dropped {name} → {texture.FileName}  " +
+                    $"({result.Width}×{result.Height} {texture.ImageType}){sliceTag}");
+
+                if (result.ResizedFrom is { } arrived)
+                    Log($"  resized from {arrived.Width}×{arrived.Height} to fit the array's slice size.");
+                if (result.MipMapsWrittenTo is not null && !result.MipMapsPending)
+                    Log($"  .mipmaps written to {result.MipMapsWrittenTo}");
+
+                MarkDirty(texture);
+                if (onSelection) ShowPreviewForItem(texture);
+            }
+            else
+            {
+                await Task.Run(() => ResourceFileIO.Import(row, file));
+                Log($"Dropped {name} → {row.FileName}  ({row.KindTag})");
+                MarkDirty(row);
+
+                // These rows cache their parsed form, so the row object has to be
+                // rebuilt from the new bytes before the preview can show it.
+                var identifiers = SelectedResources().Select(r => r.Identifier).ToList();
+                RebuildTextureList();
+                ReselectByIdentifiers(identifiers);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"!! Import failed: {ex.Message}");
+            ShowMessage(ex.Message, "Import failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            SetBulkButtonsEnabled(true);
+        }
+    }
+
+    // ─────────────────────── Drag a row out ───────────────────────────
+    //
+    // The other direction: drag rows onto a folder, a paint program, anywhere
+    // that takes files, and get what Export would have written.
+    //
+    // A drop target is handed file paths, not bytes, so the rows are exported
+    // into a temp folder first and it is those paths that travel. That is how
+    // anything that drags a file out of itself works — the alternative, handing
+    // over the bytes on demand, means implementing a COM data object for a file
+    // that is about to be written to disk anyway.
+
+    /// <summary>Where the pointer went down, to tell a drag from a click.</summary>
+    private Point _dragOrigin;
+
+    /// <summary>
+    /// What a drag would carry, captured on mouse-down.
+    ///
+    /// The list collapses a multiple selection down to the row under the
+    /// pointer the moment the button goes down, so by the time the drag
+    /// threshold is passed the other rows are no longer selected. This is the
+    /// selection as it was a few pixels ago.
+    /// </summary>
+    private List<ResourceListItem> _dragRows = [];
+
+    /// <summary>
+    /// The folder the last drag exported into, cleared when the next one
+    /// starts. It sits under the system temp directory, so what a killed
+    /// session leaves behind is Windows' to sweep up.
+    /// </summary>
+    private string? _lastDragFolder;
+
+    /// <summary>
+    /// How many rows one drag will carry. Every one of them is written out
+    /// before the drag can begin — a drop target has to be handed real files —
+    /// and a PNG export is a texconv run each, so a whole archive dragged at
+    /// once would be a long freeze with nothing to watch and no way to stop it.
+    /// Export selected does that job with a log running behind it.
+    /// </summary>
+    private const int MaxDraggedRows = 25;
+
+    private void TextureList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragOrigin = e.GetPosition(null);
+        _dragRows = [];
+
+        if (RowFrom(e.OriginalSource) is not { } row) return;
+
+        var selection = SelectedResources();
+        _dragRows = selection.Contains(row) ? selection : [row];
+    }
+
+    private void TextureList_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_dragRows.Count == 0 || e.LeftButton != MouseButtonState.Pressed) return;
+
+        var moved = e.GetPosition(null) - _dragOrigin;
+        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+        var rows = _dragRows;
+        _dragRows = [];   // one drag per press, however far the pointer wanders
+        DragRowsOut(rows);
+    }
+
+    /// <summary>
+    /// Write the rows out and hand their paths to the drag. Synchronous on
+    /// purpose: a drag has to start while the button is still down, and
+    /// awaiting the export would let go of the gesture it belongs to.
+    /// </summary>
+    private void DragRowsOut(List<ResourceListItem> rows)
+    {
+        if (rows.Count > MaxDraggedRows)
+        {
+            ShowMessage(
+                $"Dragging out carries up to {MaxDraggedRows} rows at a time, and {rows.Count} are selected.\n\n" +
+                "Every one is written to disk before the drag can start, so a selection this size would hold " +
+                "the window still with nothing to watch. Export selected does the same job with a log.",
+                "Too many to drag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var format = TextureFileFormat;
+        var textureExt = format == "PNG" ? ".png" : ".dds";
+
+        // PNG is a texconv conversion and it refuses BC6H/HDR, so those rows
+        // are left out rather than failing the drag. DDS is the bytes as they
+        // are already stored, so nothing is ever skipped for it.
+        var targets = rows
+            .Where(r => r is not TextureVm t || format == "DDS" || TexconvRunner.IsSupportedForPngConversion(t.ImageType))
+            .ToList();
+
+        if (targets.Count == 0)
+        {
+            ShowMessage(
+                $"Nothing here can be exported as {format} — BC6H/HDR textures can't be converted to PNG. " +
+                "Switch the file format to DDS in Settings.",
+                "Nothing to drag", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // The last drag's files go now rather than at the end of this one. A
+        // drop target copies them inside the drop itself, but one that deferred
+        // the copy would find them already deleted.
+        ClearLastDragFolder();
+        var folder = Path.Combine(Path.GetTempPath(), "simplified-studio", "drag", Guid.NewGuid().ToString("N"));
+
+        var files = new List<string>();
+        var previousCursor = Mouse.OverrideCursor;
+        try
+        {
+            Mouse.OverrideCursor = Cursors.Wait;
+            Directory.CreateDirectory(folder);
+            _lastDragFolder = folder;
+
+            var gameDir = GameDir;
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var vm in targets)
+            {
+                // Flat, so what lands in the folder somebody drops on is files
+                // rather than a tree. Two ERPs can hold the same name, so a
+                // repeat is numbered instead of overwriting the first.
+                var name = vm is TextureVm
+                    ? vm.FileName.Replace("?", "%3F") + textureExt
+                    : ResourceFileIO.FileNameFor(vm);
+
+                var unique = name;
+                for (var n = 2; !used.Add(unique); n++)
+                    unique = $"{Path.GetFileNameWithoutExtension(name)} ({n}){Path.GetExtension(name)}";
+
+                var path = Path.Combine(folder, unique);
+
+                if (vm is TextureVm texture)
+                {
+                    // Slice 0, as the bulk export does: a row that isn't the
+                    // selected one has no slice on screen to mean anything else.
+                    if (format == "PNG") TextureIO.ExportPng(texture, path, _runner, gameDir, 0, _pendingMips);
+                    else TextureIO.ExportDds(texture, path, gameDir, 0, _pendingMips);
+                }
+                else
+                {
+                    ResourceFileIO.Export(vm, path);
+                }
+
+                files.Add(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Mouse.OverrideCursor = previousCursor;
+            Log($"!! Couldn't prepare the drag: {ex.Message}");
+            ShowMessage(ex.Message, "Export failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        finally
+        {
+            Mouse.OverrideCursor = previousCursor;
+        }
+
+        var data = new DataObject(DataFormats.FileDrop, files.ToArray());
+
+        DragDropEffects effect;
+        _draggingOut = true;
+        try
+        {
+            effect = DragDrop.DoDragDrop(TextureList, data, DragDropEffects.Copy);
+        }
+        finally
+        {
+            _draggingOut = false;
+        }
+
+        // Dropped on nothing, or let go outside a target. Nothing was taken, so
+        // there is nothing to report.
+        if (effect == DragDropEffects.None) return;
+
+        var skipped = rows.Count - targets.Count;
+        Log(files.Count == 1
+            ? $"Dragged out {Path.GetFileName(files[0])}."
+            : $"Dragged out {files.Count} file(s) as {format}." +
+              (skipped > 0 ? $" {skipped} skipped — BC6H/HDR can't be PNG." : ""));
+    }
+
+    private void ClearLastDragFolder()
+    {
+        if (_lastDragFolder is null) return;
+        try { if (Directory.Exists(_lastDragFolder)) Directory.Delete(_lastDragFolder, recursive: true); }
+        catch { /* temp, and Windows clears it */ }
+        _lastDragFolder = null;
+    }
+
+    /// <summary>
+    /// The row an event came from, or null when it came from the space below
+    /// the rows, or from a group header.
+    /// </summary>
+    private ResourceListItem? RowFrom(object? source) =>
+        (System.Windows.Controls.ItemsControl.ContainerFromElement(TextureList, source as DependencyObject)
+            as System.Windows.Controls.ListBoxItem)?.DataContext as ResourceListItem;
+
+    private void LightUp(System.Windows.Controls.ListBoxItem container)
+    {
+        if (ReferenceEquals(_dropRow, container)) return;
+        ClearDropRow();
+        DropHighlight.SetIsOver(container, true);
+        _dropRow = container;
+    }
+
+    private void ClearDropRow()
+    {
+        if (_dropRow is null) return;
+        DropHighlight.SetIsOver(_dropRow, false);
+        _dropRow = null;
     }
 
     /// <summary>Dialog label for an import extension: ".dds" reads "DDS image".</summary>

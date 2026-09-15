@@ -249,6 +249,14 @@ public partial class MainWindow : Window
     private string? GameDir =>
         string.IsNullOrWhiteSpace(GameDirBox.Text) ? null : GameDirBox.Text.Trim();
 
+    /// <summary>
+    /// The texture format Settings is set to — "DDS" or "PNG", never anything
+    /// else. The shared half of the window needs this and the two apps keep
+    /// their settings in differently-named files, so each states it here.
+    /// </summary>
+    private string TextureFileFormat =>
+        TeamConfig.Load().FileFormat.ToUpperInvariant() is "PNG" ? "PNG" : "DDS";
+
     // ─────────────────────── File menu ─────────────────────────────────
 
     private void OpenErp_Click(object sender, RoutedEventArgs e)

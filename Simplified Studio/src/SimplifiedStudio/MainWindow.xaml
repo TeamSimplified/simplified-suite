@@ -245,9 +245,19 @@
                      kinds actually loaded — so no chip is ever shown for a type
                      this project doesn't contain. -->
                 <WrapPanel Name="KindChips" DockPanel.Dock="Top" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <!-- A file dropped on a row replaces that resource. The handlers
+                     take only a single file a row can actually be replaced
+                     from, and leave everything else unhandled, so an ERP
+                     dropped on the list still reaches the window and opens. -->
                 <ListBox Name="TextureList" SelectionChanged="TextureList_SelectionChanged"
                          SelectionMode="Extended"
                          HorizontalContentAlignment="Stretch"
+                         AllowDrop="True"
+                         DragOver="TextureList_DragOver"
+                         DragLeave="TextureList_DragLeave"
+                         Drop="TextureList_Drop"
+                         PreviewMouseLeftButtonDown="TextureList_PreviewMouseLeftButtonDown"
+                         MouseMove="TextureList_MouseMove"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>

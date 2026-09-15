@@ -971,6 +971,15 @@
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selected}"/>
                         </Trigger>
+                        <!-- The row a drag is over. Declared after selection so
+                             it wins over both of the states above: while a file
+                             is in the air the question is where it will land,
+                             not what was selected before the drag began.
+                             Accent-tinted rather than accent, because the row's
+                             own text still has to read on top of it. -->
+                        <Trigger Property="ui:DropHighlight.IsOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{DynamicResource TextDisabled}"/>
                             <Setter Property="Cursor" Value="Arrow"/>
