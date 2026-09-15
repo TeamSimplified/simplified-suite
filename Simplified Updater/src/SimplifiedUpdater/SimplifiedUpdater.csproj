@@ -53,16 +53,32 @@
   </ItemGroup>
 
   <!-- The two reference folders ship as the note that says what belongs in
-       them. The files themselves are the game's, and whoever runs this puts
-       them there — old\ is last version's, new\ is this version's. -->
+       them. old\ is last version's, new\ is this version's.
+
+       A build copies whatever is in them, so an app built from this tree is
+       ready to run. A package takes only the notes: the rest is 170 MB of the
+       game's own files, and a mod maker downloading this has their own install
+       to take them from. The Ships list says the same thing from the other
+       side, and a release fails if these ever reach a package. -->
   <ItemGroup>
-    <Content Include="..\..\old\**\*" Link="old\%(RecursiveDir)%(Filename)%(Extension)"
+    <Content Include="..\..\old\README.txt" Link="old\README.txt"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true"/>
-    <Content Include="..\..\new\**\*" Link="new\%(RecursiveDir)%(Filename)%(Extension)"
+    <Content Include="..\..\new\README.txt" Link="new\README.txt"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+
+    <Content Include="..\..\old\**\*" Exclude="..\..\old\README.txt"
+             Link="old\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="Never"
+             ExcludeFromSingleFile="true"/>
+    <Content Include="..\..\new\**\*" Exclude="..\..\new\README.txt"
+             Link="new\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="Never"
              ExcludeFromSingleFile="true"/>
   </ItemGroup>
 
