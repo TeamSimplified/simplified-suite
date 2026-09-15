@@ -168,9 +168,20 @@
                      so the grouping loses nothing, and a switcher between two
                      views of the same 641 rows is a control that only ever
                      answers a question nobody asked. -->
+                <!-- A picture dropped on a row replaces that decal, and a row
+                     dragged out hands over the picture the preview is showing.
+                     The handlers take only a single PNG and leave everything
+                     else unhandled, so a .simplified dropped on the list still
+                     reaches the window and opens. -->
                 <ListBox Name="DecalList" SelectionChanged="List_SelectionChanged"
                          MouseDoubleClick="List_DoubleClick"
                          HorizontalContentAlignment="Stretch"
+                         AllowDrop="True"
+                         DragOver="DecalList_DragOver"
+                         DragLeave="DecalList_DragLeave"
+                         Drop="DecalList_Drop"
+                         PreviewMouseLeftButtonDown="DecalList_PreviewMouseLeftButtonDown"
+                         MouseMove="DecalList_MouseMove"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
