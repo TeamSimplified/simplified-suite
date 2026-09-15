@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedUpdater/SimplifiedUpdater.csproj" />
+  <Project Path="src/SimplifiedUpdater.Core/SimplifiedUpdater.Core.csproj" />
+</Solution>

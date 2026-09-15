@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Updater, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Updater', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -172,6 +172,24 @@ $Apps = @(
         Exe = 'Simplified Sponsor Editor'; Package = 'Simplified Sponsor Editor'
         Tag = 'sponsor-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Updater'; Folder = 'Simplified Updater'
+        Project = 'src\SimplifiedUpdater\SimplifiedUpdater.csproj'
+        Exe = 'Simplified Updater'; Package = 'Simplified Updater'
+        Tag = 'updater-v'; Kind = 'window'
+        # old\ and new\ ship as the note that says what belongs in them. The
+        # game's own files are the user's to put there, so a package carrying
+        # one would mean it had been staged from somebody's working folder
+        # rather than from the publish output.
+        Ships = @('*.exe', 'runtime\*', 'old\README.txt', 'new\README.txt')
+        # Held back from a suite release. It is the one app here that can do
+        # nothing on the machine it lands on: both folders have to be filled
+        # with two versions of the game's own files first, and only whoever
+        # keeps those has them. Shipping it beside the mod-making apps would be
+        # shipping something that opens and refuses. -App Updater still
+        # packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'

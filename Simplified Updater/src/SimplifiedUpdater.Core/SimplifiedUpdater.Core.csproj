@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedUpdater.Core</RootNamespace>
+    <AssemblyName>SimplifiedUpdater.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    The archive and database formats are EgoEngineLibrary's. This holds the
+    three-way merge and nothing else about the file formats themselves.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+  <!--
+    A mod arrives as whatever archive its author happened to make. .zip is in
+    the framework; .7z and .rar are not, and both are common enough in this
+    corner of the world that refusing them would mean asking people to repack
+    before they can update. SharpCompress reads all three.
+  -->
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" />
+  </ItemGroup>
+
+  <!--
+    The language-file reader, linked from the Team Editor rather than copied.
+
+    It keeps its own namespace, which reads oddly here, and that is the price of
+    not having two of it: a copy would drift, and the two apps have to agree
+    byte for byte about a format the game is strict about. EgoEngineLibrary has
+    an LngFile of its own, but its writer rebuilds the file wholesale where this
+    one leaves the hash table alone unless a key is actually added - and this is
+    the one that has shipped working mods.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Simplified Team Editor\src\SimplifiedTeamEditor.Core\Lng\LngFile.cs"
+             Link="Lng\LngFile.cs" />
+  </ItemGroup>
+
+</Project>
