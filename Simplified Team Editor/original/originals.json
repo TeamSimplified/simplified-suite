@@ -1,9 +1,9 @@
 {
   "_comment": "Which build of the game these bundled files were taken from. Read by the apps; update it whenever the files beside it are replaced.",
   "game": "F1® 25",
-  "game_version": "1.0.141.2878",
+  "game_version": "1.0.141.7865",
   "taken": "2026-09-07",
-  "note": "The F2 26 update. Adds the f2_2026 entrant list at index 20, which moved every later list down one.",
+  "note": "Still the files taken on 2026-09-07 — checked against 1.0.141.7865 on 2026-09-22 and unchanged. The database and all eleven language files are byte-identical, and ui_texarrays_team_branding.erp was repacked with all 46 of its resources decompressing to the same bytes. Only the build they are known to match has moved. Before that, the F2 26 update: it added the f2_2026 entrant list at index 20, which moved every later list down one.",
   "files": [
     "gamedatabases.2025.bin",
     "localisation/language_*.lng",
