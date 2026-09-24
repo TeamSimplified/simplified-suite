@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Encodings.Web;
@@ -137,6 +137,16 @@ public static class ProjectPackager
         if (!File.Exists(srcAmd))
             throw new FileNotFoundException(
                 $"AMD shader package ERP not found: {srcAmd}", srcAmd);
+
+        // The pair this project merges into comes out of the user's install,
+        // because the game's own shaders have to be in them. Anything already
+        // merged into one goes out inside this package, so say so before it does.
+        foreach (var warning in Simplified.Shared.GameFileGuard.Warnings(gameDir, new[]
+                 {
+                     Simplified.Shared.GameFileGuard.ShaderPath(Path.GetFileName(srcMain)),
+                     Simplified.Shared.GameFileGuard.ShaderPath(Path.GetFileName(srcAmd)),
+                 }))
+            log?.Invoke($"  ⚠ {warning}");
 
         // Already in merge order — category folders by their prefix, then parts
         // by theirs — so the number that decides where a part shows in the list

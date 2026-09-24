@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 
 namespace SimplifiedGridEditor.Core.Project;
@@ -55,7 +55,8 @@ public static class ProjectStore
     /// <param name="originalsDir">
     /// The bundled pristine files — <see cref="AppPaths.OriginalsDir"/>.
     /// </param>
-    public static GridProject Create(string originalsDir, string name, string author)
+    public static GridProject Create(string originalsDir, string name, string author,
+                                     string? gameDir = null, Action<string>? note = null)
     {
         if (!Directory.Exists(originalsDir))
             throw new DirectoryNotFoundException(
@@ -79,9 +80,15 @@ public static class ProjectStore
         Directory.CreateDirectory(project.LanguageFolder);
         Directory.CreateDirectory(project.ErpsFolder);
 
-        // The database, under the name the game knows it by.
-        var sourceDatabase = Path.Combine(originalsDir, DatabaseFileName);
-        if (File.Exists(sourceDatabase)) File.Copy(sourceDatabase, project.DatabasePath);
+        // The database, under the name the game knows it by. The installed
+        // game's own when it is one we recognise, and the bundled copy
+        // otherwise — a project seeded from the current game stays current,
+        // and one seeded from a database somebody has already modded would
+        // carry that mod for the rest of its life.
+        var chosen = Simplified.Shared.GameDatabaseSource.Resolve(
+            gameDir, Path.Combine(originalsDir, DatabaseFileName));
+        if (chosen.Note is not null) note?.Invoke(chosen.Note);
+        if (File.Exists(chosen.Path)) File.Copy(chosen.Path, project.DatabasePath);
 
         // The eleven language files, plus the two 2026 files that sit beside
         // them in the bundle rather than in localisation/.

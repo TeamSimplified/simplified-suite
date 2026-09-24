@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Archive.Erp.Data;
 using EgoEngineLibrary.Graphics;
@@ -100,6 +100,12 @@ public static class SponsorPackager
 
         var catalogue = SponsorCatalogue.Read(request.OriginalsDir);
         var warnings = new List<string>();
+
+        // The decals are merged into the game's own archives, because the
+        // shaders in them have to be the game's. Anything already merged into
+        // one goes out inside this package, so say so before it does.
+        warnings.AddRange(Simplified.Shared.GameFileGuard.Warnings(
+            request.GameDir, ShaderArchiveNames.Select(Simplified.Shared.GameFileGuard.ShaderPath)));
         var runner = new TexconvRunner();
 
         var work = Path.Combine(Path.GetTempPath(), "simplified-sponsor-editor", "package",

@@ -59,6 +59,17 @@
 
        NativeLibraryFolder is the other half of this: nothing looks in a
        subfolder by default, so the app has to say where they went. -->
+  <!-- SHA-256 of the game files packaging reads out of the install, so a mod
+       already sitting in one can be noticed before it goes out inside somebody's
+       package. Written by tools/game-hashes.ps1; read by GameFileGuard, which
+       looks for it here. -->
+  <ItemGroup>
+    <Content Include="..\..\..\Shared\game-files.json" Link="runtime\game-files.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
   <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
     <ItemGroup>
       <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>

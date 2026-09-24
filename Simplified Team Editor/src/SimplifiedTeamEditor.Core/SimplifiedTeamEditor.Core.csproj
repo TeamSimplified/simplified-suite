@@ -23,6 +23,8 @@
        because the packager is Core's; the Grid Editor's Core reads it through
        its reference to this one. -->
   <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
+    <Compile Include="..\..\..\Shared\GameDatabaseSource.cs" Link="GameDatabaseSource.cs" />
     <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
   </ItemGroup>
 

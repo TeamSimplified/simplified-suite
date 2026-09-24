@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 using EgoEngineLibrary.Archive.Erp;
@@ -40,7 +40,8 @@ public static class ProjectPackager
         string gameDir,
         string saveLocation,
         bool zip,
-        string modVersion)
+        string modVersion,
+        Action<string>? log = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (string.IsNullOrWhiteSpace(gameDir))
@@ -65,6 +66,16 @@ public static class ProjectPackager
         if (!File.Exists(srcAmd))
             throw new FileNotFoundException(
                 $"AMD shader package ERP not found: {srcAmd}", srcAmd);
+
+        // The pair this project merges into comes out of the user's install,
+        // because the game's own shaders have to be in them. Anything already
+        // merged into one goes out inside this package, so say so before it does.
+        foreach (var warning in Simplified.Shared.GameFileGuard.Warnings(gameDir, new[]
+                 {
+                     Simplified.Shared.GameFileGuard.ShaderPath(Path.GetFileName(srcMain)),
+                     Simplified.Shared.GameFileGuard.ShaderPath(Path.GetFileName(srcAmd)),
+                 }))
+            log?.Invoke($"  ⚠ {warning}");
 
         var enabled = Directory.Exists(project.EnabledFolder)
             ? Directory.EnumerateFiles(project.EnabledFolder, "*.erp").ToList()

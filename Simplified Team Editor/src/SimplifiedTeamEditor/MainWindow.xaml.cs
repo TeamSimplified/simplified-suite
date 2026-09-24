@@ -142,7 +142,15 @@ public partial class MainWindow : Window
     /// </summary>
     private string LoadColours()
     {
-        var path = Path.Combine(AppPaths.Root, "runtime", "original", "gamedatabases.2025.bin");
+        // The installed game's own database when it is one we recognise, and
+        // the bundled copy otherwise. The same choice the packager makes, for
+        // the same reason: what is shown here has to be what a package would be
+        // built from, or the colours on screen are not the colours that ship.
+        var choice = Simplified.Shared.GameDatabaseSource.Resolve(
+            UserConfig.Load().GameDir ?? GameDirDetector.Detect()?.Path,
+            Path.Combine(AppPaths.Root, "runtime", "original", "gamedatabases.2025.bin"));
+
+        var path = choice.Path;
         if (!File.Exists(path)) return "Team database not found — colours unavailable.";
 
         try

@@ -60,7 +60,7 @@ public static class TeamPackager
         // The database and the 2026 key additions are worked out together: a
         // 2026 name edit changes both, and the key map has to be read off the
         // database before reassignment rewrites the fields it reads.
-        var (databaseBytes, keys2026, counts) = BuildDatabaseAndKeys(assetsDir, y2025, y2026, warnings);
+        var (databaseBytes, keys2026, counts) = BuildDatabaseAndKeys(assetsDir, gameDir, y2025, y2026, warnings);
 
         // Build beside the destination and move it into place at the end, so a
         // half-written zip never appears at the path the user is watching.
@@ -107,15 +107,25 @@ public static class TeamPackager
 
     private static (byte[]? Bytes, Dictionary<string, string> Keys2026,
                     (int Colours2025, int Reassigned, int Colours2026) Counts)
-        BuildDatabaseAndKeys(string assetsDir, SeasonEdits y2025, SeasonEdits y2026, List<string> warnings)
+        BuildDatabaseAndKeys(string assetsDir, string? gameDir, SeasonEdits y2025, SeasonEdits y2026,
+                             List<string> warnings)
     {
         var empty = new Dictionary<string, string>(StringComparer.Ordinal);
         if (!y2025.Any && !y2026.Any) return (null, empty, (0, 0, 0));
 
-        var path = Path.Combine(assetsDir, "gamedatabases.2025.bin");
+        // The installed game's own database when it is one we recognise, and the
+        // bundled copy otherwise. Taking the game's keeps a package current with
+        // whatever it has patched to; recognising it first is what stops somebody
+        // else's database mod becoming the base of this one.
+        var choice = Simplified.Shared.GameDatabaseSource.Resolve(
+            gameDir, Path.Combine(assetsDir, "gamedatabases.2025.bin"));
+
+        if (choice.Note is not null) warnings.Add(choice.Note);
+
+        var path = choice.Path;
         if (!File.Exists(path))
         {
-            warnings.Add("The bundled team database is missing, so no colours or 2026 names can be packaged.");
+            warnings.Add("No team database could be found, so no colours or 2026 names can be packaged.");
             return (null, empty, (0, 0, 0));
         }
 
@@ -250,6 +260,12 @@ public static class TeamPackager
 
         var shaderDirectory = Path.Combine(gameDir, GameFiles.ShaderFolderName);
         var written = 0;
+
+        // These come out of the user's install, because the game's own shaders
+        // have to be in them. Anything already merged into one goes out inside
+        // this package, so say so before it does.
+        warnings.AddRange(Simplified.Shared.GameFileGuard.Warnings(
+            gameDir, GameFiles.ShaderErpNames.Select(Simplified.Shared.GameFileGuard.ShaderPath)));
 
         try
         {

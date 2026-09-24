@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -17,6 +17,10 @@
     square decal onto the menu thumbnail's aspect - happens where the artwork is
     chosen, so what reaches here is always a PNG that texconv can take as it is.
   -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>

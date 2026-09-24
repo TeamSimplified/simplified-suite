@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using EgoEngineLibrary.Data.GameDatabases;
@@ -321,6 +321,12 @@ public static class GridPackager
 
         var shaderDirectory = Path.Combine(gameDir, GameFiles.ShaderFolderName);
         var written = 0;
+
+        // These come out of the user's install, because the game's own shaders
+        // have to be in them. Anything already merged into one goes out inside
+        // this package, so say so before it does.
+        warnings.AddRange(Simplified.Shared.GameFileGuard.Warnings(
+            gameDir, GameFiles.ShaderErpNames.Select(Simplified.Shared.GameFileGuard.ShaderPath)));
 
         try
         {

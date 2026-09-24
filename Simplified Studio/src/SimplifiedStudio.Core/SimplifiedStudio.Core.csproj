@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -32,6 +32,7 @@
   <!-- Which game build a package was made against — shared with the other
        packagers so all of them spell a build the same way. See Shared. -->
   <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
     <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
   </ItemGroup>
 

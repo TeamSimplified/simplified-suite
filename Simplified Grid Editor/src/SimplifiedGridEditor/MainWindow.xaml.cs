@@ -124,7 +124,10 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = ProjectStore.Create(AppPaths.OriginalsDir, request.ModName, request.ModAuthor);
+            string? seedNote = null;
+            _project = ProjectStore.Create(AppPaths.OriginalsDir, request.ModName, request.ModAuthor,
+                                           _config.GameDir, note => seedNote = note);
+            if (seedNote is not null) SetStatus(seedNote, MutedBrush);
 
             // Written to disk straight away, as Studio does it. The path was
             // already asked for, and a project that exists only in a temp

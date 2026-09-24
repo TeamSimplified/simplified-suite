@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using EgoEngineLibrary.Texconv;
 using SimplifiedGridEditor.Core;
@@ -55,9 +55,15 @@ public partial class MainWindow
 
         try
         {
+            // The pristine copy names helmet designs a saved project may no
+            // longer carry. It comes from wherever the project was seeded from —
+            // the installed game when that verifies, the bundle otherwise — so
+            // the two can't disagree about what a design is called.
             _document = GridDocument.Read(
                 _project.DatabasePath,
-                Path.Combine(AppPaths.OriginalsDir, ProjectStore.DatabaseFileName),
+                Simplified.Shared.GameDatabaseSource.Resolve(
+                    _config.GameDir,
+                    Path.Combine(AppPaths.OriginalsDir, ProjectStore.DatabaseFileName)).Path,
                 DriverSeasonNow);
         }
         catch (Exception ex)

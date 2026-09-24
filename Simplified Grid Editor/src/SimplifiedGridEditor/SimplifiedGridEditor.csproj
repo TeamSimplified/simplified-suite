@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -73,6 +73,17 @@
   <ItemGroup>
     <Content Include="..\..\..\Simplified Team Editor\original\**\*"
              Link="runtime\original\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <!-- SHA-256 of the game files packaging reads out of the install, so a mod
+       already sitting in one can be noticed before it goes out inside somebody's
+       package. Written by tools/game-hashes.ps1; read by GameFileGuard, which
+       looks for it here. -->
+  <ItemGroup>
+    <Content Include="..\..\..\Shared\game-files.json" Link="runtime\game-files.json"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true"/>
