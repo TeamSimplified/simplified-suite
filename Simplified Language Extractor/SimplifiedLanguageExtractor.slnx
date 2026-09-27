@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedLanguageExtractor/SimplifiedLanguageExtractor.csproj" />
+  <Project Path="src/SimplifiedLanguageExtractor.Core/SimplifiedLanguageExtractor.Core.csproj" />
+</Solution>

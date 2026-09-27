@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedLanguageExtractor.Core</RootNamespace>
+    <AssemblyName>SimplifiedLanguageExtractor.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!-- The extraction itself is a library, because the editors need it too. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Language Library\SimplifiedLanguage.csproj" />
+  </ItemGroup>
+
+</Project>

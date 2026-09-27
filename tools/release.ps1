@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -165,6 +165,17 @@ $Apps = @(
         # build, and one arriving in a package would mean it had been staged
         # from a release folder rather than from the publish output.
         Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Language'; Folder = 'Simplified Language Extractor'
+        Project = 'src\SimplifiedLanguageExtractor\SimplifiedLanguageExtractor.csproj'
+        Exe = 'Simplified Language Extractor'; Package = 'Simplified Language Extractor'
+        Tag = 'language-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
+        # Held back from a suite release: this is how the bundled language files
+        # get refreshed after a game update, which is our job rather than a mod
+        # maker's. -App Language still packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Sponsor'; Folder = 'Simplified Sponsor Editor'
