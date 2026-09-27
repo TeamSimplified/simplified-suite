@@ -9,5 +9,10 @@
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
     <PackageVersion Include="System.IO.Packaging" Version="9.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+
+    <!-- NefsLib's own, at the versions it pins. It reads the NeFS archive
+         inside the game exe, which is where the language files live. -->
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageVersion Include="System.IO.Abstractions" Version="22.0.14" />
   </ItemGroup>
 </Project>
