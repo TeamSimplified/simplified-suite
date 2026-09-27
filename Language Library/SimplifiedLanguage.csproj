@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The game's language files, out of the game.
+
+    They are not on disk anywhere in an install: the header of the archive that
+    holds them is inside F1_25.exe and the data is in game.dat beside it. Every
+    app that needed them used to carry its own copy, taken by hand and stale
+    from the day it was taken. This is how they are had fresh instead, and it is
+    a library rather than part of an app because three of them need it - the
+    extractor that writes them out, and the two editors that build packages from
+    them.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Simplified.Language</RootNamespace>
+    <AssemblyName>SimplifiedLanguage</AssemblyName>
+    <DebugType>embedded</DebugType>
+    <Version>1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NeFS Library\VictorBush.Ego.NefsLib.csproj" />
+  </ItemGroup>
+
+</Project>
