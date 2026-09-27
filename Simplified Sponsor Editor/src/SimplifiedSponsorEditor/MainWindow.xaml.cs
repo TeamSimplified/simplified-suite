@@ -129,7 +129,7 @@ public partial class MainWindow : Window
             _project = SimplifiedUi.ProgressDialog.Run(this,
                 $"Starting {request.ModName}", progress =>
                 {
-                    progress.Report("Preparing mod files…");
+                    progress.Report("Setting up the project…");
                     var created = ProjectStore.Create(request.ModName, request.ModAuthor);
 
                     // Written to disk straight away, as the rest of the suite

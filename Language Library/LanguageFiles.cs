@@ -50,16 +50,6 @@ public static class LanguageFiles
     /// </summary>
     public const string FolderName = "localisation";
 
-    /// <summary>
-    /// What <see cref="Refresh"/> says it is doing, for the window it runs
-    /// behind. Said as what it is for — the files a package is built out of —
-    /// rather than as what it is: an archive inside an exe, which is our problem
-    /// and not the user's. And how long it will take, because on the cold path
-    /// it is a minute of a bar moving and nothing else changing.
-    /// </summary>
-    public const string Progress =
-        "Updating the files used for packaging your mods (This may take several minutes)";
-
     /// <summary>The note beside the files saying which build they came out of.</summary>
     public const string StampFileName = "taken-from.json";
 
@@ -101,18 +91,14 @@ public static class LanguageFiles
     /// What to say to a person while <see cref="Refresh"/> runs, or null when
     /// there is nothing to run.
     ///
-    /// Here rather than in each app, so the two that do this say the same thing
-    /// — and said as what it is for them rather than what it is for us. Nobody
-    /// waiting on this is asking which archive the text comes out of: the first
-    /// run is the app setting itself up, and a later one is the game having
-    /// moved on.
+    /// Here rather than in each app, so the two that do this say the same
+    /// thing. The same line either way: whether the app has never had these
+    /// files or has them from a build the game has moved past, what it is doing
+    /// is bringing them up to date, and which of the two it is is our
+    /// bookkeeping rather than news.
     /// </summary>
-    public static string? Headline(LanguageState state) => state switch
-    {
-        LanguageState.FirstTime => "Performing first time setup",
-        LanguageState.GameUpdated => "Updating game files",
-        _ => null,
-    };
+    public static string? Headline(LanguageState state) =>
+        state is LanguageState.FirstTime or LanguageState.GameUpdated ? "Updating game files" : null;
 
     /// <summary>
     /// Take them out of the game into <paramref name="languageDir"/>, replacing
@@ -138,22 +124,19 @@ public static class LanguageFiles
         var staging = Path.Combine(cacheRoot, "incoming");
         try { if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true); } catch { /* the extract will say */ }
 
-        // One line, and it stays. The steps underneath it — reading the exe,
-        // searching it, writing the files out — are ours, and swapping between
-        // them tells a person waiting nothing they can use. What they want to
-        // know is what the wait is for.
-        progress?.Report(Progress);
+        progress?.Report("Checking the game files…");
         var known = ReadLocation(cacheRoot, stamp);
 
+        // Two channels, because they are for two different readers: the
+        // extractor's log names files and byte counts, which belongs in the tool
+        // that writes them out, and `say` is the stage a person waiting is in.
         var result = Task.Run(() => LanguageExtractor.ExtractAsync(
-            exe, staging, known,
-            // The extractor's own lines name files and byte counts, which is
-            // right in the tool that writes them out and detail in a window that
-            // is only saying "not long now".
-            _ => { }, cancel)).GetAwaiter().GetResult();
+            exe, staging, known, log: null, say: progress, cancel: cancel))
+            .GetAwaiter().GetResult();
 
         if (result.FoundBySearch) WriteLocation(cacheRoot, stamp, result.Location);
 
+        progress?.Report("Putting the files in place…");
         Directory.CreateDirectory(languageDir);
         foreach (var file in Directory.EnumerateFiles(staging, "*" + LanguageExtractor.Extension))
             File.Copy(file, Path.Combine(languageDir, Path.GetFileName(file)), overwrite: true);
@@ -200,7 +183,8 @@ public static class LanguageFiles
                       "The game folder isn't set, or has no game exe at the top of it.");
 
         var stamp = Stamp(exe);
-        var result = await LanguageExtractor.ExtractAsync(exe, outputDir, ReadLocation(cacheRoot, stamp), log, cancel);
+        var result = await LanguageExtractor.ExtractAsync(
+            exe, outputDir, ReadLocation(cacheRoot, stamp), log, cancel: cancel);
         if (result.FoundBySearch) WriteLocation(cacheRoot, stamp, result.Location);
         return result;
     }

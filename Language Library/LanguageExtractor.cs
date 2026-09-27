@@ -58,6 +58,12 @@ public static class LanguageExtractor
     /// Pull every language file out of <paramref name="exePath"/> into
     /// <paramref name="outputDir"/>.
     /// </summary>
+    /// <param name="say">
+    /// Lines for a progress window: the stages, in the user's terms. Separate
+    /// from <c>log</c>, which is the extractor tool's own running commentary —
+    /// file names and byte counts, right in the window that writes them out and
+    /// detail anywhere else.
+    /// </param>
     /// <param name="known">
     /// Where the archive was last found in this exe, if it has been found
     /// before. Tried first and verified by use; a wrong answer costs one failed
@@ -68,6 +74,7 @@ public static class LanguageExtractor
         string outputDir,
         ArchiveLocation? known = null,
         Action<string>? log = null,
+        IProgress<string>? say = null,
         CancellationToken cancel = default)
     {
         if (!File.Exists(exePath))
@@ -78,7 +85,7 @@ public static class LanguageExtractor
         var reader = new NefsReader(fileSystem);
         var stopwatch = Stopwatch.StartNew();
 
-        var (archive, location, bySearch) = await OpenAsync(exePath, known, reader, fileSystem, progress, log, cancel);
+        var (archive, location, bySearch) = await OpenAsync(exePath, known, reader, fileSystem, progress, log, say, cancel);
 
         var items = archive.Items.EnumerateById()
             .Where(i => i.FileName.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
@@ -113,6 +120,7 @@ public static class LanguageExtractor
 
             written.Add(item.FileName);
             log?.Invoke($"  {item.FileName,-22} {new FileInfo(path).Length,12:N0} bytes");
+            say?.Report($"Extracting the LNG files — {written.Count} of {items.Count}…");
         }
 
         return new ExtractResult(written, outputDir, location, bySearch, stopwatch.Elapsed);
@@ -170,7 +178,7 @@ public static class LanguageExtractor
     /// </summary>
     private static async Task<(VictorBush.Ego.NefsLib.NefsArchive Archive, ArchiveLocation Location, bool BySearch)>
         OpenAsync(string exePath, ArchiveLocation? known, NefsReader reader, IFileSystem fileSystem,
-                  NefsProgress progress, Action<string>? log, CancellationToken cancel)
+                  NefsProgress progress, Action<string>? log, IProgress<string>? say, CancellationToken cancel)
     {
         // A remembered location is four numbers and no proof, so it is tried
         // rather than trusted: if the exe moved on and the read fails, the
@@ -183,6 +191,7 @@ public static class LanguageExtractor
                     throw new FileNotFoundException("The data file is no longer there.", known.DataFilePath);
 
                 log?.Invoke("Opening at the offset remembered for this build…");
+                say?.Report("Opening the game's archive…");
                 var source = NefsArchiveSource.Headless(known.DataFilePath, exePath,
                     known.PrimaryOffset, known.PrimarySize, known.SecondaryOffset, known.SecondarySize);
                 var archive = await reader.ReadArchiveAsync(source, progress);
@@ -207,6 +216,7 @@ public static class LanguageExtractor
         // quick search finds nothing at all here. It is about a minute on a
         // 408 MB exe, and it is why the answer is worth keeping.
         log?.Invoke("Searching the exe for the archive header. This takes a minute or so, once per build…");
+        say?.Report("Searching the game for the LNG files — about a minute, once per update…");
         var finder = new NefsExeHeaderFinder(fileSystem);
         var found = await finder.FindHeadersAsync(exePath, Path.GetDirectoryName(exePath)!, true, progress);
 

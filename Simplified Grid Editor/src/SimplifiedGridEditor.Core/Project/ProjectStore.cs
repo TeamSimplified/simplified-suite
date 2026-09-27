@@ -98,7 +98,7 @@ public static class ProjectStore
         // it opens and finds them missing or from a build the game has since
         // patched past. So a project started today is seeded from today's game,
         // and starting one is a copy rather than a search.
-        progress?.Report("Copying the game text…");
+        progress?.Report("Copying the game's language files…");
         var languageDir = Path.Combine(originalsDir, Simplified.Language.LanguageFiles.FolderName);
         var copied = 0;
         if (Directory.Exists(languageDir))
@@ -121,6 +121,7 @@ public static class ProjectStore
         }
 
         // The UI archives.
+        progress?.Report("Copying the UI archives…");
         var ui = Path.Combine(originalsDir, "ui");
         if (Directory.Exists(ui))
             foreach (var file in Directory.EnumerateFiles(ui, "*.erp"))
@@ -148,6 +149,7 @@ public static class ProjectStore
             catch { /* keep defaults — a project with an unreadable info.json still opens */ }
         }
 
+        progress?.Report("Reading what's in it…");
         var project = new GridProject { TempDir = temp, ZipPath = zipPath, Info = info };
 
         // A project made by hand, or by an older build, may be missing one of

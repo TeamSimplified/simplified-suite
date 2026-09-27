@@ -1714,15 +1714,22 @@ public partial class MainWindow : Window
             CloseProjectInternal();
 
             // Behind a progress window, which only appears if this takes a
-            // moment. The project's own log lines double as the progress line,
-            // so what it says here is what it says in the log.
+            // moment. The project's own log lines still go to the log; what the
+            // window says is the stage, because a box that is otherwise saying
+            // "Unpacking the project…" has no business showing a line about
+            // which folder a category moved to.
             _project = SimplifiedUi.ProgressDialog.Run(this,
                 $"Opening {System.IO.Path.GetFileNameWithoutExtension(path)}",
-                progress => ProjectStore.Open(path, line =>
+                progress =>
                 {
-                    progress.Report(line);
-                    Dispatcher.BeginInvoke(() => Log(line));
-                }));
+                    progress.Report("Unpacking the project…");
+                    return ProjectStore.Open(path, line =>
+                    {
+                        Dispatcher.BeginInvoke(() => Log(line));
+                        if (line.StartsWith("Converting", StringComparison.Ordinal))
+                            progress.Report("Converting from an older layout…");
+                    });
+                });
             RememberProjectFolder(path);
             OnProjectStateChanged();
             ReloadEnabledErps();
