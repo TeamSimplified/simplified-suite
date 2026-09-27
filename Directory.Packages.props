@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
@@ -9,9 +9,5 @@
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
     <PackageVersion Include="System.IO.Packaging" Version="9.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-
-    <!-- Reads .7z and .rar, which the framework's ZipArchive cannot. The
-         Updater takes a mod packed however its author packed it. -->
-    <PackageVersion Include="SharpCompress" Version="0.50.4" />
   </ItemGroup>
 </Project>
