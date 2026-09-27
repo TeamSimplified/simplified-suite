@@ -1,14 +1,17 @@
 # Simplified Suite — conventions
 
-What the ten apps in `F:\Claude Code\Simplified Suite` have in common, and
+What the thirteen apps in `F:\Claude Code\Simplified Suite` have in common, and
 what an app has to do to belong to it. Written while bringing **Simplified Team
 Editor** into line, and §8 records what that took — but everything above it
 applies to any app in the suite. §9 is the second arrival, the **Driver
 Swapper**, which needed a different half of the same list.
 
 The apps: Studio, ERP, Toolkit (`stk`, CLI), Chassis Swapper, Driverwear
-Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper, Grid Editor.
-Two shared libraries and a `Shared/` folder of odds and ends sit beside them.
+Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper, Grid Editor,
+Resource Extractor, Sponsor Editor, Language Extractor. Four shared libraries —
+`EGO Engine Library`, `Simplified UI Library`, `Language Library`, and the
+vendored `NeFS Library` under it — and a `Shared/` folder of odds and ends sit
+beside them.
 
 ---
 
@@ -445,9 +448,20 @@ are; this one takes their logic rather than a copy of it, by referencing their
 4. **The project layout is Studio's plus two folders.** `ERPs/` for the UI
    archives, `Language/` for the eleven `.lng` files, `Database/` for the one
    database. No `.serps` template: a grid project is always the same three
-   things, so a new one is seeded from the bundled originals and the only
-   question is what to call it.
+   things, so a new one is seeded from the originals and the only question is
+   what to call it.
 
 The `original/` bundle is referenced from the Team Editor's folder rather than
 copied. It is 90 MB of identical bytes, and two copies in the repository is two
 things to keep in step.
+
+Not all of it is bundled. The eleven `.lng` files are not in the repository at
+all: a full install holds none on disk — they are inside `F1_25.exe`, in an
+embedded NeFS archive — so `Language Library` takes them out of the game into
+`original\localisation\`, which is where everything downstream already reads
+them from. The folder carries a note saying which build of the exe they came
+out of, and an app compares it with the installed game when it opens: missing
+means first run, a different build means the game has been patched, and either
+way it is half a minute behind a progress window at startup rather than a wait
+in the middle of someone's work. A bundled copy would only be correct on the
+day it was taken.
