@@ -637,14 +637,26 @@
                     <ControlTemplate.Triggers>
                         <!-- Multi-line by either route: a box that takes Return,
                              or one that wraps. Both fill the control. -->
+                        <!-- Multi-line boxes fill their frame and start at the
+                             top. The Center above is right for the one-line
+                             fields it was written for - a filter, a path - and
+                             wrong for everything a log goes in: stretching the
+                             host without moving the content left the first line
+                             floating in the middle of an empty box, drifting
+                             down as it filled. Both halves are needed, and the
+                             second one is on the TextBox rather than the host
+                             because that is what the text host reads. -->
                         <Trigger Property="AcceptsReturn" Value="True">
                             <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Top"/>
                         </Trigger>
                         <Trigger Property="TextWrapping" Value="Wrap">
                             <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Top"/>
                         </Trigger>
                         <Trigger Property="TextWrapping" Value="WrapWithOverflow">
                             <Setter TargetName="PART_ContentHost" Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Top"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
