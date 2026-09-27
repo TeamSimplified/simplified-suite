@@ -22,10 +22,11 @@ namespace SimplifiedUi;
 /// when the work finishes. Exceptions come back to the caller as they would
 /// have without it, so the call sites keep their own error handling.
 ///
-/// Wording is the caller's, and it should be the user's: what a step does for
-/// them, not what it does to the disk. "Performing first time setup" rather
-/// than "extracting language files" — the second one is true and answers a
-/// question nobody in front of this window is asking.
+/// Wording is the caller's, and it follows one shape wherever this window is
+/// used: the headline is what was asked for — "Opening Alpine 2026",
+/// "Updating game files" — and the line under it is the step running now,
+/// ending in an ellipsis because it is still going. A step says what it is
+/// doing for the person waiting rather than what it is doing to the disk.
 ///
 /// There is no title bar. A caption saying "New project" over a headline saying
 /// what is being started is the same sentence twice, and an empty bar left in
