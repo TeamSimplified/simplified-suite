@@ -292,12 +292,25 @@ public partial class MainWindow : Window
             target = picker.FileName;
         }
 
+        var notes = new List<string>();
+
         try
         {
             // The tabs hold their edits in memory while they are being made;
-            // this is where they become the project's files.
-            ApplyEditsToProject();
-            ProjectStore.Save(_project, target);
+            // this is where they become the project's files. Read on this
+            // thread, written behind a progress window: an 18 MB database,
+            // eleven language files and a 90 MB zip is several seconds, and the
+            // window used to stop drawing for all of them.
+            var staged = StagedEdits();
+
+            SimplifiedUi.ProgressDialog.Run(this, $"Saving {_project.DisplayName}", say =>
+            {
+                say.Report("Writing your edits into the project…");
+                WriteEditsInto(staged, notes);
+
+                say.Report("Writing the project file…");
+                ProjectStore.Save(_project, target);
+            });
         }
         catch (Exception ex)
         {
@@ -306,6 +319,8 @@ public partial class MainWindow : Window
                 "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
+
+        AfterEditsWritten(notes);
 
         _config.LastProjectFolder = Path.GetDirectoryName(target);
         _config.Save();

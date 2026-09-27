@@ -4,6 +4,9 @@ using EgoEngineLibrary.Texconv;
 using SimplifiedGridEditor.Core;
 using SimplifiedGridEditor.Core.Packaging;
 using SimplifiedGridEditor.Core.Project;
+using SimplifiedDriverSwapper.Core.Drivers;
+using SimplifiedTeamEditor.Core.Logos;
+using SimplifiedTeamEditor.Core.Packaging;
 using TeamSeason = SimplifiedTeamEditor.Core.Teams.Season;
 using DriverSeason = SimplifiedDriverSwapper.Core.Drivers.Season;
 
@@ -176,21 +179,35 @@ public partial class MainWindow
     /// files in it are the working copy, so Save is where the edits land, and a
     /// package is then just those files at their in-game paths.
     /// </summary>
-    private void ApplyEditsToProject()
-    {
-        if (_project is null) return;
+    /// <summary>
+    /// What the tabs are holding, read on the thread that owns them.
+    ///
+    /// Writing it out is an 18 MB database, eleven language files and every
+    /// logo through texconv — seconds of work that belongs off this thread. So
+    /// the reading and the writing are separated: this gathers, and
+    /// <see cref="WriteEditsInto"/> writes, and only the second half runs
+    /// behind the progress window.
+    /// </summary>
+    private (KitOptions Kit, SeasonEdits Y2025, SeasonEdits Y2026, IReadOnlyList<LogoEdit> Logos) StagedEdits() =>
+        (Seats.Kit,
+         Teams.EditsFor(TeamSeason.Y2025),
+         Teams.EditsFor(TeamSeason.Y2026),
+         Teams.LogoEdits);
 
-        var notes = new List<string>();
+    /// <summary>
+    /// Put gathered edits into the project's files. Off the window's thread —
+    /// it touches no control, only the project and what StagedEdits handed it.
+    /// </summary>
+    private void WriteEditsInto(
+        (KitOptions Kit, SeasonEdits Y2025, SeasonEdits Y2026, IReadOnlyList<LogoEdit> Logos) staged,
+        List<string> notes) =>
         GridPackager.ApplyToProject(
-            _project,
-            _document,
-            Seats.Kit,
-            Teams.EditsFor(TeamSeason.Y2025),
-            Teams.EditsFor(TeamSeason.Y2026),
-            Teams.LogoEdits,
-            new TexconvRunner(),
-            notes);
+            _project!, _document, staged.Kit, staged.Y2025, staged.Y2026, staged.Logos,
+            new TexconvRunner(), notes);
 
+    /// <summary>What to do with the notes a write produced, back on this thread.</summary>
+    private void AfterEditsWritten(List<string> notes)
+    {
         if (notes.Count > 0)
             SimplifiedUi.MessageDialog.Show(this,
                 "The project was saved, with these notes:" + Environment.NewLine + Environment.NewLine + "  "
@@ -219,11 +236,14 @@ public partial class MainWindow
 
         // Package what is in the project, so what ships is what was saved —
         // which means anything staged in a tab has to be written down first.
+        // That is its own several seconds, and its own progress window.
         if (!SaveProject(saveAs: false)) return;
 
         try
         {
-            var result = GridPackager.Write(request.Path, _project, _config.GameDir);
+            var name = _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName;
+            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {name}",
+                say => GridPackager.Write(request.Path, _project, _config.GameDir, say));
 
             SetStatus(GridPackager.Describe(result, request.Path), OkBrush);
 

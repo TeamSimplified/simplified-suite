@@ -970,13 +970,26 @@ public partial class MainWindow : Window
 
         try
         {
-            var copy = GameDatabase.Load(_path);
-            var writes = ReplayChangesOnto(copy);
-            copy.Save(staging);
+            // Behind a progress window: the database is 18 MB to read, rewrite
+            // and compress, which is a few seconds of a window doing nothing
+            // visible.
+            var writes = SimplifiedUi.ProgressDialog.Run(this,
+                $"Packaging {Path.GetFileNameWithoutExtension(dlg.FileName)}", say =>
+                {
+                    say.Report("Copying the database…");
+                    var copy = GameDatabase.Load(_path);
 
-            if (File.Exists(dlg.FileName)) File.Delete(dlg.FileName);
-            using (var zip = ZipFile.Open(dlg.FileName, ZipArchiveMode.Create))
-                zip.CreateEntryFromFile(staging, entryPath, CompressionLevel.Optimal);
+                    say.Report("Applying your changes…");
+                    var applied = ReplayChangesOnto(copy);
+                    copy.Save(staging);
+
+                    say.Report("Writing the package…");
+                    if (File.Exists(dlg.FileName)) File.Delete(dlg.FileName);
+                    using (var zip = ZipFile.Open(dlg.FileName, ZipArchiveMode.Create))
+                        zip.CreateEntryFromFile(staging, entryPath, CompressionLevel.Optimal);
+
+                    return applied;
+                });
 
             Log($"packaged {writes} change(s) as {entryPath}");
             SetStatus($"Packaged {Path.GetFileName(dlg.FileName)} — {writes} change(s) at {entryPath}.", OkBrush);

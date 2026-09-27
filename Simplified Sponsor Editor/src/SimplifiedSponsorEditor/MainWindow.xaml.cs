@@ -293,7 +293,7 @@ public partial class MainWindow : Window
 
     // ── Packaging ───────────────────────────────────────────────────────────
 
-    private async void Package_Click(object sender, RoutedEventArgs e)
+    private void Package_Click(object sender, RoutedEventArgs e)
     {
         if (_project is null) return;
 
@@ -336,7 +336,12 @@ public partial class MainWindow : Window
 
         try
         {
-            var result = await Task.Run(() => SponsorPackager.Build(request));
+            // Behind a progress window: every replaced decal is converted and
+            // then merged into both of the game's shader archives, which is the
+            // longest thing this app does.
+            var name = _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName;
+            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {name}",
+                say => SponsorPackager.Build(request, say: say));
 
             // Always told, not only when something went sideways: Studio reports
             // a finished package in a dialog too, and packaging is long enough

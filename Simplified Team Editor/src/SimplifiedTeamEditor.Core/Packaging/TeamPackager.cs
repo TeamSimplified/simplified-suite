@@ -60,7 +60,8 @@ public static class TeamPackager
         IReadOnlyList<LogoEdit> logoEdits,
         string? gameDir,
         string languageDir,
-        TexconvRunner runner)
+        TexconvRunner runner,
+        IProgress<string>? say = null)
     {
         var warnings = new List<string>();
 
@@ -77,6 +78,7 @@ public static class TeamPackager
         // The database and the 2026 key additions are worked out together: a
         // 2026 name edit changes both, and the key map has to be read off the
         // database before reassignment rewrites the fields it reads.
+        say?.Report("Reading the game database…");
         var (databaseBytes, keys2026, counts) = BuildDatabaseAndKeys(assetsDir, gameDir, y2025, y2026, warnings);
 
         // Build beside the destination and move it into place at the end, so a
@@ -93,6 +95,7 @@ public static class TeamPackager
             using (var stream = File.Create(temporary))
             using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
             {
+                say?.Report("Writing the team names…");
                 languageFiles = WriteLanguageFiles(zip, languageDir, y2025, keys2026, warnings);
 
                 if (databaseBytes is not null)
@@ -100,12 +103,19 @@ public static class TeamPackager
                                                 .Concat(GameFiles.GameDatabaseRelPath)), databaseBytes);
 
                 if (logoEdits.Count > 0)
+                {
+                    // The long one: every logo is converted, put into the
+                    // branding archive and merged into both of the game's
+                    // shader packages, which are 300 MB each.
+                    say?.Report("Merging the logos into the game's archives…");
                     shaderPackages = WriteShaderPackages(zip, assetsDir, logoEdits, gameDir, runner, warnings);
+                }
 
                 if (modInfo is not null && !string.IsNullOrWhiteSpace(modInfo.Name))
                     Write(zip, "mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(modInfo, gameDir)));
             }
 
+            say?.Report("Finishing the package…");
             File.Move(temporary, zipPath, overwrite: true);
         }
         catch

@@ -368,7 +368,14 @@ public partial class MainWindow : Window
             colours);
     }
 
-    private void Package_Click(object sender, RoutedEventArgs e)
+    private void Package_Click(object sender, RoutedEventArgs e) => PackageEdits();
+
+    /// <summary>
+    /// Write the edits out as a mod. Returns whether one was written — so the
+    /// close confirmation can offer this as the way to keep the work, and know
+    /// whether it happened.
+    /// </summary>
+    private bool PackageEdits()
     {
         var y2025 = EditsFor(Season.Y2025);
         var y2026 = EditsFor(Season.Y2026);
@@ -377,24 +384,31 @@ public partial class MainWindow : Window
         {
             SimplifiedUi.MessageDialog.Show(this, "Nothing has been changed yet, so there is nothing to package.",
                 "Package", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            return false;
         }
 
         var config = UserConfig.Load();
         var request = PackageDialog.Show(this, config.DefaultAuthor, config.LastPackageFolder);
-        if (request is null) return;
+        if (request is null) return false;
 
         var info = request.Info;
 
         try
         {
-            Mouse.OverrideCursor = Cursors.Wait;
+            // Behind a progress window rather than a wait cursor. A logo edit
+            // means merging into both of the game's shader packages, which is
+            // 600 MB of archive and long enough that a still window reads as a
+            // dead one.
+            // The edits are gathered here rather than inside the lambda: what
+            // goes to the packager is what was on screen when Package was
+            // pressed, read on the thread that owns it.
+            var logos = CollectLogoEdits();
+            var gameDir = config.GameDir ?? GameDirDetector.Detect()?.Path;
 
-            var runner = new TexconvRunner();
-            var result = TeamPackager.Write(
-                request.Path, AssetsDir, y2025, y2026, info,
-                CollectLogoEdits(), config.GameDir ?? GameDirDetector.Detect()?.Path,
-                AppPaths.LanguageDir, runner);
+            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {info.Name}", say =>
+                TeamPackager.Write(
+                    request.Path, AssetsDir, y2025, y2026, info,
+                    logos, gameDir, AppPaths.LanguageDir, new TexconvRunner(), say));
 
             config.DefaultAuthor = info.Author;
             config.LastPackageFolder = Path.GetDirectoryName(request.Path);
@@ -406,16 +420,56 @@ public partial class MainWindow : Window
                 SimplifiedUi.MessageDialog.Show(this,
                     "The package was written, with these notes:\n\n  " + string.Join("\n  ", result.Warnings),
                     "Package", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            return true;
         }
         catch (Exception ex)
         {
             SimplifiedUi.MessageDialog.Show(this, $"The package could not be written.\n\n{ex.Message}",
                 "Package", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
-        finally
+    }
+
+    // ────────────────────────── Leaving ───────────────────────────────
+
+    /// <summary>Any team changed, in either season.</summary>
+    private bool HasPendingChanges =>
+        _rowsBySeason.Values.Any(rows => rows.Any(r => r.IsModified));
+
+    /// <summary>
+    /// Ask before the work goes.
+    ///
+    /// The other apps ask save or discard; this one has nothing to save into.
+    /// The edits live in the window until they are packaged, and packaging is
+    /// the only way they leave it — so that is what the keeping button does.
+    /// </summary>
+    private bool ConfirmDiscardChanges()
+    {
+        if (!HasPendingChanges) return true;
+
+        var changed = _rowsBySeason.Values.Sum(rows => rows.Count(r => r.IsModified));
+
+        var answer = SimplifiedUi.MessageDialog.Choose(this,
+            "Unpackaged changes",
+            changed == 1 ? "One team has been changed." : $"{changed} teams have been changed.",
+            "Package writes them into a mod file first. Discard throws them away — there is nowhere else " +
+            "they are kept. Either way the app will then close.",
+            ("Package", MessageBoxResult.Yes),
+            ("Discard", MessageBoxResult.No),
+            ("Cancel", MessageBoxResult.Cancel));
+
+        return answer switch
         {
-            Mouse.OverrideCursor = null;
-        }
+            MessageBoxResult.Yes => PackageEdits(),
+            MessageBoxResult.No => true,
+            _ => false,
+        };
+    }
+
+    private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!ConfirmDiscardChanges()) e.Cancel = true;
     }
 
     /// <summary>

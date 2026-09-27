@@ -239,7 +239,8 @@ public static class GridPackager
     public static GridPackageResult Write(
         string zipPath,
         GridProject project,
-        string? gameDir)
+        string? gameDir,
+        IProgress<string>? say = null)
     {
         var warnings = new List<string>();
 
@@ -258,6 +259,7 @@ public static class GridPackager
             using (var stream = File.Create(temporary))
             using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
             {
+                say?.Report("Writing the team names…");
                 foreach (var path in project.LanguageFiles.OrderBy(f => f))
                 {
                     Add(zip, string.Join('/', GameFiles.PackageLocalisationPath.Append(Path.GetFileName(path))),
@@ -267,6 +269,7 @@ public static class GridPackager
                 if (languageFiles == 0)
                     warnings.Add("The project has no language files, so no names were packaged.");
 
+                say?.Report("Writing the game database…");
                 if (File.Exists(project.DatabasePath))
                 {
                     Add(zip, string.Join('/', new[] { GameFiles.GameFolderName }.Concat(GameFiles.GameDatabaseRelPath)),
@@ -279,11 +282,17 @@ public static class GridPackager
                 }
 
                 if (project.Info.LogoKinds.Count > 0)
+                {
+                    // The long one: both of the game's shader packages are read,
+                    // merged into and written back, and they are 300 MB each.
+                    say?.Report("Merging the logos into the game's archives…");
                     shaderPackages = WriteShaderPackages(zip, project, gameDir, warnings);
+                }
 
                 Add(zip, "mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(project, gameDir)));
             }
 
+            say?.Report("Finishing the package…");
             File.Move(temporary, zipPath, overwrite: true);
         }
         catch

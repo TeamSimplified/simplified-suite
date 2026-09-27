@@ -80,6 +80,7 @@ public static class SponsorPackager
     private const ErpGfxSurfaceFormat DecalFormat = ErpGfxSurfaceFormat.BC7_SRGB;
 
     public static PackageResult Build(PackageRequest request, Action<string>? log = null,
+                                      IProgress<string>? say = null,
                                       CancellationToken cancel = default)
     {
         var project = request.Project;
@@ -116,6 +117,7 @@ public static class SponsorPackager
         {
             // ── The two overlays ──────────────────────────────────────
             log?.Invoke($"Preparing {replaced.Count} decal(s)...");
+            say?.Report("Reading the decals…");
 
             var decals = replaced
                 .Select(catalogue.Find)
@@ -139,10 +141,12 @@ public static class SponsorPackager
             var carCount = 0;
             var menuCount = 0;
 
+            var done = 0;
             foreach (var decal in decals)
             {
                 cancel.ThrowIfCancellationRequested();
                 log?.Invoke($"  {decal.Name}");
+                say?.Report($"Converting the pictures — {++done} of {decals.Count}…");
 
                 if (Import(carOverlay, decal.CarIdentifier, project.PicturePath(decal.Name),
                            runner, work, width: 0, height: 0, warnings))
@@ -177,6 +181,7 @@ public static class SponsorPackager
             {
                 cancel.ThrowIfCancellationRequested();
                 log?.Invoke($"Merging into {name}...");
+                say?.Report("Merging the decals into the game's archives…");
 
                 var target = ErpFileIO.Load(Path.Combine(shaderFolder, name));
                 MergeInto(target, carOverlay);
@@ -187,6 +192,7 @@ public static class SponsorPackager
             }
 
             log?.Invoke("Zipping...");
+            say?.Report("Writing the package…");
             if (File.Exists(request.OutputZipPath)) File.Delete(request.OutputZipPath);
 
             var directory = Path.GetDirectoryName(request.OutputZipPath);

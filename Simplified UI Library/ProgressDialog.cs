@@ -35,6 +35,16 @@ namespace SimplifiedUi;
 public static class ProgressDialog
 {
     /// <summary>
+    /// How long the window stays invisible before it shows itself.
+    ///
+    /// Long enough that work finishing immediately never flashes a window,
+    /// short enough not to read as a pause. It is not a threshold to decide
+    /// whether to show one — that decision blocks — only how long to wait
+    /// before it can be seen.
+    /// </summary>
+    private static readonly TimeSpan RevealAfter = TimeSpan.FromMilliseconds(150);
+
+    /// <summary>
     /// Run <paramref name="work"/> behind a modal progress window, and hand
     /// back what it returned.
     ///
@@ -78,25 +88,47 @@ public static class ProgressDialog
             catch (Exception ex) { failure = ex; }
         });
 
-        // Nothing on screen for work that finishes immediately. A window that
-        // appears and disappears inside a quarter of a second reads as a glitch.
-        if (task.Wait(TimeSpan.FromMilliseconds(250)))
-        {
-            if (failure is not null) throw Rethrow(failure);
-            return answer!;
-        }
+        // The window goes up now, and the calling thread is not made to wait to
+        // find out whether it is needed.
+        //
+        // It used to block here for a quarter of a second, so that work which
+        // finished at once never flashed a window. That quarter second was the
+        // UI thread: the app stopped repainting the moment the button was
+        // pressed, which is the exact complaint this dialog exists to answer,
+        // and it was most visible where it mattered most — packaging, where
+        // what follows the press is minutes of work.
+        //
+        // So the window is shown straight away and left transparent for a
+        // moment instead. Quick work still closes it before anyone sees it,
+        // and the app carries on drawing throughout.
+        window.Opacity = 0;
+        var reveal = new System.Windows.Threading.DispatcherTimer(
+            RevealAfter, System.Windows.Threading.DispatcherPriority.Normal,
+            (_, _) => window.Opacity = 1, window.Dispatcher);
 
         // Closed by the work finishing, not by the person: there is nothing to
         // cancel here, and a dialog that can be dismissed while the thing it
         // describes carries on is a lie.
+        var finished = false;
         task.ContinueWith(_ => window.Dispatcher.BeginInvoke(() =>
         {
+            finished = true;
+            reveal.Stop();
+            // Only if it got as far as being shown. Work that finished inside
+            // the first frame leaves a window that was never opened, and
+            // closing one of those throws.
+            if (!window.IsVisible) return;
             window.Closing -= Refuse;
             window.Close();
         }));
 
         window.Closing += Refuse;
-        window.ShowDialog();
+        // Both this check and the line that sets it run on the UI thread, so
+        // nothing can slip between them; a report that is already queued runs
+        // inside ShowDialog's own message loop and closes the window there.
+        if (!finished) window.ShowDialog();
+
+        reveal.Stop();
 
         if (failure is not null) throw Rethrow(failure);
         return answer!;

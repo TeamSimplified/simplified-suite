@@ -112,7 +112,8 @@ public static class ProjectPackager
         string saveLocation,
         bool zip,
         string modVersion,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        IProgress<string>? say = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (string.IsNullOrWhiteSpace(gameDir))
@@ -164,11 +165,13 @@ public static class ProjectPackager
             Directory.CreateDirectory(stagedShaderDir);
             var stagedMain = Path.Combine(stagedShaderDir, Path.GetFileName(srcMain));
             var stagedAmd  = Path.Combine(stagedShaderDir, Path.GetFileName(srcAmd));
+            say?.Report("Copying the game's shader packages…");
             File.Copy(srcMain, stagedMain, overwrite: true);
             File.Copy(srcAmd,  stagedAmd,  overwrite: true);
 
             // Pre-load every active ERP once — merging into the two targets is
             // the same source-iteration each time, so loading twice is wasted I/O.
+            say?.Report($"Reading the project's parts — {enabled.Count} of them…");
             var sources = enabled.Select(p => (Path: p, Erp: ErpFileIO.Load(p))).ToList();
 
             // The shader package targets also need the ALWAYS-merged 'serps.erp'
@@ -180,6 +183,7 @@ public static class ProjectPackager
             ExtractEmbeddedSerpsErp(serpsErpPath);
             sources.Insert(0, (serpsErpPath, ErpFileIO.Load(serpsErpPath)));
 
+            say?.Report("Merging them into the shader packages…");
             MergeSourcesInto(stagedMain, sources);
             MergeSourcesInto(stagedAmd,  sources);
 
@@ -223,6 +227,7 @@ public static class ProjectPackager
             // Append the user's version verbatim — they get to choose whether to prefix it with "v".
             if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " " + modVersion.Trim();
 
+            say?.Report("Writing the package…");
             if (zip)
             {
                 var zipPath = Path.Combine(saveLocation, baseName + ".zip");
@@ -265,7 +270,8 @@ public static class ProjectPackager
         SimplifiedProject project,
         string gameDir,
         string saveLocation,
-        string modVersion)
+        string modVersion,
+        IProgress<string>? say = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (string.IsNullOrWhiteSpace(saveLocation))
@@ -287,6 +293,8 @@ public static class ProjectPackager
         var outPath = Path.Combine(saveLocation, baseName + ".serps");
 
         if (File.Exists(outPath)) File.Delete(outPath);
+
+        say?.Report($"Writing the template — {parts.Count} part(s)…");
 
         // The ZIP comment is read back by ProjectStore.ExtractShaderPackage —
         // keep the JSON shape ("erp_file_string": "<shader>") it expects.

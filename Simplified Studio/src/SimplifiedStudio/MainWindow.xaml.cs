@@ -3598,9 +3598,13 @@ public partial class MainWindow : Window
         Log($"Packaging '{project.Info.Name}' as .{packageFormat}…");
         try
         {
-            var output = await Task.Run(() => isSerps
-                ? ProjectPackager.PackageAsSerps(project, gameDir!, result.SaveLocation, result.ModVersion)
-                : ProjectPackager.Package(project, gameDir!, result.SaveLocation, zip: true, result.ModVersion, log: Log));
+            // Behind a progress window: a mod is both of the game's shader
+            // packages read, merged into and written back, and they are 300 MB
+            // each. The log still gets the detail.
+            var output = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {project.Info.Name}", say => isSerps
+                ? ProjectPackager.PackageAsSerps(project, gameDir!, result.SaveLocation, result.ModVersion, say)
+                : ProjectPackager.Package(project, gameDir!, result.SaveLocation, zip: true, result.ModVersion,
+                                          log: Log, say: say));
             Log($"Package written: {output}");
             ShowMessage(
                 $"Package written:\n{output}",
