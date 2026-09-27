@@ -1,4 +1,4 @@
-namespace SimplifiedGridEditor.Core;
+﻿namespace SimplifiedGridEditor.Core;
 
 /// <summary>
 /// Where the app keeps what belongs to the app.
@@ -39,4 +39,16 @@ public static class AppPaths
     /// and nothing else their game happens to have in it.
     /// </summary>
     public static string OriginalsDir => Path.Combine(RuntimeDir, "original");
+
+    /// <summary>
+    /// Where the language library keeps what it has worked out: the offset of
+    /// the archive inside each build of the game exe it has seen, and the
+    /// language files taken out of it.
+    ///
+    /// Under the app folder, because these apps write nothing outside it. It is
+    /// derived and can be deleted at any time - the cost of that is one search
+    /// of the exe, once.
+    /// </summary>
+    public static string LanguageCacheDir => Path.Combine(RuntimeDir, "language");
+
 }

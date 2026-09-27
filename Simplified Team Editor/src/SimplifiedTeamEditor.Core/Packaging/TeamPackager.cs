@@ -38,10 +38,16 @@ public sealed record PackageResult(
 /// <summary>
 /// Writing team edits out as a mod anyone can install.
 ///
-/// Everything is built from the bundled base files rather than from the user's
-/// install, so a shared package carries only their team edits and not whatever
-/// else their game happens to have in it. The one exception is the UI shader
-/// packages a logo edit merges into, which have to come from the game.
+/// Built from the game's own files, not from copies carried here: the language
+/// files come out of the exe, the database out of the install when it is one we
+/// recognise, and the UI shader packages a logo edit merges into have to come
+/// from there in any case. What that costs is a game folder - none of this
+/// works without one - and what it buys is a package that is current with
+/// whatever the game has patched to rather than with whatever we last bundled.
+///
+/// The clean-room half of the old arrangement is kept by checking rather than
+/// by copying: see GameFileGuard and GameDatabaseSource, which is what stops
+/// somebody else's mod becoming the base of this one.
 /// </summary>
 public static class TeamPackager
 {
@@ -53,9 +59,30 @@ public static class TeamPackager
         ModInfo? modInfo,
         IReadOnlyList<LogoEdit> logoEdits,
         string? gameDir,
+        string languageCacheDir,
         TexconvRunner runner)
     {
         var warnings = new List<string>();
+
+        // The language files come out of the game rather than out of a copy we
+        // carry. Taken once per build and kept, so this is instant after the
+        // first time — see Simplified.Language.LanguageFiles.
+        string languageDir;
+        try
+        {
+            var set = Simplified.Language.LanguageFiles.Ensure(gameDir, languageCacheDir);
+            languageDir = set.Folder;
+            if (set.Searched)
+                warnings.Add("The language files were taken out of the game for the first time on this " +
+                             "build. Every package after this one skips that step.");
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "The game's language files couldn't be read, and a package is built from them. " +
+                "Set the game folder in Settings and try again." +
+                Environment.NewLine + Environment.NewLine + ex.Message, ex);
+        }
 
         // The database and the 2026 key additions are worked out together: a
         // 2026 name edit changes both, and the key map has to be read off the
@@ -76,7 +103,7 @@ public static class TeamPackager
             using (var stream = File.Create(temporary))
             using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
             {
-                languageFiles = WriteLanguageFiles(zip, assetsDir, y2025, keys2026, warnings);
+                languageFiles = WriteLanguageFiles(zip, languageDir, y2025, keys2026, warnings);
 
                 if (databaseBytes is not null)
                     Write(zip, string.Join('/', new[] { GameFiles.GameFolderName }
@@ -185,10 +212,10 @@ public static class TeamPackager
     /// in menus and another in commentary subtitles.
     /// </summary>
     private static int WriteLanguageFiles(
-        ZipArchive zip, string assetsDir, SeasonEdits y2025,
+        ZipArchive zip, string languageDir, SeasonEdits y2025,
         IReadOnlyDictionary<string, string> keys2026, List<string> warnings)
     {
-        var directory = Path.Combine(assetsDir, "localisation");
+        var directory = languageDir;
         if (!Directory.Exists(directory))
         {
             warnings.Add("The bundled language files are missing, so no names can be packaged.");

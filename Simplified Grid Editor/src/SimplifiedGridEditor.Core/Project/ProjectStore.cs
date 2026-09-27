@@ -56,7 +56,7 @@ public static class ProjectStore
     /// The bundled pristine files — <see cref="AppPaths.OriginalsDir"/>.
     /// </param>
     public static GridProject Create(string originalsDir, string name, string author,
-                                     string? gameDir = null, Action<string>? note = null)
+                                     string? gameDir, string languageCacheDir, Action<string>? note = null)
     {
         if (!Directory.Exists(originalsDir))
             throw new DirectoryNotFoundException(
@@ -90,12 +90,18 @@ public static class ProjectStore
         if (chosen.Note is not null) note?.Invoke(chosen.Note);
         if (File.Exists(chosen.Path)) File.Copy(chosen.Path, project.DatabasePath);
 
-        // The eleven language files, plus the two 2026 files that sit beside
-        // them in the bundle rather than in localisation/.
-        var localisation = Path.Combine(originalsDir, "localisation");
-        if (Directory.Exists(localisation))
-            foreach (var file in Directory.EnumerateFiles(localisation, "*.lng"))
-                File.Copy(file, Path.Combine(project.LanguageFolder, Path.GetFileName(file)), overwrite: true);
+        // The eleven language files, out of the game's own exe rather than out
+        // of a copy carried here. Taken once per game build and kept, so this
+        // is instant after the first project on a new build - and a project
+        // started today is seeded from today's game rather than from whatever
+        // was bundled whenever this app was last released.
+        var languages = Simplified.Language.LanguageFiles.Ensure(gameDir, languageCacheDir);
+        if (languages.Searched)
+            note?.Invoke("The language files were taken out of the game for the first time on this build. " +
+                         "Every project after this one starts immediately.");
+
+        foreach (var file in Directory.EnumerateFiles(languages.Folder, "*.lng"))
+            File.Copy(file, Path.Combine(project.LanguageFolder, Path.GetFileName(file)), overwrite: true);
 
         foreach (var extra in new[] { "2026_team_keys.lng", "2026_team_names.json" })
         {

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -19,6 +19,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+    <ProjectReference Include="..\..\..\Language Library\SimplifiedLanguage.csproj" />
     <ProjectReference Include="..\..\..\Simplified Team Editor\src\SimplifiedTeamEditor.Core\SimplifiedTeamEditor.Core.csproj" />
     <ProjectReference Include="..\..\..\Simplified Driver Swapper\src\SimplifiedDriverSwapper.Core\SimplifiedDriverSwapper.Core.csproj" />
   </ItemGroup>

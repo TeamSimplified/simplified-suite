@@ -3,10 +3,9 @@
   "game": "F1® 25",
   "game_version": "1.0.141.7865",
   "taken": "2026-09-07",
-  "note": "Still the files taken on 2026-09-07 — checked against 1.0.141.7865 on 2026-09-22 and unchanged. The database and all eleven language files are byte-identical, and ui_texarrays_team_branding.erp was repacked with all 46 of its resources decompressing to the same bytes. Only the build they are known to match has moved. Before that, the F2 26 update: it added the f2_2026 entrant list at index 20, which moved every later list down one.",
+  "note": "Still the files taken on 2026-09-07 - checked against 1.0.141.7865 on 2026-09-22 and unchanged. The language files are no longer here: they are taken out of the game's own exe now, by Simplified.Language.LanguageFiles, so there is nothing left to go stale. ui_texarrays_team_branding.erp was repacked on that build with all 46 of its resources decompressing to the same bytes. Before that, the F2 26 update: it added the f2_2026 entrant list at index 20, which moved every later list down one.",
   "files": [
     "gamedatabases.2025.bin",
-    "localisation/language_*.lng",
     "ui/ui_texarrays_team_branding.erp"
   ]
 }

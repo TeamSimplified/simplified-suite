@@ -126,7 +126,8 @@ public partial class MainWindow : Window
         {
             string? seedNote = null;
             _project = ProjectStore.Create(AppPaths.OriginalsDir, request.ModName, request.ModAuthor,
-                                           _config.GameDir, note => seedNote = note);
+                                           _config.GameDir, AppPaths.LanguageCacheDir,
+                                           note => seedNote = note);
             if (seedNote is not null) SetStatus(seedNote, MutedBrush);
 
             // Written to disk straight away, as Studio does it. The path was

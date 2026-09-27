@@ -85,6 +85,41 @@ public partial class MainWindow : Window
 
     // ─────────────────────────── Loading ──────────────────────────────
 
+    /// <summary>The install, as Settings has it or as it can be found.</summary>
+    private static string? GameDir =>
+        UserConfig.Load().GameDir ?? GameDirDetector.Detect()?.Path;
+
+    /// <summary>
+    /// Take the language files out of the game, then load the teams from them.
+    ///
+    /// Off the window's thread, because the first run on a build is about half
+    /// a minute and the window is already up and painted by then. Every run
+    /// after it is immediate, so this path is the exception rather than the
+    /// cost of opening the app.
+    /// </summary>
+    private async void LoadTeamsWhenExtracted()
+    {
+        var gameDir = GameDir;
+        if (gameDir is null)
+        {
+            StatusLine.Text = "Set the game folder in Settings — team names are read out of the game's exe.";
+            return;
+        }
+
+        StatusLine.Text = "Taking the language files out of the game — this happens once per game update…";
+        try
+        {
+            await Task.Run(() => Simplified.Language.LanguageFiles.EnsureAsync(
+                gameDir, AppPaths.LanguageCacheDir));
+
+            LoadTeams();
+        }
+        catch (Exception ex)
+        {
+            StatusLine.Text = $"The game's language files couldn't be read: {ex.Message}";
+        }
+    }
+
     /// <summary>
     /// English is what the editor shows and edits. A change applies to every
     /// language when it is packaged — the other ten files get the same value,
@@ -92,7 +127,19 @@ public partial class MainWindow : Window
     /// </summary>
     private void LoadTeams()
     {
-        var path = Path.Combine(AssetsDir, "localisation", "language_eng.lng");
+        // The language files live inside the game's exe, and getting them out
+        // the first time on a given build means searching it end to end. A
+        // window opening has no business doing that, so it asks whether the
+        // work has already been done and, if not, has it done elsewhere and
+        // comes back — see LoadTeamsWhenExtracted.
+        var folder = Simplified.Language.LanguageFiles.Cached(GameDir, AppPaths.LanguageCacheDir);
+        if (folder is null)
+        {
+            LoadTeamsWhenExtracted();
+            return;
+        }
+
+        var path = Path.Combine(folder, "language_eng.lng");
         if (!File.Exists(path))
         {
             StatusLine.Text = $"Base language file not found: {path}";
@@ -342,7 +389,8 @@ public partial class MainWindow : Window
             var runner = new TexconvRunner();
             var result = TeamPackager.Write(
                 request.Path, AssetsDir, y2025, y2026, info,
-                CollectLogoEdits(), config.GameDir ?? GameDirDetector.Detect()?.Path, runner);
+                CollectLogoEdits(), config.GameDir ?? GameDirDetector.Detect()?.Path,
+                AppPaths.LanguageCacheDir, runner);
 
             config.DefaultAuthor = info.Author;
             config.LastPackageFolder = Path.GetDirectoryName(request.Path);

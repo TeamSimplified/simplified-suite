@@ -13,6 +13,7 @@
        missing gets added there rather than reimplemented here. The packages
        those need arrive with it. -->
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Language Library\SimplifiedLanguage.csproj" />
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
