@@ -30,9 +30,22 @@ public static class DialogChrome
     /// system frame. Call it after the object initialiser and before ShowDialog:
     /// the current Content is what gets wrapped, so anything assigned later
     /// would replace the bar along with it.
+    ///
+    /// With <paramref name="titled"/> false there is no bar at all — for a
+    /// dialog with nothing to put in one. An empty bar is not nothing: it is
+    /// 38px of blank above the first line, which reads as the content having
+    /// slipped down the window. The top of the window stays draggable either
+    /// way, since the caption area is the chrome's and not the bar's.
+    ///
+    /// Left unsaid, it works that out: a window with no title and no close
+    /// button has nothing to put in a bar, so it doesn't get one. Any dialog
+    /// that forgets to set a Title is then short a bar rather than showing a
+    /// blank one.
     /// </summary>
-    public static void Apply(Window window)
+    public static void Apply(Window window, bool closable = true, bool? titled = null)
     {
+        var showBar = titled ?? (closable || !string.IsNullOrWhiteSpace(window.Title));
+
         var content = window.Content as UIElement;
         // Detach first — an element can't be added to the new parent while the
         // window still holds it.
@@ -61,13 +74,17 @@ public static class DialogChrome
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var bar = BuildTitleBar(window);
-        Grid.SetRow(bar, 0);
-        root.Children.Add(bar);
+        if (showBar)
+        {
+            var bar = BuildTitleBar(window, closable);
+            Grid.SetRow(bar, 0);
+            root.Children.Add(bar);
+        }
 
         if (content is not null)
         {
-            Grid.SetRow(content, 1);
+            Grid.SetRow(content, showBar ? 1 : 0);
+            Grid.SetRowSpan(content, showBar ? 1 : 2);
             root.Children.Add(content);
         }
 
@@ -92,7 +109,7 @@ public static class DialogChrome
         catch { /* older Windows — square corners are a fine outcome */ }
     }
 
-    private static UIElement BuildTitleBar(Window window)
+    private static UIElement BuildTitleBar(Window window, bool closable)
     {
         var dock = new DockPanel { LastChildFill = false };
 
@@ -106,7 +123,11 @@ public static class DialogChrome
         // the system close button did.
         close.Click += (_, _) => window.Close();
         DockPanel.SetDock(close, Dock.Right);
-        dock.Children.Add(close);
+        // Left out entirely when the window cannot be closed by hand. A close
+        // button that refuses is worse than none: it invites the click and then
+        // ignores it, which reads as the app having hung - the very thing a
+        // progress window exists to disprove.
+        if (closable) dock.Children.Add(close);
 
         // The title the Window was given, since the system no longer draws it.
         var title = new TextBlock

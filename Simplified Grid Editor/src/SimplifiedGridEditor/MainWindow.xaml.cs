@@ -76,14 +76,54 @@ public partial class MainWindow : Window
         InitTabs();
         RefreshEverything();
 
-        // A project handed over by Explorer — a double-click, or "Open with".
-        //
         // ContentRendered rather than Loaded: Loaded fires before the first
-        // paint, and opening a project reads an 18 MB database, so acting on
-        // Loaded would leave an unpainted window on screen for the several
-        // seconds that takes. Studio defers for the same reason.
-        if (App.StartupFile is { } startupFile)
-            ContentRendered += (_, _) => OpenProject(startupFile);
+        // paint, so anything slow hung on it leaves an unpainted window on
+        // screen for as long as it takes, and a dialog can't be given an owner
+        // that hasn't been shown yet. Studio defers for the same reason.
+        ContentRendered += (_, _) =>
+        {
+            // The game's files first: a project is built out of them, and this
+            // is where the waiting belongs. Nothing to do on all but the first
+            // run of a game build.
+            EnsureGameFiles();
+
+            // Then a project handed over by Explorer — a double-click, or
+            // "Open with".
+            if (App.StartupFile is { } startupFile) OpenProject(startupFile);
+        };
+    }
+
+    /// <summary>
+    /// Make sure the game files the app works from are the installed game's.
+    ///
+    /// The language files are the ones that need fetching: the game ships none
+    /// on disk, they live inside its exe, and getting them out the first time on
+    /// a build means reading 408 MB — half a minute, once. It happens here, at
+    /// startup, rather than when a project is started, for two reasons. A person
+    /// opening an app is expecting it to take a moment; a person who has just
+    /// named a mod and pressed Create is expecting a project. And the check that
+    /// decides whether to do it at all is the same one either way: whether what
+    /// is on disk came out of the exe that is installed now.
+    /// </summary>
+    private void EnsureGameFiles()
+    {
+        var state = Simplified.Language.LanguageFiles.Check(_config.GameDir, AppPaths.LanguageDir);
+        if (Simplified.Language.LanguageFiles.Headline(state) is not { } headline) return;
+
+        try
+        {
+            SimplifiedUi.ProgressDialog.Run(this, headline, progress =>
+                Simplified.Language.LanguageFiles.Refresh(
+                    _config.GameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
+        }
+        catch (Exception ex)
+        {
+            // Said on the status line rather than in a dialog. The app opens and
+            // works; what it cannot do until this is sorted out is start a new
+            // project, and that path says so itself.
+            SetStatus($"The game's files couldn't be read, so a new project can't be started yet: {ex.Message}",
+                      ErrorBrush);
+        }
     }
 
     /// <summary>
@@ -125,15 +165,26 @@ public partial class MainWindow : Window
         try
         {
             string? seedNote = null;
-            _project = ProjectStore.Create(AppPaths.OriginalsDir, request.ModName, request.ModAuthor,
-                                           _config.GameDir, AppPaths.LanguageCacheDir,
-                                           note => seedNote = note);
-            if (seedNote is not null) SetStatus(seedNote, MutedBrush);
 
-            // Written to disk straight away, as Studio does it. The path was
-            // already asked for, and a project that exists only in a temp
-            // directory is one power cut from not existing at all.
-            ProjectStore.Save(_project, request.SavePath);
+            // Behind a progress window: this copies the 18 MB database, the
+            // eleven language files and the UI archives, then writes the lot
+            // back out as a zip. It only appears if that takes a moment.
+            _project = SimplifiedUi.ProgressDialog.Run(this,
+                $"Starting {request.ModName}", progress =>
+                {
+                    var created = ProjectStore.Create(
+                        AppPaths.OriginalsDir, request.ModName, request.ModAuthor,
+                        _config.GameDir, note => seedNote = note, progress);
+
+                    // Written to disk straight away, as Studio does it. The path
+                    // was already asked for, and a project that exists only in a
+                    // temp directory is one power cut from not existing at all.
+                    progress.Report("Saving the project…");
+                    ProjectStore.Save(created, request.SavePath);
+                    return created;
+                });
+
+            if (seedNote is not null) SetStatus(seedNote, MutedBrush);
         }
         catch (Exception ex)
         {
@@ -175,7 +226,9 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = ProjectStore.Open(path);
+            _project = SimplifiedUi.ProgressDialog.Run(this,
+                $"Opening {Path.GetFileNameWithoutExtension(path)}",
+                progress => ProjectStore.Open(path, progress));
         }
         catch (Exception ex)
         {
@@ -429,6 +482,11 @@ public partial class MainWindow : Window
 
         _config.Save();
         ApplyAdvancedSwapping(_config.EnableAdvancedSwapping);
+
+        // A game folder that has just been set or changed is the other moment
+        // the language files can go from missing to gettable — without this the
+        // fix would be to set the folder and then restart the app.
+        EnsureGameFiles();
     }
 
     // ── Shared ──────────────────────────────────────────────────────────────

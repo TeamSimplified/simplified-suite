@@ -52,10 +52,25 @@ public partial class MainWindow : Window
 
         VersionLabel.Text = AppVersion.Display;
         ApplyWindowIcon();
-        LoadTeams();
+
+        // The teams are read out of the game's language files, which the app
+        // keeps beside itself and takes out of the game's exe when they are
+        // missing or from a build the game has since patched past. On all but
+        // the first run of a build there is nothing to take, so the list is
+        // built here as it always was — before the first paint, so the window
+        // opens with teams in it.
+        //
+        // When there is something to take it waits for ContentRendered instead:
+        // that is half a minute of reading, it wants a progress window over the
+        // top, and a dialog cannot be given an owner that has not been shown.
+        if (Simplified.Language.LanguageFiles.Check(GameDir, AppPaths.LanguageDir)
+            == Simplified.Language.LanguageState.Current)
+            LoadTeams();
+        else
+            ContentRendered += (_, _) => { EnsureGameFiles(); LoadTeams(); };
     }
 
-    private static string AssetsDir => Path.Combine(AppPaths.Root, "runtime", "original");
+    private static string AssetsDir => AppPaths.OriginalsDir;
 
     private static string SeasonLabel(Season season) => season == Season.Y2026 ? "2026" : "2025";
 
@@ -90,33 +105,29 @@ public partial class MainWindow : Window
         UserConfig.Load().GameDir ?? GameDirDetector.Detect()?.Path;
 
     /// <summary>
-    /// Take the language files out of the game, then load the teams from them.
+    /// Make sure the game files the app works from are the installed game's.
     ///
-    /// Off the window's thread, because the first run on a build is about half
-    /// a minute and the window is already up and painted by then. Every run
-    /// after it is immediate, so this path is the exception rather than the
-    /// cost of opening the app.
+    /// The language files are the ones that need fetching: the game ships none
+    /// on disk, they live inside its exe, and getting them out the first time on
+    /// a build means reading 408 MB — half a minute, once. Behind a progress
+    /// window, because a window that sits there not repainting for that long is
+    /// indistinguishable from one that has died.
     /// </summary>
-    private async void LoadTeamsWhenExtracted()
+    private void EnsureGameFiles()
     {
         var gameDir = GameDir;
-        if (gameDir is null)
-        {
-            StatusLine.Text = "Set the game folder in Settings — team names are read out of the game's exe.";
-            return;
-        }
+        var state = Simplified.Language.LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
+        if (Simplified.Language.LanguageFiles.Headline(state) is not { } headline) return;
 
-        StatusLine.Text = "Taking the language files out of the game — this happens once per game update…";
         try
         {
-            await Task.Run(() => Simplified.Language.LanguageFiles.EnsureAsync(
-                gameDir, AppPaths.LanguageCacheDir));
-
-            LoadTeams();
+            SimplifiedUi.ProgressDialog.Run(this, headline, progress =>
+                Simplified.Language.LanguageFiles.Refresh(
+                    gameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
         }
         catch (Exception ex)
         {
-            StatusLine.Text = $"The game's language files couldn't be read: {ex.Message}";
+            StatusLine.Text = $"The game's files couldn't be read: {ex.Message}";
         }
     }
 
@@ -127,22 +138,15 @@ public partial class MainWindow : Window
     /// </summary>
     private void LoadTeams()
     {
-        // The language files live inside the game's exe, and getting them out
-        // the first time on a given build means searching it end to end. A
-        // window opening has no business doing that, so it asks whether the
-        // work has already been done and, if not, has it done elsewhere and
-        // comes back — see LoadTeamsWhenExtracted.
-        var folder = Simplified.Language.LanguageFiles.Cached(GameDir, AppPaths.LanguageCacheDir);
-        if (folder is null)
-        {
-            LoadTeamsWhenExtracted();
-            return;
-        }
-
-        var path = Path.Combine(folder, "language_eng.lng");
+        // Read from the app's own copy, which came out of the game's exe and is
+        // kept current by EnsureGameFiles — so this is a file read, and a
+        // missing one means that could not be done.
+        var path = Path.Combine(AppPaths.LanguageDir, "language_eng.lng");
         if (!File.Exists(path))
         {
-            StatusLine.Text = $"Base language file not found: {path}";
+            StatusLine.Text = GameDir is null
+                ? "Set the game folder in Settings — team names are read out of the game's exe."
+                : $"Base language file not found: {path}";
             return;
         }
 
@@ -390,7 +394,7 @@ public partial class MainWindow : Window
             var result = TeamPackager.Write(
                 request.Path, AssetsDir, y2025, y2026, info,
                 CollectLogoEdits(), config.GameDir ?? GameDirDetector.Detect()?.Path,
-                AppPaths.LanguageCacheDir, runner);
+                AppPaths.LanguageDir, runner);
 
             config.DefaultAuthor = info.Author;
             config.LastPackageFolder = Path.GetDirectoryName(request.Path);
@@ -484,8 +488,20 @@ public partial class MainWindow : Window
     /// here; the game folder is read fresh wherever it is used, so it needs
     /// none either. Nothing on screen depends on any of it.
     /// </summary>
-    private void Settings_Click(object sender, RoutedEventArgs e) =>
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
         TeamSettings.Show(this, UserConfig.Load());
+
+        // A game folder that has just been set or changed is the other moment
+        // the language files can go from missing to gettable — without this the
+        // fix would be to set the folder and then restart the app.
+        if (Simplified.Language.LanguageFiles.Check(GameDir, AppPaths.LanguageDir)
+            != Simplified.Language.LanguageState.Current)
+        {
+            EnsureGameFiles();
+            LoadTeams();
+        }
+    }
 
     private void WindowMinimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;

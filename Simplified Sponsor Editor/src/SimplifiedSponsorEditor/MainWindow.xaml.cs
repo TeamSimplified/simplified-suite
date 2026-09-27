@@ -124,12 +124,22 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = ProjectStore.Create(request.ModName, request.ModAuthor);
+            // Behind a progress window, which only appears if this takes a
+            // moment. Writing the project is a zip of whatever artwork is in it.
+            _project = SimplifiedUi.ProgressDialog.Run(this,
+                $"Starting {request.ModName}", progress =>
+                {
+                    progress.Report("Preparing mod files…");
+                    var created = ProjectStore.Create(request.ModName, request.ModAuthor);
 
-            // Written to disk straight away, as the rest of the suite does it.
-            // The path was already asked for, and a project that exists only in
-            // a temp directory is one power cut from not existing at all.
-            ProjectStore.Save(_project, request.SavePath);
+                    // Written to disk straight away, as the rest of the suite
+                    // does it. The path was already asked for, and a project
+                    // that exists only in a temp directory is one power cut
+                    // from not existing at all.
+                    progress.Report("Saving the project…");
+                    ProjectStore.Save(created, request.SavePath);
+                    return created;
+                });
         }
         catch (Exception ex)
         {
@@ -171,7 +181,13 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = ProjectStore.Open(path);
+            _project = SimplifiedUi.ProgressDialog.Run(this,
+                $"Opening {Path.GetFileNameWithoutExtension(path)}",
+                progress =>
+                {
+                    progress.Report("Unpacking the project…");
+                    return ProjectStore.Open(path);
+                });
         }
         catch (Exception ex)
         {

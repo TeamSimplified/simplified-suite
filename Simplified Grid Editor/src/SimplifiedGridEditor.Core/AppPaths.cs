@@ -34,21 +34,29 @@ public static class AppPaths
 
     /// <summary>
     /// The pristine game files a new project is built from — the database, the
-    /// eleven language files, and the team-branding texarray. Bundled rather
-    /// than read from the install, so a shared package carries the user's edits
-    /// and nothing else their game happens to have in it.
+    /// eleven language files, and the team-branding texarray.
     /// </summary>
     public static string OriginalsDir => Path.Combine(RuntimeDir, "original");
 
     /// <summary>
-    /// Where the language library keeps what it has worked out: the offset of
-    /// the archive inside each build of the game exe it has seen, and the
-    /// language files taken out of it.
+    /// The eleven language files, in the folder the game itself uses for them.
+    ///
+    /// Sitting with the rest of the originals because that is what they are, but
+    /// unlike the rest they are not shipped: the game keeps no .lng on disk, so
+    /// they are taken out of its exe and put here — once, and again whenever the
+    /// game is patched. See Simplified.Language.LanguageFiles, and the check the
+    /// window runs when it opens.
+    /// </summary>
+    public static string LanguageDir =>
+        Path.Combine(OriginalsDir, Simplified.Language.LanguageFiles.FolderName);
+
+    /// <summary>
+    /// Where the language library remembers where in each build of the game's
+    /// exe the archive it wants is — the part worth not working out twice, since
+    /// working it out means reading 408 MB.
     ///
     /// Under the app folder, because these apps write nothing outside it. It is
-    /// derived and can be deleted at any time - the cost of that is one search
-    /// of the exe, once.
+    /// derived and can be deleted at any time.
     /// </summary>
     public static string LanguageCacheDir => Path.Combine(RuntimeDir, "language");
-
 }

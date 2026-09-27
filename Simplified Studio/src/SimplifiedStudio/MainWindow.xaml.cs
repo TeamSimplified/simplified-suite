@@ -1712,7 +1712,17 @@ public partial class MainWindow : Window
             if (!ConfirmProjectFormat(path)) return;
 
             CloseProjectInternal();
-            _project = ProjectStore.Open(path, Log);
+
+            // Behind a progress window, which only appears if this takes a
+            // moment. The project's own log lines double as the progress line,
+            // so what it says here is what it says in the log.
+            _project = SimplifiedUi.ProgressDialog.Run(this,
+                $"Opening {System.IO.Path.GetFileNameWithoutExtension(path)}",
+                progress => ProjectStore.Open(path, line =>
+                {
+                    progress.Report(line);
+                    Dispatcher.BeginInvoke(() => Log(line));
+                }));
             RememberProjectFolder(path);
             OnProjectStateChanged();
             ReloadEnabledErps();

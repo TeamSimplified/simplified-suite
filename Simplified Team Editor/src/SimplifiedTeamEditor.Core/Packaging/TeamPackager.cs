@@ -59,30 +59,20 @@ public static class TeamPackager
         ModInfo? modInfo,
         IReadOnlyList<LogoEdit> logoEdits,
         string? gameDir,
-        string languageCacheDir,
+        string languageDir,
         TexconvRunner runner)
     {
         var warnings = new List<string>();
 
-        // The language files come out of the game rather than out of a copy we
-        // carry. Taken once per build and kept, so this is instant after the
-        // first time — see Simplified.Language.LanguageFiles.
-        string languageDir;
-        try
-        {
-            var set = Simplified.Language.LanguageFiles.Ensure(gameDir, languageCacheDir);
-            languageDir = set.Folder;
-            if (set.Searched)
-                warnings.Add("The language files were taken out of the game for the first time on this " +
-                             "build. Every package after this one skips that step.");
-        }
-        catch (Exception ex)
-        {
+        // The language files came out of the game rather than out of a copy we
+        // carry — taken by the app when it opened, into the folder named here.
+        // See Simplified.Language.LanguageFiles.
+        if (!Directory.Exists(languageDir) ||
+            !Directory.EnumerateFiles(languageDir, "language_*.lng").Any())
             throw new InvalidOperationException(
-                "The game's language files couldn't be read, and a package is built from them. " +
-                "Set the game folder in Settings and try again." +
-                Environment.NewLine + Environment.NewLine + ex.Message, ex);
-        }
+                "The game's language files aren't here, and a package is built from them. They come out " +
+                "of the game's own exe, so set the game folder in Settings — the app takes them the next " +
+                "time it opens.");
 
         // The database and the 2026 key additions are worked out together: a
         // 2026 name edit changes both, and the key map has to be read off the

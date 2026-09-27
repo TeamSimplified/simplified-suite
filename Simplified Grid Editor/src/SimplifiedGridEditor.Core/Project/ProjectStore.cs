@@ -53,10 +53,12 @@ public static class ProjectStore
     /// what to call it.
     /// </summary>
     /// <param name="originalsDir">
-    /// The bundled pristine files — <see cref="AppPaths.OriginalsDir"/>.
+    /// The pristine base files — <see cref="AppPaths.OriginalsDir"/>. Shipped,
+    /// apart from the language files, which the app puts there out of the game.
     /// </param>
     public static GridProject Create(string originalsDir, string name, string author,
-                                     string? gameDir, string languageCacheDir, Action<string>? note = null)
+                                     string? gameDir, Action<string>? note = null,
+                                     IProgress<string>? progress = null)
     {
         if (!Directory.Exists(originalsDir))
             throw new DirectoryNotFoundException(
@@ -85,23 +87,32 @@ public static class ProjectStore
         // otherwise — a project seeded from the current game stays current,
         // and one seeded from a database somebody has already modded would
         // carry that mod for the rest of its life.
+        progress?.Report("Copying the game database…");
         var chosen = Simplified.Shared.GameDatabaseSource.Resolve(
             gameDir, Path.Combine(originalsDir, DatabaseFileName));
         if (chosen.Note is not null) note?.Invoke(chosen.Note);
         if (File.Exists(chosen.Path)) File.Copy(chosen.Path, project.DatabasePath);
 
-        // The eleven language files, out of the game's own exe rather than out
-        // of a copy carried here. Taken once per game build and kept, so this
-        // is instant after the first project on a new build - and a project
-        // started today is seeded from today's game rather than from whatever
-        // was bundled whenever this app was last released.
-        var languages = Simplified.Language.LanguageFiles.Ensure(gameDir, languageCacheDir);
-        if (languages.Searched)
-            note?.Invoke("The language files were taken out of the game for the first time on this build. " +
-                         "Every project after this one starts immediately.");
+        // The eleven language files, from the originals folder — where they
+        // are not shipped but taken out of the game's own exe, by the app, when
+        // it opens and finds them missing or from a build the game has since
+        // patched past. So a project started today is seeded from today's game,
+        // and starting one is a copy rather than a search.
+        progress?.Report("Copying the game text…");
+        var languageDir = Path.Combine(originalsDir, Simplified.Language.LanguageFiles.FolderName);
+        var copied = 0;
+        if (Directory.Exists(languageDir))
+            foreach (var file in Directory.EnumerateFiles(languageDir, "*.lng"))
+            {
+                File.Copy(file, Path.Combine(project.LanguageFolder, Path.GetFileName(file)), overwrite: true);
+                copied++;
+            }
 
-        foreach (var file in Directory.EnumerateFiles(languages.Folder, "*.lng"))
-            File.Copy(file, Path.Combine(project.LanguageFolder, Path.GetFileName(file)), overwrite: true);
+        if (copied == 0)
+            throw new InvalidOperationException(
+                "The game's language files aren't here yet, and a project is built from them. They come " +
+                "out of the game's own exe, so set the game folder in Settings — the app takes them the " +
+                "next time it opens.");
 
         foreach (var extra in new[] { "2026_team_keys.lng", "2026_team_names.json" })
         {
@@ -120,11 +131,12 @@ public static class ProjectStore
     }
 
     /// <summary>Open a <c>.simplified</c>, extracting it whole into a temp directory.</summary>
-    public static GridProject Open(string zipPath)
+    public static GridProject Open(string zipPath, IProgress<string>? progress = null)
     {
         if (!File.Exists(zipPath))
             throw new FileNotFoundException("Project file not found.", zipPath);
 
+        progress?.Report("Unpacking the project…");
         var temp = AllocateTempDir();
         ZipFile.ExtractToDirectory(zipPath, temp);
 

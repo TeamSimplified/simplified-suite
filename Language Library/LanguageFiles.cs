@@ -3,35 +3,65 @@ using System.Text.Json.Serialization;
 
 namespace Simplified.Language;
 
-/// <summary>Where a set of language files came from, and what it cost.</summary>
-/// <param name="Folder">The folder holding them.</param>
-/// <param name="Files">Their names.</param>
-/// <param name="FromCache">True when they were already there and nothing was read out of the game.</param>
-/// <param name="Searched">True when the exe had to be searched — the slow path, once per build.</param>
-public sealed record LanguageSet(string Folder, IReadOnlyList<string> Files, bool FromCache, bool Searched);
+/// <summary>Whether the language files beside an app still match the game.</summary>
+public enum LanguageState
+{
+    /// <summary>They are there and they came from the installed build.</summary>
+    Current,
+
+    /// <summary>They have never been taken. A fresh install of the app.</summary>
+    FirstTime,
+
+    /// <summary>They are from a build the game has since moved on from.</summary>
+    GameUpdated,
+
+    /// <summary>No game to take them from, so there is nothing to say.</summary>
+    NoGame,
+}
 
 /// <summary>
-/// The game's language files, had from the game rather than carried.
+/// The game's language files, kept beside the app and kept current.
 ///
-/// A full install holds no .lng at all. They live in an archive whose header is
-/// inside F1_25.exe and whose data is in game.dat beside it, which is why every
-/// app that wanted them used to ship its own copy — eleven files, sixty-six
-/// megabytes, correct on the day they were taken and drifting from that day on.
+/// A full install holds no .lng anywhere. They are in an archive whose header
+/// sits inside F1_25.exe and whose data sits in game.dat beside it, which is why
+/// every app that wanted them used to ship its own copy - eleven files,
+/// sixty-six megabytes, correct on the day they were taken and drifting from
+/// that day on.
 ///
-/// This takes them out instead, and then keeps them: extraction is quick, but
-/// finding the archive means searching a 408 MB exe end to end, which is about
-/// half a minute. So the answer to "where is it" is written down against the
-/// build it was found in, and the files themselves are kept against that same
-/// build. A game update invalidates both by not matching, which is exactly when
-/// they should be taken again.
+/// They are taken from the game instead, into the same original\localisation\
+/// the apps have always read, so nothing downstream had to learn a new place to
+/// look. What is new is that the folder says which build it came from, and an
+/// app checks that when it starts: a game that has moved on is the one moment
+/// these need taking again, and the start of a session is the one moment a
+/// person is expecting to wait.
 /// </summary>
 public static class LanguageFiles
 {
-    /// <summary>How many the game ships. Used to tell a finished cache from a half-written one.</summary>
+    /// <summary>How many the game ships. Fewer than this is a run that died partway.</summary>
     public const int Expected = 11;
 
     /// <summary>What the game's exe is called, as a pattern.</summary>
     public const string ExeNamePattern = LanguageExtractor.ExeNamePattern;
+
+    /// <summary>
+    /// What the game calls the folder these sit in, and so what the apps call
+    /// the folder they put them in. One spelling, since a package has to put
+    /// them back where the game looks.
+    /// </summary>
+    public const string FolderName = "localisation";
+
+    /// <summary>
+    /// What <see cref="Refresh"/> says it is doing, for the window it runs
+    /// behind. Said as what it is for — the files a package is built out of —
+    /// rather than as what it is: an archive inside an exe, which is our problem
+    /// and not the user's. And how long it will take, because on the cold path
+    /// it is a minute of a bar moving and nothing else changing.
+    /// </summary>
+    public const string Progress =
+        "Updating the files used for packaging your mods (This may take several minutes)";
+
+    /// <summary>The note beside the files saying which build they came out of.</summary>
+    public const string StampFileName = "taken-from.json";
 
     private const string LocationFileName = "archive.json";
 
@@ -51,19 +81,49 @@ public static class LanguageFiles
     }
 
     /// <summary>
-    /// A folder holding this install's language files, extracting them if they
-    /// are not already there.
-    ///
-    /// <paramref name="cacheRoot"/> is the app's own — somewhere under its
-    /// folder, since these apps write nothing outside it. The files sit in a
-    /// subfolder named for the build, so an update lands beside the old set
-    /// rather than on top of it.
+    /// Whether the files in <paramref name="languageDir"/> still match the
+    /// installed game — asked at startup, so it reads names and a small note and
+    /// nothing else.
     /// </summary>
-    public static async Task<LanguageSet> EnsureAsync(
-        string? gameDir,
-        string cacheRoot,
-        Action<string>? log = null,
-        CancellationToken cancel = default)
+    public static LanguageState Check(string? gameDir, string languageDir)
+    {
+        var exe = FindExe(gameDir);
+        if (exe is null) return LanguageState.NoGame;
+
+        var have = Count(languageDir);
+        if (have < Expected) return LanguageState.FirstTime;
+
+        var stamp = ReadStamp(languageDir);
+        return stamp == Stamp(exe) ? LanguageState.Current : LanguageState.GameUpdated;
+    }
+
+    /// <summary>
+    /// What to say to a person while <see cref="Refresh"/> runs, or null when
+    /// there is nothing to run.
+    ///
+    /// Here rather than in each app, so the two that do this say the same thing
+    /// — and said as what it is for them rather than what it is for us. Nobody
+    /// waiting on this is asking which archive the text comes out of: the first
+    /// run is the app setting itself up, and a later one is the game having
+    /// moved on.
+    /// </summary>
+    public static string? Headline(LanguageState state) => state switch
+    {
+        LanguageState.FirstTime => "Performing first time setup",
+        LanguageState.GameUpdated => "Updating game files",
+        _ => null,
+    };
+
+    /// <summary>
+    /// Take them out of the game into <paramref name="languageDir"/>, replacing
+    /// whatever is there, and write the note that says which build they are.
+    ///
+    /// <paramref name="cacheRoot"/> is where the archive's location is
+    /// remembered between builds — finding it means searching a 408 MB exe, and
+    /// that is the part worth not repeating.
+    /// </summary>
+    public static void Refresh(string? gameDir, string languageDir, string cacheRoot,
+                               IProgress<string>? progress = null, CancellationToken cancel = default)
     {
         var exe = FindExe(gameDir)
                   ?? throw new ExtractionFailed(
@@ -71,68 +131,62 @@ public static class LanguageFiles
                       "are inside that exe — there is nowhere else to get them.");
 
         var stamp = Stamp(exe);
-        var folder = Path.Combine(cacheRoot, stamp);
 
-        // A finished set for this build is the whole point of keeping them.
-        if (Directory.Exists(folder))
-        {
-            var have = Directory.GetFiles(folder, "*" + LanguageExtractor.Extension);
-            if (have.Length >= Expected)
-                return new LanguageSet(folder, have.Select(Path.GetFileName).ToList()!, true, false);
+        // Into a folder of its own first, then swapped in. A half-written set is
+        // worse than none: the app would read eleven files, some of them from
+        // the build before, and nothing would look wrong.
+        var staging = Path.Combine(cacheRoot, "incoming");
+        try { if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true); } catch { /* the extract will say */ }
 
-            // Half a set means a run that died partway. Start again rather than
-            // building a package out of some of last month's text.
-            try { Directory.Delete(folder, recursive: true); } catch { /* the extract will say */ }
-        }
-
-        log?.Invoke("Taking the language files out of the game…");
+        // One line, and it stays. The steps underneath it — reading the exe,
+        // searching it, writing the files out — are ours, and swapping between
+        // them tells a person waiting nothing they can use. What they want to
+        // know is what the wait is for.
+        progress?.Report(Progress);
         var known = ReadLocation(cacheRoot, stamp);
-        var result = await LanguageExtractor.ExtractAsync(exe, folder, known, log, cancel);
+
+        var result = Task.Run(() => LanguageExtractor.ExtractAsync(
+            exe, staging, known,
+            // The extractor's own lines name files and byte counts, which is
+            // right in the tool that writes them out and detail in a window that
+            // is only saying "not long now".
+            _ => { }, cancel)).GetAwaiter().GetResult();
 
         if (result.FoundBySearch) WriteLocation(cacheRoot, stamp, result.Location);
 
-        return new LanguageSet(folder, result.Written, false, result.FoundBySearch);
+        Directory.CreateDirectory(languageDir);
+        foreach (var file in Directory.EnumerateFiles(staging, "*" + LanguageExtractor.Extension))
+            File.Copy(file, Path.Combine(languageDir, Path.GetFileName(file)), overwrite: true);
+
+        WriteStamp(languageDir, stamp);
+        Tidy(cacheRoot);
     }
 
     /// <summary>
-    /// The folder for this install's build if it is already there, and null
-    /// otherwise — without reading a byte of the game.
+    /// Clear the folders an earlier build of these apps kept the files in.
     ///
-    /// For the callers that must not stall: a window opening has no business
-    /// spending half a minute in a constructor, so it asks whether the work has
-    /// already been done and arranges to do it elsewhere if not.
+    /// They used to live here, one folder per game build, and the app read them
+    /// from here. Now they sit with the rest of the originals, so anything left
+    /// under the cache is sixty-six megabytes of a previous arrangement — and on
+    /// a portable app the folder is the install, so it would stay there for good.
+    /// The location cache itself is a file, not a folder, and is kept.
     /// </summary>
-    public static string? Cached(string? gameDir, string cacheRoot)
+    private static void Tidy(string cacheRoot)
     {
-        var exe = FindExe(gameDir);
-        if (exe is null) return null;
-
-        var folder = Path.Combine(cacheRoot, Stamp(exe));
         try
         {
-            return Directory.Exists(folder)
-                   && Directory.GetFiles(folder, "*" + LanguageExtractor.Extension).Length >= Expected
-                ? folder
-                : null;
+            foreach (var folder in Directory.EnumerateDirectories(cacheRoot))
+                try { Directory.Delete(folder, recursive: true); } catch { /* in use; next time */ }
         }
         catch
         {
-            return null;
+            // Housekeeping. A refresh that worked is not undone by this failing.
         }
     }
 
     /// <summary>
-    /// <see cref="EnsureAsync"/> for callers that are already blocking — a
-    /// package being written, a project being created. Run on the pool rather
-    /// than waited on in place: waiting on the window's own thread for work
-    /// that wants to come back to it is how a deadlock is spelled.
-    /// </summary>
-    public static LanguageSet Ensure(string? gameDir, string cacheRoot, Action<string>? log = null) =>
-        Task.Run(() => EnsureAsync(gameDir, cacheRoot, log)).GetAwaiter().GetResult();
-
-    /// <summary>
-    /// Write them somewhere the caller names, without keeping a copy. For the
-    /// extractor app, where the folder is the point rather than a cache.
+    /// Write them somewhere the caller names, without touching what an app
+    /// reads. For the extractor tool, where the folder is the point.
     /// </summary>
     public static async Task<ExtractResult> ExtractToAsync(
         string? gameDir,
@@ -151,12 +205,28 @@ public static class LanguageFiles
         return result;
     }
 
+    private static int Count(string languageDir)
+    {
+        try
+        {
+            return Directory.Exists(languageDir)
+                ? Directory.GetFiles(languageDir, "*" + LanguageExtractor.Extension)
+                    .Count(f => Path.GetFileName(f).StartsWith("language_", StringComparison.OrdinalIgnoreCase))
+                : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     /// <summary>
     /// What identifies a build of the exe: its version and its length.
     ///
-    /// Not a hash — that is 408 MB to read before anything can start, which is
-    /// most of what remembering was meant to save. These two are free, and a
-    /// wrong match costs one failed read before the search runs anyway.
+    /// Not a hash — that is 408 MB to read at every startup, to answer a
+    /// question these two answer for free. A wrong match would cost one failed
+    /// read and a search, and cannot happen without the exe being rebuilt at
+    /// the same version and the same byte count.
     /// </summary>
     private static string Stamp(string exePath)
     {
@@ -169,6 +239,43 @@ public static class LanguageFiles
         catch
         {
             return "unknown";
+        }
+    }
+
+    private static string? ReadStamp(string languageDir)
+    {
+        try
+        {
+            var path = Path.Combine(languageDir, StampFileName);
+            return File.Exists(path)
+                ? JsonSerializer.Deserialize<TakenFrom>(File.ReadAllText(path))?.Build
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void WriteStamp(string languageDir, string stamp)
+    {
+        try
+        {
+            File.WriteAllText(Path.Combine(languageDir, StampFileName),
+                JsonSerializer.Serialize(
+                    new TakenFrom
+                    {
+                        Comment = "Which build of the game these language files came out of. Written by the " +
+                                  "app when it takes them; read at startup to notice a game update.",
+                        Build = stamp,
+                        Taken = DateTime.Now.ToString("yyyy-MM-dd"),
+                    },
+                    new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch
+        {
+            // Without the note the next startup takes them again, which is slow
+            // and correct. Not worth failing over.
         }
     }
 
@@ -207,8 +314,15 @@ public static class LanguageFiles
         catch
         {
             // A cache that cannot be written costs half a minute next time and
-            // nothing else. Not worth failing an extraction over.
+            // nothing else.
         }
+    }
+
+    private sealed class TakenFrom
+    {
+        [JsonPropertyName("_comment")] public string Comment { get; set; } = "";
+        [JsonPropertyName("build")] public string Build { get; set; } = "";
+        [JsonPropertyName("taken")] public string Taken { get; set; } = "";
     }
 
     private sealed class StoredLocation
