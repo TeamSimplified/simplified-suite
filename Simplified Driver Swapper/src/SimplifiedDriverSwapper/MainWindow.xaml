@@ -96,10 +96,28 @@
             <DockPanel LastChildFill="False">
                 <!-- The wordmark, from the shared library. Viewbox with only a
                      Height: the artwork keeps its own proportions and the width
-                     follows. -->
-                <Viewbox DockPanel.Dock="Left" Height="17" VerticalAlignment="Center" Stretch="Uniform">
+                     follows.
+
+                     Two rules line this row up, because two different things are
+                     being aligned. The mark and the name are type, so they share
+                     a baseline: the mark's box carries the descender of its "p",
+                     which lifts the letters half a pixel, and the margin below
+                     puts them back down — doubled, since a margin against a
+                     centred element moves it by half. The pill is a shape rather
+                     than a line of text, so it simply centres; putting its small
+                     text on the name's baseline drops the pill visibly low. -->
+                <Viewbox DockPanel.Dock="Left" Height="17" VerticalAlignment="Center" Stretch="Uniform"
+                         Margin="0,1,0,0">
                     <Path Data="{DynamicResource BrandWord}" Fill="{DynamicResource BrandInk}"/>
                 </Viewbox>
+
+                <!-- The app's name, beside the mark. The wordmark says which
+                     suite this came from; without this the window never says
+                     which of them it is, and they all open looking the same. -->
+                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="10,0,0,0"
+                           FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}"
+                           Text="Driver Swapper"/>
 
                 <!-- Version pill, set in code from the assembly so it can't drift
                      from what the build actually is. -->
