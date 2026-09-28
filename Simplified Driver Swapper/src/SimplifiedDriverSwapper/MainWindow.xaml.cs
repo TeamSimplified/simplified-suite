@@ -973,17 +973,17 @@ public partial class MainWindow : Window
             // Behind a progress window: the database is 18 MB to read, rewrite
             // and compress, which is a few seconds of a window doing nothing
             // visible.
-            var writes = SimplifiedUi.ProgressDialog.Run(this,
+            var writes = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Packaging {Path.GetFileNameWithoutExtension(dlg.FileName)}", say =>
                 {
-                    say.Report("Copying the database…");
+                    say.Report("Getting the game's files ready…");
                     var copy = GameDatabase.Load(_path);
 
-                    say.Report("Applying your changes…");
+                    say.Report("Adding your driver swaps…");
                     var applied = ReplayChangesOnto(copy);
                     copy.Save(staging);
 
-                    say.Report("Writing the package…");
+                    say.Report("Writing your mod file…");
                     if (File.Exists(dlg.FileName)) File.Delete(dlg.FileName);
                     using (var zip = ZipFile.Open(dlg.FileName, ZipArchiveMode.Create))
                         zip.CreateEntryFromFile(staging, entryPath, CompressionLevel.Optimal);

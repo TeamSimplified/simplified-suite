@@ -121,7 +121,7 @@ public partial class MainWindow : Window
 
         try
         {
-            SimplifiedUi.ProgressDialog.Run(this, headline, progress =>
+            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLine, headline, progress =>
                 Simplified.Language.LanguageFiles.Refresh(
                     gameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
         }
@@ -405,7 +405,7 @@ public partial class MainWindow : Window
             var logos = CollectLogoEdits();
             var gameDir = config.GameDir ?? GameDirDetector.Detect()?.Path;
 
-            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {info.Name}", say =>
+            var result = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLine, $"Packaging {info.Name}", say =>
                 TeamPackager.Write(
                     request.Path, AssetsDir, y2025, y2026, info,
                     logos, gameDir, AppPaths.LanguageDir, new TexconvRunner(), say));

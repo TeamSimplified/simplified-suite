@@ -280,8 +280,9 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Load a standalone ERP — clears any currently-loaded ERPs first.
-    /// Project-mode loading goes through <see cref="LoadErpFromProject"/>,
-    /// which appends rather than replacing.
+    /// A project's parts are loaded together instead, by
+    /// <see cref="ReloadEnabledErps"/>, which reads them all and builds the
+    /// list once.
     /// </summary>
     private void LoadErp(string path)
     {
@@ -1718,7 +1719,7 @@ public partial class MainWindow : Window
             // window says is the stage, because a box that is otherwise saying
             // "Unpacking the project…" has no business showing a line about
             // which folder a category moved to.
-            _project = SimplifiedUi.ProgressDialog.Run(this,
+            _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Opening {System.IO.Path.GetFileNameWithoutExtension(path)}",
                 progress =>
                 {
@@ -1797,7 +1798,7 @@ public partial class MainWindow : Window
         _loadedErps.Clear();
         _textures.Clear();
         var paths = _project.EnabledErpPaths.ToList();
-        foreach (var p in paths) LoadErpFromProject(p);
+
         if (paths.Count == 0)
         {
             // No enabled parts — collapse the per-loaded-ERP buttons.
@@ -1805,11 +1806,49 @@ public partial class MainWindow : Window
             SaveButton.IsEnabled = false;
             SaveAsButton.IsEnabled = false;
             Log("No enabled parts — use 'Choose parts…' to pick some.");
+            return;
         }
-        else
+
+        // Read them off the window's thread. This is the other half of opening
+        // a project - every enabled part is an ERP archive to parse - and it
+        // used to happen on the UI thread, one at a time, rebuilding the
+        // texture list after each one. On a project with any size to it that is
+        // the freeze, and it came after the progress line had already gone.
+        var problems = new List<string>();
+        var loaded = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
+            "Reading the project's parts", say =>
+            {
+                var read = new List<(string Path, EgoEngineLibrary.Archive.Erp.ErpFile Erp)>();
+                var done = 0;
+                foreach (var path in paths)
+                {
+                    say.Report($"Reading the project's parts — {++done} of {paths.Count}…");
+                    try { read.Add((path, ErpFileIO.Load(path))); }
+                    catch (Exception ex) { problems.Add($"{Path.GetFileName(path)}: {ex.Message}"); }
+                }
+                return read;
+            });
+
+        foreach (var (path, erp) in loaded)
         {
-            Log($"Loaded {paths.Count} enabled ERP(s).");
+            _loadedErps.Add(new LoadedErp(erp, path, UniqueDisplayErpName(Path.GetFileName(path))));
+            Log($"Loaded project ERP: {DisplayErpName(Path.GetFileName(path))} — {erp.Resources.Count} resources");
         }
+
+        UpdateProjectFilePathLabel();
+        SaveButton.IsEnabled = _loadedErps.Count > 0;
+        SaveAsButton.IsEnabled = _loadedErps.Count > 0;
+
+        // Once, at the end. It used to run per part, which is the same list
+        // built over and over on the way to the one that matters.
+        RebuildTextureList();
+
+        Log($"Loaded {loaded.Count} enabled ERP(s).");
+
+        if (problems.Count > 0)
+            ShowMessage("Some of the project's parts couldn't be read:" + Environment.NewLine + Environment.NewLine
+                        + "  " + string.Join(Environment.NewLine + "  ", problems),
+                "Load failed", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     /// <summary>
@@ -2678,34 +2717,6 @@ public partial class MainWindow : Window
         return anyChanged;
     }
 
-    /// <summary>
-    /// Add an ERP that lives inside the project's temp dir to the loaded set.
-    /// Idempotent on path — re-calling for an already-loaded ERP is a no-op.
-    /// Unlike <see cref="LoadErp"/> this APPENDS rather than replacing, so
-    /// multiple ERPs from the active version coexist in the grouped texture list.
-    /// </summary>
-    private void LoadErpFromProject(string tempPath)
-    {
-        if (_loadedErps.Any(l => string.Equals(l.Path, tempPath, StringComparison.OrdinalIgnoreCase)))
-            return;
-        try
-        {
-            var erp = ErpFileIO.Load(tempPath);
-            _loadedErps.Add(new LoadedErp(erp, tempPath, UniqueDisplayErpName(Path.GetFileName(tempPath))));
-            UpdateProjectFilePathLabel();
-            SaveButton.IsEnabled = true;
-            SaveAsButton.IsEnabled = true;
-            Log($"Loaded project ERP: {DisplayErpName(Path.GetFileName(tempPath))} — {erp.Resources.Count} resources");
-            RebuildTextureList();
-            // Don't ClearDirty here — the project itself may already be dirty.
-        }
-        catch (Exception ex)
-        {
-            ShowMessage( $"Failed to load ERP from project:\n{ex.Message}",
-                "Load failed", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
     /// <summary>Project-mode file-path label: e.g. "3 ERPs (in project)".</summary>
     private void UpdateProjectFilePathLabel()
     {
@@ -3010,6 +3021,11 @@ public partial class MainWindow : Window
         InlineModInfoPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         NoProjectLabel.Visibility     = open ? Visibility.Collapsed : Visibility.Visible;
 
+        // The status line shows what is open, which is a state rather than
+        // news. Events go to the log; the line is only borrowed while the app
+        // is working, and handed back looking like this. See SimplifiedUi.Busy.
+        StatusLabel.Text = open ? ProjectSummary() : "Open a project, or start one.";
+
         if (!open) return;
 
         var p = _project!;
@@ -3019,6 +3035,23 @@ public partial class MainWindow : Window
             ? p.DisplayName
             : p.Info.Name;
         RepopulateModInfoBar();
+    }
+
+    /// <summary>
+    /// The open project, in a line: what it is called and how much of it is
+    /// switched on. Parts are the unit of a Studio project, and how many of
+    /// them are enabled is the difference between two packages of the same mod.
+    /// </summary>
+    private string ProjectSummary()
+    {
+        var p = _project!;
+        var name = string.IsNullOrWhiteSpace(p.Info.Name) ? p.DisplayName : p.Info.Name;
+        var parts = p.AllPartPaths.Count();
+        var on = p.Info.Enabled.Count;
+
+        return parts == 0
+            ? $"{name} — no parts yet."
+            : $"{name} — {parts} parts, {on} currently active.";
     }
 
     // ─────────────────────── Mod info editor (Phase 5) ───────────────────
@@ -3601,7 +3634,8 @@ public partial class MainWindow : Window
             // Behind a progress window: a mod is both of the game's shader
             // packages read, merged into and written back, and they are 300 MB
             // each. The log still gets the detail.
-            var output = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {project.Info.Name}", say => isSerps
+            var output = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
+                $"Packaging {project.Info.Name}", say => isSerps
                 ? ProjectPackager.PackageAsSerps(project, gameDir!, result.SaveLocation, result.ModVersion, say)
                 : ProjectPackager.Package(project, gameDir!, result.SaveLocation, zip: true, result.ModVersion,
                                           log: Log, say: say));

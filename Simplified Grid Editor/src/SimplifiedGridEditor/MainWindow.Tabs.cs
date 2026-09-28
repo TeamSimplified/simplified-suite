@@ -242,7 +242,7 @@ public partial class MainWindow
         try
         {
             var name = _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName;
-            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {name}",
+            var result = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, $"Packaging {name}",
                 say => GridPackager.Write(request.Path, _project, _config.GameDir, say));
 
             SetStatus(GridPackager.Describe(result, request.Path), OkBrush);

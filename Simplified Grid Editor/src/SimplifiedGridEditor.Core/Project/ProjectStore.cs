@@ -87,7 +87,7 @@ public static class ProjectStore
         // otherwise — a project seeded from the current game stays current,
         // and one seeded from a database somebody has already modded would
         // carry that mod for the rest of its life.
-        progress?.Report("Copying the game database…");
+        progress?.Report("Copying the game's teams and drivers…");
         var chosen = Simplified.Shared.GameDatabaseSource.Resolve(
             gameDir, Path.Combine(originalsDir, DatabaseFileName));
         if (chosen.Note is not null) note?.Invoke(chosen.Note);
@@ -98,7 +98,7 @@ public static class ProjectStore
         // it opens and finds them missing or from a build the game has since
         // patched past. So a project started today is seeded from today's game,
         // and starting one is a copy rather than a search.
-        progress?.Report("Copying the game's language files…");
+        progress?.Report("Copying the game's text…");
         var languageDir = Path.Combine(originalsDir, Simplified.Language.LanguageFiles.FolderName);
         var copied = 0;
         if (Directory.Exists(languageDir))
@@ -121,7 +121,7 @@ public static class ProjectStore
         }
 
         // The UI archives.
-        progress?.Report("Copying the UI archives…");
+        progress?.Report("Copying the game's menu art…");
         var ui = Path.Combine(originalsDir, "ui");
         if (Directory.Exists(ui))
             foreach (var file in Directory.EnumerateFiles(ui, "*.erp"))

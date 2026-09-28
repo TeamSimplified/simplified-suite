@@ -165,13 +165,13 @@ public static class ProjectPackager
             Directory.CreateDirectory(stagedShaderDir);
             var stagedMain = Path.Combine(stagedShaderDir, Path.GetFileName(srcMain));
             var stagedAmd  = Path.Combine(stagedShaderDir, Path.GetFileName(srcAmd));
-            say?.Report("Copying the game's shader packages…");
+            say?.Report("Getting the game's files ready…");
             File.Copy(srcMain, stagedMain, overwrite: true);
             File.Copy(srcAmd,  stagedAmd,  overwrite: true);
 
             // Pre-load every active ERP once — merging into the two targets is
             // the same source-iteration each time, so loading twice is wasted I/O.
-            say?.Report($"Reading the project's parts — {enabled.Count} of them…");
+            say?.Report($"Reading your parts — {enabled.Count} of them…");
             var sources = enabled.Select(p => (Path: p, Erp: ErpFileIO.Load(p))).ToList();
 
             // The shader package targets also need the ALWAYS-merged 'serps.erp'
@@ -183,7 +183,7 @@ public static class ProjectPackager
             ExtractEmbeddedSerpsErp(serpsErpPath);
             sources.Insert(0, (serpsErpPath, ErpFileIO.Load(serpsErpPath)));
 
-            say?.Report("Merging them into the shader packages…");
+            say?.Report("Adding your parts to the mod…");
             MergeSourcesInto(stagedMain, sources);
             MergeSourcesInto(stagedAmd,  sources);
 
@@ -227,7 +227,7 @@ public static class ProjectPackager
             // Append the user's version verbatim — they get to choose whether to prefix it with "v".
             if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " " + modVersion.Trim();
 
-            say?.Report("Writing the package…");
+            say?.Report("Writing your mod file…");
             if (zip)
             {
                 var zipPath = Path.Combine(saveLocation, baseName + ".zip");
@@ -294,7 +294,7 @@ public static class ProjectPackager
 
         if (File.Exists(outPath)) File.Delete(outPath);
 
-        say?.Report($"Writing the template — {parts.Count} part(s)…");
+        say?.Report($"Writing your template — {parts.Count} parts…");
 
         // The ZIP comment is read back by ProjectStore.ExtractShaderPackage —
         // keep the JSON shape ("erp_file_string": "<shader>") it expects.

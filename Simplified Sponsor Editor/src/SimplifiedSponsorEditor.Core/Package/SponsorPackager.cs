@@ -117,7 +117,7 @@ public static class SponsorPackager
         {
             // ── The two overlays ──────────────────────────────────────
             log?.Invoke($"Preparing {replaced.Count} decal(s)...");
-            say?.Report("Reading the decals…");
+            say?.Report("Reading your decals…");
 
             var decals = replaced
                 .Select(catalogue.Find)
@@ -146,7 +146,7 @@ public static class SponsorPackager
             {
                 cancel.ThrowIfCancellationRequested();
                 log?.Invoke($"  {decal.Name}");
-                say?.Report($"Converting the pictures — {++done} of {decals.Count}…");
+                say?.Report($"Converting your pictures — {++done} of {decals.Count}…");
 
                 if (Import(carOverlay, decal.CarIdentifier, project.PicturePath(decal.Name),
                            runner, work, width: 0, height: 0, warnings))
@@ -181,7 +181,7 @@ public static class SponsorPackager
             {
                 cancel.ThrowIfCancellationRequested();
                 log?.Invoke($"Merging into {name}...");
-                say?.Report("Merging the decals into the game's archives…");
+                say?.Report("Adding your decals to the mod…");
 
                 var target = ErpFileIO.Load(Path.Combine(shaderFolder, name));
                 MergeInto(target, carOverlay);
@@ -192,7 +192,7 @@ public static class SponsorPackager
             }
 
             log?.Invoke("Zipping...");
-            say?.Report("Writing the package…");
+            say?.Report("Writing your mod file…");
             if (File.Exists(request.OutputZipPath)) File.Delete(request.OutputZipPath);
 
             var directory = Path.GetDirectoryName(request.OutputZipPath);

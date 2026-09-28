@@ -126,7 +126,7 @@ public partial class MainWindow : Window
         {
             // Behind a progress window, which only appears if this takes a
             // moment. Writing the project is a zip of whatever artwork is in it.
-            _project = SimplifiedUi.ProgressDialog.Run(this,
+            _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Starting {request.ModName}", progress =>
                 {
                     progress.Report("Setting up the project…");
@@ -181,7 +181,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = SimplifiedUi.ProgressDialog.Run(this,
+            _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Opening {Path.GetFileNameWithoutExtension(path)}",
                 progress =>
                 {
@@ -340,7 +340,7 @@ public partial class MainWindow : Window
             // then merged into both of the game's shader archives, which is the
             // longest thing this app does.
             var name = _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName;
-            var result = SimplifiedUi.ProgressDialog.Run(this, $"Packaging {name}",
+            var result = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, $"Packaging {name}",
                 say => SponsorPackager.Build(request, say: say));
 
             // Always told, not only when something went sideways: Studio reports

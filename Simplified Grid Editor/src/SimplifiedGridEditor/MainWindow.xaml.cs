@@ -112,7 +112,7 @@ public partial class MainWindow : Window
 
         try
         {
-            SimplifiedUi.ProgressDialog.Run(this, headline, progress =>
+            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, headline, progress =>
                 Simplified.Language.LanguageFiles.Refresh(
                     _config.GameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
         }
@@ -169,7 +169,7 @@ public partial class MainWindow : Window
             // Behind a progress window: this copies the 18 MB database, the
             // eleven language files and the UI archives, then writes the lot
             // back out as a zip. It only appears if that takes a moment.
-            _project = SimplifiedUi.ProgressDialog.Run(this,
+            _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Starting {request.ModName}", progress =>
                 {
                     var created = ProjectStore.Create(
@@ -226,7 +226,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = SimplifiedUi.ProgressDialog.Run(this,
+            _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Opening {Path.GetFileNameWithoutExtension(path)}",
                 progress => ProjectStore.Open(path, progress));
         }
@@ -303,9 +303,10 @@ public partial class MainWindow : Window
             // window used to stop drawing for all of them.
             var staged = StagedEdits();
 
-            SimplifiedUi.ProgressDialog.Run(this, $"Saving {_project.DisplayName}", say =>
+            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
+                $"Saving {_project.DisplayName}", say =>
             {
-                say.Report("Writing your edits into the project…");
+                say.Report("Writing your changes into the project…");
                 WriteEditsInto(staged, notes);
 
                 say.Report("Writing the project file…");

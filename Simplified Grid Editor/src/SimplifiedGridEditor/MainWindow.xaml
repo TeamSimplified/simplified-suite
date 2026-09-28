@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:local="clr-namespace:SimplifiedGridEditor"
+        xmlns:ui="clr-namespace:SimplifiedUi;assembly=SimplifiedUi"
         Title="Simplified Grid Editor"
         Width="1280" Height="880" MinWidth="1040" MinHeight="720"
         FontFamily="Segoe UI" FontSize="13"
@@ -155,11 +156,17 @@
             </TabItem>
         </TabControl>
 
-        <!-- Status -->
+        <!-- Status. The ring to the left of the words turns while the app is
+             doing something, and everything above this row is switched off for
+             as long as it does — see SimplifiedUi.Busy. -->
         <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}"
                 BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,10">
-            <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"
-                       Text="Start a new project, or open one."/>
+            <DockPanel>
+                <ui:Spinner x:Name="StatusSpinner" DockPanel.Dock="Left"
+                            VerticalAlignment="Center" Margin="0,0,9,0"/>
+                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"
+                           Text="Start a new project, or open one."/>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>
