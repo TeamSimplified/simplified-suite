@@ -6,14 +6,18 @@ using System.Windows.Threading;
 namespace SimplifiedUi;
 
 /// <summary>
-/// Work that takes a moment, reported where the app already talks: the status
-/// line, bottom left, with a turning ring to the left of the words.
+/// Work that takes a moment, reported along the bottom of the window: a line
+/// saying what is happening, with a turning ring to the left of it.
 ///
 /// This replaced a modal progress window. The window said the same things and
-/// said them in the middle of the screen, over the work it was describing, and
-/// every app that used it had two places that reported what it was doing. One
-/// line at the bottom left is where the rest of the app's news already
-/// arrives, so that is where this goes too.
+/// said them in the middle of the screen, over the work it was describing.
+///
+/// The bar exists only while the work does. It comes up with the ring and goes
+/// away with it, so an app with nothing to do has nothing along its bottom
+/// edge — no strip, and no line left over saying what happened a quarter of an
+/// hour ago. Anything an app wants to say about a result goes wherever that app
+/// already says such things; this line is for the waiting, and the waiting
+/// only.
 ///
 /// While it runs, everything but the status bar is switched off. That is the
 /// part the modal window was really providing: not the words, but the
@@ -35,11 +39,9 @@ public static class Busy
     /// terms — "Packaging Alpine 2026" — and goes up before the work starts.
     /// The work's own reports replace it as it moves through its steps.
     ///
-    /// When it ends, the status line goes back to whatever it said before,
-    /// because the last step of a job is not a state to leave an app sitting
-    /// in: "Putting the files in place…" reads as still happening. A caller
-    /// with something to say about the result says it afterwards, and that
-    /// wins.
+    /// When it ends, the bar goes. The last step of a job is not a state to
+    /// leave an app sitting in — "Putting the files in place…" reads as still
+    /// happening — and neither is an empty strip where a line used to be.
     ///
     /// Exceptions come back to the caller as they would have without any of
     /// this, so call sites keep their own error handling.
@@ -51,9 +53,11 @@ public static class Busy
 
         var dispatcher = owner.Dispatcher;
 
-        // What the line said before any of this, to be put back at the end.
-        var resting = status?.Text;
-        var restingBrush = status?.Foreground;
+        // The bar, up for as long as the work lasts. Nothing is remembered to
+        // put back afterwards: the line is never read at rest, because at rest
+        // it is not on screen.
+        var bar = StatusBar(owner, spinner);
+        if (bar is not null) bar.Visibility = Visibility.Visible;
         if (status is not null && !string.IsNullOrEmpty(headline)) status.Text = headline;
 
         // Marshalled through the window's own dispatcher rather than through
@@ -73,7 +77,7 @@ public static class Busy
         var outermost = Depth(owner) == 0;
         Depth(owner, Depth(owner) + 1);
 
-        var restore = outermost ? Disable(owner, spinner) : static () => { };
+        var restore = outermost ? Disable(owner, bar) : static () => { };
         if (outermost && spinner is not null) spinner.IsActive = true;
         owner.Closing += Refuse;
 
@@ -111,11 +115,7 @@ public static class Busy
                 restore();
             }
 
-            if (status is not null)
-            {
-                status.Text = resting ?? "";
-                if (restingBrush is not null) status.Foreground = restingBrush;
-            }
+            if (outermost && bar is not null) bar.Visibility = Visibility.Collapsed;
         }
 
         if (failure is not null) throw Rethrow(failure);
@@ -144,30 +144,38 @@ public static class Busy
     private static void Depth(Window window, int value) => window.SetValue(DepthProperty, value);
 
     /// <summary>
-    /// Switch off everything except the row the status line is in, and hand
-    /// back the way to put it all back.
-    ///
-    /// By row rather than by hunting for buttons: a disabled Package button
-    /// with a live team-name box beside it is still a window someone can edit
-    /// while it is being packaged. The status bar stays lit because it is the
-    /// one part with something to say.
+    /// The status bar: whichever direct child of the window's root holds the
+    /// spinner, however deeply the app nests it inside that child.
     /// </summary>
-    private static Action Disable(Window owner, Spinner? spinner)
+    private static UIElement? StatusBar(Window owner, Spinner? spinner)
     {
-        if (owner.Content is not Panel root || spinner is null) return static () => { };
+        if (owner.Content is not Panel root || spinner is null) return null;
 
-        // Up from the spinner to whichever direct child of the window's root
-        // holds it — the status bar, however deeply the app nests it.
         DependencyObject? node = spinner;
         while (node is not null && VisualTreeHelper.GetParent(node) is { } parent && !ReferenceEquals(parent, root))
             node = parent;
 
-        var statusRow = node as UIElement;
+        return node as UIElement;
+    }
+
+    /// <summary>
+    /// Switch off everything except the status bar, and hand back the way to
+    /// put it all back.
+    ///
+    /// By row rather than by hunting for buttons: a disabled Package button
+    /// with a live team-name box beside it is still a window someone can edit
+    /// while it is being packaged. The bar stays lit because it is the one part
+    /// with something to say.
+    /// </summary>
+    private static Action Disable(Window owner, UIElement? bar)
+    {
+        if (owner.Content is not Panel root) return static () => { };
+
         var switched = new List<UIElement>();
 
         foreach (var child in root.Children)
         {
-            if (child is not UIElement element || ReferenceEquals(element, statusRow)) continue;
+            if (child is not UIElement element || ReferenceEquals(element, bar)) continue;
             if (!element.IsEnabled) continue;   // already off; leave it that way
 
             element.IsEnabled = false;

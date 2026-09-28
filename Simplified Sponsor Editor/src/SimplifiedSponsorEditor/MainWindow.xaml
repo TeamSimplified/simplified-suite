@@ -326,12 +326,15 @@
              doing something — everything above this row is switched off for as
              long as it does. See SimplifiedUi.Busy. -->
         <Border Grid.Row="3" Background="{DynamicResource SurfaceAlt}"
-                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,10">
-            <DockPanel>
+                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,1,0,0" Padding="20,10"
+                Visibility="Collapsed">
+            <DockPanel MinHeight="18">
+                <!-- A line's worth of height, always: the text is only there while
+                     the ring turns, and without this the bar would grow when it
+                     appears and shrink when it goes. -->
                 <ui:Spinner x:Name="StatusSpinner" DockPanel.Dock="Left"
                             VerticalAlignment="Center" Margin="0,0,9,0"/>
-                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"
-                           Text="Start a new project, or open one."/>
+                <TextBlock Name="StatusLabel" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
             </DockPanel>
         </Border>
     </Grid>
