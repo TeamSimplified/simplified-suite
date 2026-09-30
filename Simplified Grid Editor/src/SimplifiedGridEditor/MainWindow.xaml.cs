@@ -224,11 +224,17 @@ public partial class MainWindow : Window
     {
         CloseProject();
 
+        string? openNote = null;
+
         try
         {
+            // The project holds its changes, not the files it changed, so
+            // opening one reads the installed game and puts those changes back.
             _project = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel,
                 $"Opening {Path.GetFileNameWithoutExtension(path)}",
-                progress => ProjectStore.Open(path, progress));
+                progress => ProjectStore.Open(
+                    path, AppPaths.OriginalsDir, _config.GameDir,
+                    note => openNote = note, progress));
         }
         catch (Exception ex)
         {
@@ -241,6 +247,8 @@ public partial class MainWindow : Window
 
         _config.LastProjectFolder = Path.GetDirectoryName(path);
         _config.Save();
+
+        if (openNote is not null) SetStatus(openNote, MutedBrush);
 
         _dirty = false;
         OpenedProject($"Opened {_project.DisplayName}.");
@@ -308,6 +316,10 @@ public partial class MainWindow : Window
             {
                 say.Report("Writing your changes into the project…");
                 WriteEditsInto(staged, notes);
+
+                // What the project stores is the difference between these
+                // files and the game’s own, so it is read back out here.
+                ProjectStore.CaptureEdits(_project, AppPaths.OriginalsDir, _config.GameDir, say);
 
                 say.Report("Writing the project file…");
                 ProjectStore.Save(_project, target);

@@ -5,20 +5,23 @@ namespace SimplifiedGridEditor.Core.Project;
 /// the <c>.simplified</c> zip on disk is only touched on Save (rezipped from
 /// the temp dir) and Open (extracted to it).
 ///
-/// The layout is Studio's with two folders added, and no template behind it —
-/// a grid project is created from the bundled base files rather than from a
-/// <c>.serps</c>:
+/// What the zip holds is the changes, not the changed files:
 /// <code>
 /// info.json
-/// Database/
-///     gamedatabases.2025.bin       teams, entrant lists, drivers
-/// Language/
-///     language_eng.lng  …          the eleven the game ships
-///     2026_team_keys.lng           keys the 2026 grid adds
-///     2026_team_names.json
+/// edits.json                       the database records and text this project changes
 /// ERPs/
 ///     ui_texarrays_team_branding.erp
 /// </code>
+///
+/// The database and the eleven language files are not in there. They are taken
+/// fresh from the installed game every time the project is opened and the
+/// project's changes applied on top, into <see cref="WorkDir"/> — which is why
+/// a project started a month ago still packages against today's game instead of
+/// putting back the game it was started on. See <see cref="ProjectEdits"/>.
+///
+/// The team-branding archive is still carried whole. Its edits are pixels
+/// merged into an archive rather than records with keys, and reading them back
+/// out as a difference is a different job; it stays as it was for now.
 ///
 /// One database serves all three tabs: team colours, the grid's seats and the
 /// driver table are all records in the same file, which is the reason this app
@@ -29,14 +32,28 @@ public sealed class GridProject
     /// <summary>Path to the <c>.simplified</c> file on disk. Null until first Save As.</summary>
     public string? ZipPath { get; set; }
 
-    /// <summary>Working temp directory mirroring the project's tree.</summary>
+    /// <summary>Working temp directory holding what the zip holds.</summary>
     public string TempDir { get; set; } = "";
+
+    /// <summary>
+    /// Where the game's own files are rebuilt for this session — the database
+    /// and the language files, taken from the installed game with the project's
+    /// changes applied.
+    ///
+    /// Beside the project's temp directory rather than inside it, so that what
+    /// gets zipped stays the changes alone. Nothing in here is worth keeping
+    /// once the app is closed; the next open builds it again.
+    /// </summary>
+    public string WorkDir { get; set; } = "";
 
     public ProjectInfo Info { get; set; } = new();
 
-    public string DatabaseFolder => Path.Combine(TempDir, ProjectStore.DatabaseFolderName);
-    public string LanguageFolder => Path.Combine(TempDir, ProjectStore.LanguageFolderName);
+    public string DatabaseFolder => Path.Combine(WorkDir, ProjectStore.DatabaseFolderName);
+    public string LanguageFolder => Path.Combine(WorkDir, ProjectStore.LanguageFolderName);
     public string ErpsFolder     => Path.Combine(TempDir, ProjectStore.ErpsFolderName);
+
+    /// <summary>The changes themselves, which is what the project really is.</summary>
+    public string EditsPath => Path.Combine(TempDir, ProjectEdits.FileName);
 
     /// <summary>
     /// The project's database. Named after the game's own file, since that is

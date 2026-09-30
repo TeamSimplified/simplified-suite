@@ -277,17 +277,9 @@ public partial class GridPanel : UserControl
             return;
         }
 
-        // One driver, one seat. The game shows the same face twice otherwise,
-        // and the save used to refuse the whole grid at the end rather than the
-        // one assignment that caused it — by which point it isn't obvious which
-        // one that was.
-        if (SeatHolding(driver.Id, except: slot) is { } taken)
-        {
-            Say($"{Season.Pretty(driver.Id)} is already in seat {taken} " +
-                $"({_season.Seats[taken].Team}). Move him from there first, or pick someone else.",
-                problem: true);
-            return;
-        }
+        // Whether this puts the same driver in two seats, asked before the
+        // assignment rather than after it.
+        var clash = SeatHolding(driver.Id, except: slot);
 
         _document.Seats.Assign(slot, driver.Id);
         var note = _document.Seats.HasOwnHelmet(driver.Id)
@@ -295,14 +287,35 @@ public partial class GridPanel : UserControl
             : _document.Seats.HelmetAvailable(driver.Id)
                 ? "  (no helmet of his own — using a generic one)"
                 : "  (no helmet available — keeps the default)";
+
+        // One driver in two seats is a state a grid passes through rather than
+        // a mistake to refuse: swapping two drivers is two assignments, and the
+        // first of them always makes a pair. Refusing it meant a grid could not
+        // be rearranged at all without an empty seat to park somebody in.
+        //
+        // So it is allowed and said plainly, and Package is where it is refused
+        // — that is the moment it actually matters, since the game shows the
+        // same face twice, and by then it is one dialog naming every clash
+        // rather than a rule firing on every move.
+        if (clash is { } taken)
+        {
+            Edited("");
+            Say($"{Season.Pretty(driver.Id)} is now in two seats — {taken} ({_season.Seats[taken].Team}) " +
+                $"and {slot} ({_season.Seats[slot].Team}). One of them has to change before this can " +
+                "be packaged.", problem: true);
+            return;
+        }
+
         Edited($"Seat {slot}: {Season.Pretty(driver.Id)}{note}");
     }
 
     /// <summary>
-    /// The seat this driver is already in, if any. Compared against who each
-    /// seat would hold after the pending changes, not against the file — two
-    /// seats staged for the same driver is the case worth catching, and neither
-    /// of them is on disk yet.
+    /// The seat this driver is already in, if any — so an assignment that makes
+    /// a pair can say so.
+    ///
+    /// Compared against who each seat would hold after the pending changes, not
+    /// against the file: two seats staged for the same driver is the case worth
+    /// noticing, and neither of them is on disk yet.
     /// </summary>
     private int? SeatHolding(string driverId, int except)
     {

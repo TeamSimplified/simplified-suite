@@ -440,16 +440,31 @@ are; this one takes their logic rather than a copy of it, by referencing their
 
 3. **A project is where edits land.** The two apps hold edits in memory and
    materialise them only when a package is written, because they have nowhere
-   else to put them. A project does: Save writes them into the project's files,
-   and Package is then those files at their in-game paths. That is what makes a
-   package reproducible — it ships what was saved, not a second rendering of the
-   same edits.
+   else to put them. A project does: Save writes them down, and Package is then
+   the game's files with them applied.
 
-4. **The project layout is Studio's plus two folders.** `ERPs/` for the UI
-   archives, `Language/` for the eleven `.lng` files, `Database/` for the one
-   database. No `.serps` template: a grid project is always the same three
-   things, so a new one is seeded from the originals and the only question is
-   what to call it.
+4. **A project stores its changes, not the files it changed.** `edits.json`
+   holds the database records it altered, by key, and the language entries, by
+   key. The database and the eleven `.lng` files are not in the project at all
+   — they are taken from the installed game every time it is opened and the
+   changes applied on top, into a working directory beside the unpacked
+   project.
+
+   This is what keeps a mod current. A project that carried copies was a
+   snapshot of the game on the day it was started, and a package built from it
+   a month later put that day's game back, undoing whatever had been patched in
+   between while `mod.serps` claimed it was built against the new build. The
+   cost is that a record the game drops is dropped with it, and a record both
+   the patch and the project changed keeps the project's value.
+
+   `ERPs/` is still carried whole: a logo edit is pixels merged into an archive
+   rather than records with keys, and reading those back out as a difference is
+   a different job.
+
+   Measured before it was built: a driver swap and two menu changes come to
+   twelve records and about six hundred bytes, a full comparison of 742,857
+   records takes 70ms, and a real project went from 36 MB to 3.2 MB — all of
+   which is the branding archive.
 
 The `original/` bundle is referenced from the Team Editor's folder rather than
 copied. It is 90 MB of identical bytes, and two copies in the repository is two

@@ -221,9 +221,63 @@ public partial class MainWindow
 
     // ── Packaging ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Every driver sitting in two seats, as a line each, across all three
+    /// grids the project holds.
+    ///
+    /// All three rather than the one on screen: seat edits belong to a single
+    /// entrant list and the tab only holds one at a time, so a clash left on
+    /// the 2025 grid is invisible from 2026 and would otherwise ship. The open
+    /// plan is used for whichever grid is showing, since its staged edits are
+    /// not in the database yet; the others are read from the database, where
+    /// theirs already are.
+    /// </summary>
+    private List<string> DuplicateSeats()
+    {
+        var lines = new List<string>();
+        if (_document is null) return lines;
+
+        foreach (var grid in new[] { DriverSeason.F2026, DriverSeason.F2025, DriverSeason.F2_2026 })
+        {
+            var plan = grid == DriverSeasonNow
+                ? _document.Seats
+                : new SeatPlan(_document.Database, _document.Catalogue, grid, _document.Reference);
+
+            foreach (var (driverId, slots) in plan.Duplicates())
+            {
+                if (driverId.Length == 0) continue;
+
+                var who = _document.Catalogue.Drivers.FirstOrDefault(d => d.Id == driverId)?.Display
+                          ?? DriverSeason.Pretty(driverId);
+                var seats = string.Join(", ", slots.Select(slot => $"{slot} ({grid.Seats[slot].Team})"));
+
+                lines.Add($"{who} — {grid.Label}, seats {seats}");
+            }
+        }
+
+        return lines;
+    }
+
     private void PackageProject()
     {
         if (_project is null) return;
+
+        // The one place a driver in two seats is actually a problem: the game
+        // shows the same face twice. It is allowed while a grid is being
+        // rearranged — a swap passes through it — so this is where it is
+        // caught, before the package dialog asks for a path it isn't going to
+        // use.
+        if (DuplicateSeats() is { Count: > 0 } clashes)
+        {
+            SimplifiedUi.MessageDialog.Show(this,
+                "The same driver is in two seats, and the game would show him twice:"
+                + Environment.NewLine + Environment.NewLine + "  "
+                + string.Join(Environment.NewLine + "  ", clashes)
+                + Environment.NewLine + Environment.NewLine
+                + "Change one of each pair on the Grid tab, then package.",
+                "Package", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         var request = PackageDialog.Show(
             this, _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName,
