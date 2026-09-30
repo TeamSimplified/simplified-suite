@@ -5,7 +5,11 @@ namespace SimplifiedGridEditor.Core.Project;
 /// <summary>What a trio's three records name, which decides what can be put in them.</summary>
 public enum TrioKind
 {
-    /// <summary>Driver ids. The choices are the drivers on the 2026 grid.</summary>
+    /// <summary>
+    /// Driver ids. The choices are the drivers on a grid — the 2026 one, or
+    /// whichever the menu's own record names where there is one. See
+    /// <see cref="MenuSeason"/>.
+    /// </summary>
     Drivers,
 
     /// <summary>Car ids, <c>ferrari_2026</c> and the like. The choices are the 2026 teams.</summary>

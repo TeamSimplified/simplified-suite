@@ -15,15 +15,25 @@ namespace SimplifiedGridEditor.Core.Project;
 /// </summary>
 public sealed class MenuRecords
 {
-    private MenuRecords(MenuTrio mainMenu, MenuTrio careerMenu, MenuTrio featuredCars)
+    private MenuRecords(MenuTrio mainMenu, MenuTrio careerMenu, MenuTrio featuredCars, MenuSeason mainMenuGrid)
     {
         MainMenu = mainMenu;
         CareerMenu = careerMenu;
         FeaturedCars = featuredCars;
+        MainMenuGrid = mainMenuGrid;
         All = [mainMenu, careerMenu, featuredCars];
     }
 
     public MenuTrio MainMenu { get; }
+
+    /// <summary>
+    /// Which grid the main menu's three drivers are drawn from — see
+    /// <see cref="MenuSeason"/>. It sits with the main menu because that is
+    /// where it was seen to work; the career menu ships with the same three
+    /// drivers and there is only one record of this kind in the file, so it may
+    /// well govern both.
+    /// </summary>
+    public MenuSeason MainMenuGrid { get; }
     public MenuTrio CareerMenu { get; }
 
     /// <summary>The cars, which are on the career menu rather than the main one.</summary>
@@ -32,7 +42,7 @@ public sealed class MenuRecords
     /// <summary>All three, in the order the tab shows them.</summary>
     public IReadOnlyList<MenuTrio> All { get; }
 
-    public bool HasChanges => All.Any(t => t.HasChanges);
+    public bool HasChanges => All.Any(t => t.HasChanges) || MainMenuGrid.HasChanges;
 
     /// <summary>True when the database has none of them, so the tab has nothing to offer.</summary>
     public bool AnyAvailable => All.Any(t => t.Available);
@@ -63,11 +73,17 @@ public sealed class MenuRecords
         MenuTrio.Read(database, original,
             "Featured cars", "The three cars featured on the career menu.",
             TrioKind.Cars,
-            right: 13435888910351434555, centre: 13435890009863062766, left: 13435891109374690977));
+            right: 13435888910351434555, centre: 13435890009863062766, left: 13435891109374690977),
+
+        // The grid those drivers are looked up in. Found the same way as the
+        // rest — by key, from an export of a database edited in game until the
+        // menu changed — and it holds "f1_2026" in a stock game.
+        MenuSeason.Read(database, original, key: 5697272913582422247));
 
     public void Apply(GameDatabase database)
     {
         foreach (var trio in All) trio.Apply(database);
+        MainMenuGrid.Apply(database);
     }
 
     /// <summary>

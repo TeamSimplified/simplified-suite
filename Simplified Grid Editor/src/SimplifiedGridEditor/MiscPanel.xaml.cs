@@ -21,6 +21,9 @@ public partial class MiscPanel : UserControl
     private readonly Dictionary<MenuTrio, Dictionary<MenuTrio.Slot, Row>> _rows = [];
     private readonly Dictionary<MenuTrio, Button> _resetAll = [];
 
+    /// <summary>The grid picker above the main menu's three, when there is one.</summary>
+    private Row? _gridRow;
+
     private GridDocument? _document;
     private Season _season = Season.F2026;
 
@@ -71,13 +74,23 @@ public partial class MiscPanel : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        var drivers = GridDrivers();
         var cars = MenuRecords.CarChoices();
 
+        // The main menu's three are looked up in whichever grid its record
+        // names, so that is where their choices come from. Everything else
+        // stays on the 2026 grid, which is the only one it can be showing.
+        var menuGrid = menus?.MainMenuGrid.Grid ?? Season.F2026;
+        var drivers = GridDrivers(Season.F2026);
+        var menuDrivers = menuGrid == Season.F2026 ? drivers : GridDrivers(menuGrid);
+
         _filling = true;
+        RefreshGridRow(menus, menuGrid);
+
         foreach (var (trio, rows) in _rows)
         {
-            var pool = trio.Kind == TrioKind.Cars ? cars : drivers;
+            var pool = trio.Kind == TrioKind.Cars ? cars
+                     : ReferenceEquals(trio, menus?.MainMenu) ? menuDrivers
+                     : drivers;
 
             foreach (var slot in MenuTrio.Slots)
             {
@@ -98,9 +111,11 @@ public partial class MiscPanel : UserControl
                 row.Picker.ItemsSource = items;
                 row.Picker.SelectedItem = items.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.Ordinal));
 
+                var against = ReferenceEquals(trio, menus?.MainMenu) ? menuGrid : Season.F2026;
+
                 row.State.Text =
                     !trio.Available ? "not in this database"
-                    : offGrid ? "not on the 2026 grid"
+                    : offGrid ? $"not on the {against.Label}"
                     : trio.IsStaged(slot) ? $"staged · was {Pretty(trio, trio.OnDisk(slot))}"
                     : trio.DiffersFromStock(slot) ? $"saved · originally {Pretty(trio, trio.Stock(slot))}"
                     : "stock";
@@ -114,6 +129,29 @@ public partial class MiscPanel : UserControl
         _filling = false;
     }
 
+    /// <summary>Fill the grid picker and say what state it is in.</summary>
+    private void RefreshGridRow(MenuRecords? menus, Season chosen)
+    {
+        if (_gridRow is null || menus is null) return;
+
+        var record = menus.MainMenuGrid;
+
+        _gridRow.Picker.ItemsSource = new List<Season>(MenuSeason.Choices);
+        _gridRow.Picker.SelectedItem = MenuSeason.Choices.FirstOrDefault(s => s == chosen);
+
+        _gridRow.State.Text =
+            record.Grid is null ? $"holds \"{record.Effective}\", which isn't a grid this offers"
+            : record.IsStaged ? $"staged · was {GridLabel(record.OnDisk)}"
+            : record.DiffersFromStock ? $"saved · originally {GridLabel(record.Stock)}"
+            : "stock";
+
+        _gridRow.Reset.IsEnabled = record.DiffersFromStock;
+    }
+
+    /// <summary>An entrant list's name as it reads on screen.</summary>
+    private static string GridLabel(string listName) =>
+        MenuSeason.Choices.FirstOrDefault(s => s.ListName == listName)?.Label ?? listName;
+
     /// <summary>A value as it should read: a driver's name, or a car's team.</summary>
     private static string Pretty(MenuTrio trio, string id)
     {
@@ -124,29 +162,32 @@ public partial class MiscPanel : UserControl
     }
 
     /// <summary>
-    /// Who can be shown: the drivers on the 2026 grid, in grid order, as the Grid
-    /// tab currently has it.
+    /// Who can be shown: the drivers on a grid, in grid order, as the Grid tab
+    /// currently has it.
     ///
     /// Staged swaps count, which is the point — swap someone in and they can take
     /// a menu slot straight away, while whoever they replaced drops out. That is
     /// why this reads the seat plan rather than the driver catalogue, which holds
     /// all two hundred.
     ///
-    /// Always the 2026 grid, whichever season the chips are on: these are single
-    /// screens and do not change with them.
+    /// The grid is the one asked for rather than whichever the chips are on:
+    /// these are single screens and do not follow the tabs. Which grid to ask
+    /// for is the main menu's own record — see <see cref="MenuSeason"/>.
     /// </summary>
-    private List<Choice> GridDrivers()
+    private List<Choice> GridDrivers(Season grid)
     {
         if (_document is null) return [];
 
-        var plan = _season == Season.F2026
+        // The open seat plan when it is already this grid, so staged swaps are
+        // included; a fresh read of the database otherwise.
+        var plan = _season == grid
             ? _document.Seats
-            : new SeatPlan(_document.Database, _document.Catalogue, Season.F2026, _document.Reference);
+            : new SeatPlan(_document.Database, _document.Catalogue, grid, _document.Reference);
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var drivers = new List<Choice>();
 
-        foreach (var seat in Season.F2026.Seats)
+        foreach (var seat in grid.Seats)
         {
             var id = plan.Occupant(seat.Slot);
             if (id.Length == 0 || !seen.Add(id)) continue;
@@ -165,6 +206,7 @@ public partial class MiscPanel : UserControl
         Sections.Children.Clear();
         _rows.Clear();
         _resetAll.Clear();
+        _gridRow = null;
         _menus = _document?.Menus;
 
         if (_menus is null) return;
@@ -181,6 +223,60 @@ public partial class MiscPanel : UserControl
 
             var rows = new Dictionary<MenuTrio.Slot, Row>();
 
+            // The main menu's drivers are looked up in a grid the database names
+            // beside them, so the choice of grid comes first: it decides who the
+            // three slots underneath can hold.
+            var showsGridPicker = ReferenceEquals(trio, _menus.MainMenu) && _menus.MainMenuGrid.Available;
+            var offset = showsGridPicker ? 1 : 0;
+
+            if (showsGridPicker)
+            {
+                grid.RowDefinitions.Add(new RowDefinition());
+
+                var gridLabel = new TextBlock
+                {
+                    Text = "Grid",
+                    Style = (Style)FindResource("FieldLabel"),
+                    Margin = new Thickness(0, 4, 10, 4),
+                };
+                grid.Children.Add(gridLabel);
+
+                var gridPicker = new ComboBox
+                {
+                    IsEditable = false,
+                    IsTextSearchEnabled = false,
+                    IsSynchronizedWithCurrentItem = false,
+                    Margin = new Thickness(0, 4, 0, 4),
+                };
+                gridPicker.DropDownOpened += (_, _) => _userDriven.Add(gridPicker);
+                gridPicker.PreviewKeyDown += (_, _) => _userDriven.Add(gridPicker);
+                gridPicker.DropDownClosed += (_, _) => _userDriven.Remove(gridPicker);
+                gridPicker.SelectionChanged += (_, _) => PickedGrid();
+                Grid.SetColumn(gridPicker, 1);
+                grid.Children.Add(gridPicker);
+
+                var gridState = new TextBlock
+                {
+                    Style = (Style)FindResource("Hint"),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 4, 0, 4),
+                };
+                Grid.SetColumn(gridState, 2);
+                grid.Children.Add(gridState);
+
+                var gridReset = new Button
+                {
+                    Content = "Reset",
+                    Style = (Style)FindResource("RowButton"),
+                    IsEnabled = false,
+                };
+                gridReset.Click += (_, _) => ResetGrid();
+                Grid.SetColumn(gridReset, 3);
+                grid.Children.Add(gridReset);
+
+                _gridRow = new Row(gridPicker, gridState, gridReset);
+            }
+
             for (var i = 0; i < MenuTrio.Slots.Count; i++)
             {
                 var slot = MenuTrio.Slots[i];
@@ -192,7 +288,7 @@ public partial class MiscPanel : UserControl
                     Style = (Style)FindResource("FieldLabel"),
                     Margin = new Thickness(0, 4, 10, 4),
                 };
-                Grid.SetRow(label, i);
+                Grid.SetRow(label, i + offset);
                 grid.Children.Add(label);
 
                 // Not editable, and no text search. Both lists are closed — a
@@ -226,7 +322,7 @@ public partial class MiscPanel : UserControl
                 // it, and no choice registered at all.
 
                 picker.SelectionChanged += (_, _) => Picked(trio, slot);
-                Grid.SetRow(picker, i);
+                Grid.SetRow(picker, i + offset);
                 Grid.SetColumn(picker, 1);
                 grid.Children.Add(picker);
 
@@ -236,7 +332,7 @@ public partial class MiscPanel : UserControl
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(12, 4, 0, 4),
                 };
-                Grid.SetRow(state, i);
+                Grid.SetRow(state, i + offset);
                 Grid.SetColumn(state, 2);
                 grid.Children.Add(state);
 
@@ -247,7 +343,7 @@ public partial class MiscPanel : UserControl
                     IsEnabled = false,
                 };
                 reset.Click += (_, _) => ResetSlot(trio, slot);
-                Grid.SetRow(reset, i);
+                Grid.SetRow(reset, i + offset);
                 Grid.SetColumn(reset, 3);
                 grid.Children.Add(reset);
 
@@ -310,6 +406,31 @@ public partial class MiscPanel : UserControl
         Changed?.Invoke(this, EventArgs.Empty);
         Said?.Invoke(this, new PanelMessage(
             $"{trio.Title}, {slot.ToString().ToLowerInvariant()}: {choice.Display}.", IsProblem: false));
+    }
+
+    private void PickedGrid()
+    {
+        if (_filling || _gridRow is null || _document?.Menus is not { } menus) return;
+        if (!_userDriven.Contains(_gridRow.Picker)) return;
+        if (_gridRow.Picker.SelectedItem is not Season season) return;
+        if (season.ListName == menus.MainMenuGrid.Effective) return;
+
+        menus.MainMenuGrid.Set(season.ListName);
+        Refresh();
+        Changed?.Invoke(this, EventArgs.Empty);
+        Said?.Invoke(this, new PanelMessage(
+            $"Main menu: drivers from the {season.Label}.", IsProblem: false));
+    }
+
+    private void ResetGrid()
+    {
+        if (_document?.Menus is not { } menus) return;
+
+        menus.MainMenuGrid.Set(menus.MainMenuGrid.Stock);
+        Refresh();
+        Changed?.Invoke(this, EventArgs.Empty);
+        Said?.Invoke(this, new PanelMessage(
+            $"Main menu: back to the {GridLabel(menus.MainMenuGrid.Stock)}.", IsProblem: false));
     }
 
     /// <summary>
