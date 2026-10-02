@@ -248,7 +248,7 @@ public partial class GridPanel : UserControl
         var saved = seats.Saved(s);
         ResetSeatButton.IsEnabled = !seats.IsDefault(s);
         HelmetClearButton.IsEnabled = helmetOverride is not null || saved.Helmet;
-        NumberClearButton.IsEnabled = seats.NumberOverride(s) is not null || saved.Number;
+        NumberClearButton.IsEnabled = seats.CanClearNumber(s);
         SuitClearButton.IsEnabled = seats.SuitOverride(s) is not null || saved.Suit;
         GloveClearButton.IsEnabled = seats.GloveOverride(s) is not null || saved.Gloves;
     }

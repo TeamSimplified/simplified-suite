@@ -140,6 +140,16 @@ public sealed class SeatPlan
     /// written in an earlier one, so undoing them means writing the stock values
     /// back rather than declining to write new ones.
     /// </summary>
+    /// <summary>
+    /// Seats whose number has been handed back to whoever is sitting in them.
+    ///
+    /// Clearing a number is not the same as never having set one. The file may
+    /// hold a number an earlier session wrote, and the seat may hold somebody
+    /// other than its default driver — in which case the number that belongs
+    /// there is his own, not the stock value for the slot.
+    /// </summary>
+    private readonly HashSet<int> _numberFollowsDriver = [];
+
     private readonly HashSet<int> _restoreNumber = [];
     private readonly HashSet<int> _restoreHelmet = [];
     private readonly HashSet<int> _restoreSuit = [];
@@ -311,12 +321,26 @@ public sealed class SeatPlan
         _dirty.Add(slot);
     }
 
+    /// <summary>
+    /// Whether this plan moves somebody into or out of a seat.
+    ///
+    /// The kit rules follow the driver, so they only apply when the driver is
+    /// what changed. A seat touched for its number alone has the same person in
+    /// it and his kit already on it; running the rule there anyway rearranged
+    /// helmet metadata nobody asked to move — and because that rearrangement
+    /// renames the records, it undid the swap that put the helmet there in the
+    /// first place, flipping back and forth on every save.
+    /// </summary>
+    private bool DriverIsChanging(int slot) =>
+        TargetFor(slot).Driver != _db.Text(_season.SeatPath(slot, "driver"));
+
     public void Reset(int slot)
     {
         _occupants[slot] = _season.Seats[slot].DefaultDriver;
         _helmetOverride.Remove(slot);
         _helmetOverrideLabel.Remove(slot);
         _numberOverride.Remove(slot);
+        _numberFollowsDriver.Remove(slot);
         _suitOverride.Remove(slot);
         _gloveOverride.Remove(slot);
 
@@ -369,11 +393,54 @@ public sealed class SeatPlan
     /// <summary>The chosen helmet's name, or null when it wasn't recorded.</summary>
     public string? HelmetOverrideLabel(int slot) => _helmetOverrideLabel.GetValueOrDefault(slot);
 
-    public void SetNumberOverride(int slot, string number) { _restoreNumber.Remove(slot); _numberOverride[slot] = number; _dirty.Add(slot); }
+    public void SetNumberOverride(int slot, string number)
+    {
+        _restoreNumber.Remove(slot);
+        _numberFollowsDriver.Remove(slot);
+        _numberOverride[slot] = number;
+        _dirty.Add(slot);
+    }
+
+    /// <summary>
+    /// Whether clearing the number would change anything.
+    ///
+    /// It would not when the seat already has the number its occupant would be
+    /// given: that is the state a saved swap leaves behind, and the column
+    /// marks it as a difference from stock, so without this the button sat
+    /// there looking as though it did nothing.
+    /// </summary>
+    public bool CanClearNumber(int slot) =>
+        _numberOverride.ContainsKey(slot)
+        || (DriverIsDefault(slot)
+            ? Saved(slot).Number && !_restoreNumber.Contains(slot)
+            : NumberOnDisk(slot) != _catalogue.Numbers.GetValueOrDefault(_occupants[slot], "255"));
+
+    /// <summary>
+    /// Hand the number back to whoever is in the seat, the way clearing a
+    /// helmet hands the slot back to his own.
+    ///
+    /// Which value that is depends on who is sitting there. For the seat's own
+    /// driver it is the stock number for the slot, restored from the backup if
+    /// an earlier session wrote over it. For anybody else it is his own number
+    /// ~~~ restoring the stock value there would write the slot's sentinel 255
+    /// back, which races as his own number anyway but reads as nonsense in the
+    /// column, and loses the number the swap had put in.
+    /// </summary>
     public void ClearNumberOverride(int slot)
     {
         _numberOverride.Remove(slot);
-        if (Saved(slot).Number) _restoreNumber.Add(slot);
+
+        if (DriverIsDefault(slot))
+        {
+            _numberFollowsDriver.Remove(slot);
+            if (Saved(slot).Number) _restoreNumber.Add(slot);
+        }
+        else
+        {
+            _restoreNumber.Remove(slot);
+            _numberFollowsDriver.Add(slot);
+        }
+
         _dirty.Add(slot);
     }
 
@@ -397,6 +464,14 @@ public sealed class SeatPlan
 
     private string NumberOnDisk(int slot) => _db.Text(_season.SeatPath(slot, "car_number"), "255");
 
+    /// <summary>
+    /// Whether the seat's number should be the occupant's own rather than what
+    /// the file says: because he has just been moved in, or because the number
+    /// that was set over his has been cleared.
+    /// </summary>
+    private bool NumberFollowsOccupant(int slot) =>
+        _occupants[slot] != _occupantsOnDisk[slot] || _numberFollowsDriver.Contains(slot);
+
     /// <summary>The number this seat will end up with. Mirrors what <see cref="Plan"/> writes.</summary>
     public string EffectiveNumber(int slot)
     {
@@ -405,7 +480,7 @@ public sealed class SeatPlan
         if (_restoreNumber.Contains(slot) && _reference is not null)
             return _reference.Database.Text(_season.SeatPath(slot, "car_number"), "255");
 
-        if (!DriverIsDefault(slot) && _occupants[slot] != _occupantsOnDisk[slot])
+        if (!DriverIsDefault(slot) && NumberFollowsOccupant(slot))
             return _catalogue.Numbers.GetValueOrDefault(_occupants[slot], "255");
 
         return NumberOnDisk(slot);
@@ -470,7 +545,11 @@ public sealed class SeatPlan
             && _reference.Catalogue.Helmets.TryGetValue(_season.Seats[slot].LookupString, out var stock))
             return stock;
 
-        if (_dirty.Contains(slot))
+        // Only when the driver is moving, which is the same condition the plan
+        // writes under. Keyed off the dirty set alone, the column switched to
+        // the occupant's own helmet the moment the seat was touched for
+        // anything at all - a number override redrew the helmet beside it.
+        if (_dirty.Contains(slot) && DriverIsChanging(slot))
         {
             if (_catalogue.OwnHelmet(_occupants[slot]) is { } own) return own;
             var generic = AssignGenericHelmets().GetValueOrDefault(slot, -1);
@@ -585,7 +664,7 @@ public sealed class SeatPlan
             var mover = HelmetOverride(seat.Slot);
             if (mover is null)
             {
-                if (!options.Helmet) continue;
+                if (!options.Helmet || !DriverIsChanging(seat.Slot)) continue;
 
                 // His own, or an unbranded one when he hasn't got one. Both go on
                 // the same way, which is what makes them show during a race.
@@ -709,9 +788,11 @@ public sealed class SeatPlan
                     }
                     wantId = target.Id;
                 }
-                else if (!followTeam)
+                else if (!followTeam || !DriverIsChanging(seat.Slot))
                 {
-                    continue;   // no override and the team rule is off: leave it alone
+                    // No override, and either the team rule is off or nothing
+                    // about the driver changed. Either way, leave it alone.
+                    continue;
                 }
                 else if (DriverIsDefault(seat.Slot))
                 {
@@ -762,7 +843,7 @@ public sealed class SeatPlan
         else
         {
             driver = _occupants[slot];
-            number = _occupants[slot] != _occupantsOnDisk[slot]
+            number = NumberFollowsOccupant(slot)
                 ? _catalogue.Numbers.GetValueOrDefault(_occupants[slot], "255")
                 : numberOnDisk;
         }
