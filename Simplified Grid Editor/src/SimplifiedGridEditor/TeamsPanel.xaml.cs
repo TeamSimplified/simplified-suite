@@ -240,8 +240,38 @@ public partial class TeamsPanel : UserControl
             if (!_rowsBySeason.TryGetValue(owner.Season, out var rows)) continue;
 
             var row = rows.FirstOrDefault(r => r.Team.Id == owner.TeamId);
-            if (row is not null) row.Logos[logo.Kind.Id] = logo.PngPath;
+            if (row is null) continue;
+
+            row.Logos[logo.Kind.Id] = logo.PngPath;
+            row.OriginalLogos[logo.Kind.Id] = logo.PngPath;
         }
+    }
+
+    /// <summary>
+    /// The project has just been written, so what is on screen is what it
+    /// holds.
+    ///
+    /// Two things settle here. The chosen pictures are inside the project now,
+    /// so the rows point at its copies rather than at wherever they were picked
+    /// from; and every row takes its current state as the project's, which is
+    /// what stops the window saying there are unsaved changes straight after a
+    /// save.
+    /// </summary>
+    public void Saved()
+    {
+        if (_project is null) return;
+
+        foreach (var row in _rowsBySeason.Values.SelectMany(rows => rows))
+        {
+            row.Logos.Clear();
+            row.OriginalLogos.Clear();
+        }
+
+        LoadLogos();
+
+        foreach (var row in _rowsBySeason.Values.SelectMany(rows => rows)) row.Rebaseline();
+
+        BuildRows();
     }
 
     /// <summary>

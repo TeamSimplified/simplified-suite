@@ -52,6 +52,20 @@ public sealed class GridDocument
     public bool HasChanges => Seats.HasChanges || PendingAttributes.Count > 0 || Menus.HasChanges;
 
     /// <summary>
+    /// Settle what was staged: it is in the project's files now, so nothing is
+    /// pending. Called once a save has written them.
+    ///
+    /// The menus settle themselves as they are applied, because a menu record
+    /// holds one value and applying it is the whole of the change. Seats and
+    /// driver fields are told separately.
+    /// </summary>
+    public void Committed()
+    {
+        Seats.Committed();
+        PendingAttributes.Clear();
+    }
+
+    /// <summary>
     /// Read a project's database and the pristine copy beside it.
     /// </summary>
     /// <param name="databasePath">The project's own database, which is the one edited.</param>

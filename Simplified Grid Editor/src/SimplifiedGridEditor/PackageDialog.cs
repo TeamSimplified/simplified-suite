@@ -136,42 +136,11 @@ public static class PackageDialog
         Grid.SetColumnSpan(choices, 2);
         grid.Children.Add(choices);
 
-        var boxes = new List<(PackagePart Part, CheckBox Box)>();
-        foreach (var part in Enum.GetValues<PackagePart>())
-        {
-            var count = counts.GetValueOrDefault(part);
-            if (count == 0) continue;
-
-            var box = new CheckBox
-            {
-                IsChecked = true,
-                Margin = new Thickness(0, 3, 0, 3),
-                Content = new TextBlock
-                {
-                    Inlines =
-                    {
-                        new System.Windows.Documents.Run($"{PackageParts.Label(part)}  "),
-                        new System.Windows.Documents.Run($"{count} change(s) — {PackageParts.Hint(part)}")
-                        {
-                            Foreground = (System.Windows.Media.Brush?)owner.TryFindResource("TextMuted")
-                                         ?? System.Windows.Media.Brushes.Gray,
-                        },
-                    },
-                },
-            };
-
-            choices.Children.Add(box);
-            boxes.Add((part, box));
-        }
+        var boxes = PartChecklist.Build(choices, owner, counts);
 
         if (boxes.Count == 0)
-            choices.Children.Add(new TextBlock
-            {
-                Text = "Nothing has been changed yet, so this would package the game as it is.",
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = (System.Windows.Media.Brush?)owner.TryFindResource("TextMuted")
-                             ?? System.Windows.Media.Brushes.Gray,
-            });
+            PartChecklist.SayNothing(choices, owner,
+                "Nothing has been changed yet, so this would package the game as it is.");
 
         var buttons = new StackPanel
         {
@@ -228,7 +197,7 @@ public static class PackageDialog
         return new Request(
             System.IO.Path.Combine(locBox.Text, PackageFileName(projectName, chosen) + (zipped ? ".zip" : "")),
             chosen,
-            boxes.Where(b => b.Box.IsChecked == true).Select(b => b.Part).ToHashSet(),
+            boxes.Ticked,
             zipped);
     }
 

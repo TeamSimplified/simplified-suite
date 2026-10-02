@@ -19,9 +19,9 @@ public sealed class TeamRow
     public string Short { get; set; } = "";
     public string SuperShort { get; set; } = "";
 
-    public required string OriginalFull { get; init; }
-    public required string OriginalShort { get; init; }
-    public required string OriginalSuperShort { get; init; }
+    public required string OriginalFull { get; set; }
+    public required string OriginalShort { get; set; }
+    public required string OriginalSuperShort { get; set; }
 
     // ── Colours, from the game database ───────────────────────────────
 
@@ -44,7 +44,17 @@ public sealed class TeamRow
     /// </summary>
     public Dictionary<string, string> Logos { get; } = new(StringComparer.Ordinal);
 
-    public bool LogosModified => Logos.Count > 0;
+    /// <summary>
+    /// The same as the project has it, so a logo the project already carries
+    /// does not read as an unsaved change. Names and colours have had one of
+    /// these all along; logos only needed one once a project started storing
+    /// the picture rather than an archive with the picture already in it.
+    /// </summary>
+    public Dictionary<string, string> OriginalLogos { get; } = new(StringComparer.Ordinal);
+
+    public bool LogosModified =>
+        Logos.Count != OriginalLogos.Count
+        || Logos.Any(l => OriginalLogos.GetValueOrDefault(l.Key) != l.Value);
 
     public bool NamesModified =>
         Full != OriginalFull || Short != OriginalShort || SuperShort != OriginalSuperShort;
@@ -58,7 +68,31 @@ public sealed class TeamRow
     {
         ResetNames();
         ResetColours();
-        Logos.Clear();
+        ResetLogos();
+    }
+
+    /// <summary>
+    /// Take what the row holds as the project's own.
+    ///
+    /// "Modified" here means "differs from the project", so a save is the
+    /// moment the two agree again. Without this the window goes on saying
+    /// there are unsaved changes after every save.
+    /// </summary>
+    public void Rebaseline()
+    {
+        OriginalFull = Full;
+        OriginalShort = Short;
+        OriginalSuperShort = SuperShort;
+
+        Copy(Colours, OriginalColours);
+        Copy(Logos, OriginalLogos);
+    }
+
+    private static void Copy<TKey, TValue>(Dictionary<TKey, TValue> from, Dictionary<TKey, TValue> to)
+        where TKey : notnull
+    {
+        to.Clear();
+        foreach (var (key, value) in from) to[key] = value;
     }
 
     public void ResetNames()
@@ -72,6 +106,13 @@ public sealed class TeamRow
     {
         foreach (var field in OriginalColours.Keys) Colours[field] = OriginalColours[field];
     }
+
+    /// <summary>
+    /// Back to the pictures the project carries. Not the game's own: that is
+    /// what the reset beside a single logo in the picker does, and it is an
+    /// edit rather than the undoing of one.
+    /// </summary>
+    public void ResetLogos() => Copy(OriginalLogos, Logos);
 
     public void ResetColour(ColourField field)
     {

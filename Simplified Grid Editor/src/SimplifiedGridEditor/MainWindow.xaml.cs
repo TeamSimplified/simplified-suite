@@ -338,7 +338,11 @@ public partial class MainWindow : Window
         _config.LastProjectFolder = Path.GetDirectoryName(target);
         _config.Save();
 
+        // The tabs compare against what the project held, and it has just
+        // changed, so they are told before the window asks them whether
+        // anything is still unsaved.
         _dirty = false;
+        Teams.Saved();
         RefreshEverything();
         SetStatus($"Saved {_project.DisplayName}.", OkBrush);
         return true;
@@ -420,12 +424,7 @@ public partial class MainWindow : Window
 
     private void Package_Click(object sender, RoutedEventArgs e) => PackageProject();
 
-    /// <summary>
-    /// Bring something in from outside the project. Team logos, for now, which
-    /// is why it hands straight to the Teams tab — the pictures land on its
-    /// rows, whichever tab is in front.
-    /// </summary>
-    private void Import_Click(object sender, RoutedEventArgs e) => Teams.ImportLogos();
+    private void Import_Click(object sender, RoutedEventArgs e) => ImportFile();
 
     // ── Window chrome ───────────────────────────────────────────────────────
 

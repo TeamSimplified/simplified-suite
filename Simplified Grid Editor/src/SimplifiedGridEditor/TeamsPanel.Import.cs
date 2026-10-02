@@ -26,17 +26,14 @@ namespace SimplifiedGridEditor;
 /// </summary>
 public partial class TeamsPanel
 {
-    /// <summary>Ask for an archive, and take the chosen logos out of it.</summary>
-    public void ImportLogos()
+    /// <summary>Take the chosen logos out of an archive.</summary>
+    /// <param name="erpPath">
+    /// The archive. Chosen by the window rather than here: one Import button
+    /// decides what a file is for, and an archive is for logos.
+    /// </param>
+    public void ImportLogos(string erpPath)
     {
         if (_project is null) return;
-
-        var picker = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Choose an archive to take logos from",
-            Filter = "ERP archive (*.erp)|*.erp",
-        };
-        if (picker.ShowDialog(Host) != true) return;
 
         var pristine = ProjectStore.PristineBrandingPath(AppPaths.OriginalsDir);
         var runner = new TexconvRunner();
@@ -44,13 +41,13 @@ public partial class TeamsPanel
         LogoSource source;
         try
         {
-            source = LogoSource.Read(picker.FileName, pristine);
+            source = LogoSource.Read(erpPath, pristine);
         }
         catch (Exception ex)
         {
             MessageDialog.Show(Host,
-                $"{Path.GetFileName(picker.FileName)} couldn't be read: {ex.Message}",
-                "Import logos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                $"{Path.GetFileName(erpPath)} couldn't be read: {ex.Message}",
+                "Import", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -58,7 +55,7 @@ public partial class TeamsPanel
         if (source.Logos.Count == 0)
         {
             MessageDialog.Show(Host, ImportLogosDialog.Summarise(source),
-                "Import logos", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Import", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -110,7 +107,7 @@ public partial class TeamsPanel
             MessageDialog.Show(Host,
                 "These couldn't be imported:" + Environment.NewLine + Environment.NewLine + "  "
                 + string.Join(Environment.NewLine + "  ", failed),
-                "Import logos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "Import", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private static string Describe(FoundLogo logo) =>

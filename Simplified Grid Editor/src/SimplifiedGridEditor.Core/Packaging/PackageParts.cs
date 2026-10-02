@@ -145,11 +145,30 @@ public sealed class PackageParts
     public PackagePart PartOf(ulong key) => _database.GetValueOrDefault(key, PackagePart.Other);
 
     /// <summary>
-    /// Which part a changed language entry belongs to. The 2026 keys are the
-    /// ones the game ships without, and the project carries the list.
+    /// Which part a changed language entry belongs to.
+    ///
+    /// Both grids name their teams in keys of their own — 2026's are the ones
+    /// the game ships without, which is why the project carries the list — so
+    /// a changed key is looked up in the two grids. A key in neither is text
+    /// this app does not edit. A project cannot produce one; a language file
+    /// somebody hands us is full of them.
     /// </summary>
     public static PackagePart PartOfText(string key, IReadOnlySet<string> keys2026) =>
-        keys2026.Contains(key) ? PackagePart.TeamNames2026 : PackagePart.TeamNames2025;
+        keys2026.Contains(key) || Names2026.Contains(key) ? PackagePart.TeamNames2026
+        : Names2025.Contains(key) ? PackagePart.TeamNames2025
+        : PackagePart.Other;
+
+    /// <summary>
+    /// A grid's name keys, three per team, from the grid itself — so a team
+    /// added there is classified here without anybody remembering to.
+    /// </summary>
+    private static readonly IReadOnlySet<string> Names2025 = NameKeys(TeamSeason.Y2025);
+    private static readonly IReadOnlySet<string> Names2026 = NameKeys(TeamSeason.Y2026);
+
+    private static HashSet<string> NameKeys(TeamSeason season) =>
+        SimplifiedTeamEditor.Core.Teams.TeamGrid.For(season)
+            .SelectMany(team => new[] { team.FullKey, team.ShortKey, team.SuperShortKey })
+            .ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
     /// Work out what each of a project's changes is, against the database it
@@ -159,13 +178,25 @@ public sealed class PackageParts
     {
         var parts = new PackageParts();
         parts.Build(database, edits);
+        return parts.Count(edits, keys2026);
+    }
 
+    /// <summary>
+    /// The same for changes that are text alone, where there is no database to
+    /// build the map of record keys from and none needed: a language entry is
+    /// classified by its key.
+    /// </summary>
+    public static PackageParts Read(ProjectEdits edits, IReadOnlySet<string> keys2026)
+        => new PackageParts().Count(edits, keys2026);
+
+    private PackageParts Count(ProjectEdits edits, IReadOnlySet<string> keys2026)
+    {
         var counts = new Dictionary<PackagePart, int>();
 
         foreach (var key in edits.Database.Keys)
         {
             if (!ulong.TryParse(key, out var id)) continue;
-            var part = parts.PartOf(id);
+            var part = PartOf(id);
             counts[part] = counts.GetValueOrDefault(part) + 1;
         }
 
@@ -175,8 +206,8 @@ public sealed class PackageParts
             counts[part] = counts.GetValueOrDefault(part) + 1;
         }
 
-        parts.Counts = counts;
-        return parts;
+        Counts = counts;
+        return this;
     }
 
     // ── Building the map ────────────────────────────────────────────────────

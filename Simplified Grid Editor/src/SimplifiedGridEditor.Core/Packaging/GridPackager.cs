@@ -64,6 +64,10 @@ public static class GridPackager
         ApplyToDatabase(project, document, kit, y2025, y2026);
         ApplyToLanguageFiles(project, y2025, y2026);
         ApplyLogos(project, logoEdits, warnings ?? []);
+
+        // All of it is in the project's files now, so nothing the tabs were
+        // holding is still waiting to be written.
+        document?.Committed();
     }
 
     /// <summary>
@@ -251,13 +255,32 @@ public static class GridPackager
                     .Where(e => wanted.Contains(PackageParts.PartOfText(e.Key, keys2026)))
                     .ToDictionary(e => e.Key, e => e.Value, StringComparer.Ordinal);
 
+                // A package that renames a team has to carry 2026's own name
+                // keys, whichever year was renamed. See KeepSeasonsApart.
+                var keepApart = textWanted.Count > 0;
+                var names2026 = keepApart
+                    ? Season2026.LoadDefaults(project.LanguageFolder)
+                    : new Dictionary<string, string>(StringComparer.Ordinal);
+
                 var languageDir = Path.Combine(originalsDir, Simplified.Language.LanguageFiles.FolderName);
                 if (Directory.Exists(languageDir))
                     foreach (var path in Directory.EnumerateFiles(languageDir, "language_*.lng").OrderBy(f => f))
                     {
-                        var bytes = textWanted.Count == 0
-                            ? File.ReadAllBytes(path)
-                            : new ProjectEdits { Text = textWanted }.ApplyTo(LngFile.Load(path));
+                        byte[] bytes;
+                        if (!keepApart)
+                        {
+                            bytes = File.ReadAllBytes(path);
+                        }
+                        else
+                        {
+                            // Per language, because what each one already has
+                            // of 2026 differs.
+                            var language = LngFile.Load(path);
+                            bytes = new ProjectEdits
+                            {
+                                Text = KeepSeasonsApart(language, names2026, textWanted),
+                            }.ApplyTo(language);
+                        }
 
                         zip.Add(string.Join('/', GameFiles.PackageLocalisationPath.Append(Path.GetFileName(path))),
                             bytes);
@@ -285,6 +308,13 @@ public static class GridPackager
                     if (left > 0) warnings.Add($"{left} change(s) were left out because their part wasn't ticked.");
 
                     included.ApplyTo(built);
+
+                    // The other half of keeping the seasons apart: the 2026
+                    // teams are pointed at their own keys, which seventeen of
+                    // their name fields are not pointed at in a stock game.
+                    if (keepApart)
+                        Season2026.ApplyReassignment(
+                            built, Season2026.LoadReassignment(project.LanguageFolder));
 
                     zip.Add(string.Join('/', new[] { GameFiles.GameFolderName }.Concat(GameFiles.GameDatabaseRelPath)),
                         built.ToBytes());
@@ -341,6 +371,44 @@ public static class GridPackager
         => ProjectLogos.Read(project)
             .Where(logo => wanted.Contains(PackageParts.PartOfLogo(logo.Kind.Id, logo.Slice)))
             .ToList();
+
+    /// <summary>
+    /// Make sure a renamed 2025 team does not rename the 2026 one with it.
+    ///
+    /// The game lets the two grids share name keys, and not tidily: a stock
+    /// database points seventeen of the 2026 teams' thirty-three name fields
+    /// at a 2025 key, and the split is per field rather than per team. Ferrari,
+    /// Alpine and Racing Bulls read all three of theirs from 2025; McLaren
+    /// reads its title from 2026 and its two short forms from 2025; Mercedes,
+    /// Red Bull and Aston Martin the other way about. So renaming Ferrari in
+    /// 2025 renames it in 2026 too, and nothing about the 2025 tab says that
+    /// is going to happen.
+    ///
+    /// Every 2026 key therefore goes out with any package that carries a name
+    /// change, seeded with what the 2026 tab shows, and the 2026 fields are
+    /// pointed at them. Then each grid reads from keys of its own and a rename
+    /// stays in the year it was made.
+    ///
+    /// Only the keys a language hasn't got are seeded, and the package's own
+    /// text then overrides whatever is left. The game ships ten of the
+    /// thirty-three, Chinese translates every one of its ten, and the defaults
+    /// are English — so seeding them over a key the file already has would
+    /// throw a translation away to solve a problem that file does not have.
+    /// </summary>
+    private static Dictionary<string, string> KeepSeasonsApart(
+        LngFile language,
+        IReadOnlyDictionary<string, string> names2026,
+        IReadOnlyDictionary<string, string> text)
+    {
+        var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (key, value) in names2026)
+            if (!language.Entries.ContainsKey(key)) merged[key] = value;
+
+        foreach (var (key, value) in text) merged[key] = value;
+
+        return merged;
+    }
 
     /// <summary>
     /// Put the chosen logos into the game's branding arrays and merge those

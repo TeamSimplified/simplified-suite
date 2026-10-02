@@ -276,6 +276,17 @@ public sealed class SeatPlan
     /// </summary>
     public IReadOnlyCollection<int> TouchedSeats => _dirty;
 
+    /// <summary>
+    /// Forget which seats were touched, because they have been written down.
+    ///
+    /// Deliberately not part of Apply. The Driver Swapper applies a plan and
+    /// then reads TouchedSeats to replay the same edits onto the copy it
+    /// packages, so there applying is the middle of the job; somewhere a save
+    /// ends with the files on disk, it is the end of it, and that caller says
+    /// so by calling this.
+    /// </summary>
+    public void Committed() => _dirty.Clear();
+
     public string Occupant(int slot) => _occupants[slot];
 
     public bool DriverIsDefault(int slot) => _occupants[slot] == _season.Seats[slot].DefaultDriver;
