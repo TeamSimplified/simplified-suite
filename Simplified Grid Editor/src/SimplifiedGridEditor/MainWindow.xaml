@@ -139,14 +139,19 @@
                              Style="{StaticResource ChannelChip}" Checked="Season_Checked"
                              ToolTip="The 2026 Formula 2 grid. Teams aren't editable for F2."/>
 
-                <!-- Right-docked, so the first declared sits furthest right.
-                     Same order Studio uses: Edit project, Package, Close. -->
+                <!-- Right-docked, so the first declared sits furthest right:
+                     Edit project, Import, Package, Close. Four project-level
+                     actions, so one gap between all of them - the left margin
+                     is the gap, and the leftmost has nothing to its left. -->
                 <Button DockPanel.Dock="Right" Name="CloseProjectButton" Content="Close"
                         Margin="6,0,0,0" IsEnabled="False" Click="CloseProject_Click"
                         ToolTip="Put this project away and leave the window open"/>
                 <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
-                        Margin="12,0,0,0" IsEnabled="False" Click="Package_Click"
+                        Margin="6,0,0,0" IsEnabled="False" Click="Package_Click"
                         ToolTip="Write this project out as a mod anyone can install"/>
+                <Button DockPanel.Dock="Right" Name="ImportButton" Content="Import"
+                        Margin="6,0,0,0" IsEnabled="False" Click="Import_Click"
+                        ToolTip="Take team logos out of a mod's archive, or out of a shader package it was built into"/>
                 <Button DockPanel.Dock="Right" Name="EditProjectButton" Content="Edit project"
                         IsEnabled="False" Click="EditProject_Click"
                         ToolTip="Change the mod name and author"/>

@@ -1,3 +1,5 @@
+using EgoEngineLibrary.Archive.Erp;
+
 namespace SimplifiedTeamEditor.Core.Logos;
 
 /// <summary>
@@ -64,6 +66,17 @@ public static class TeamLogos
         new LogoKind("team_select", "Team select", TeamSelectArrays, true),
         new LogoKind("starting_grid", "Starting grid", StartingGridArrays, true),
     };
+
+    /// <summary>
+    /// An archive's resource for one of these arrays, or null when it has none.
+    ///
+    /// ErpFile.FindResource throws for a name it does not hold, which turns
+    /// "does this archive carry that array?" into an exception rather than an
+    /// answer — and that is the question asked of every archive somebody
+    /// hands us, and of every one an older project kept.
+    /// </summary>
+    public static ErpResource? ResourceFor(ErpFile archive, string texarrayBase)
+        => archive.Resources.Find(r => r.Identifier == IdentifierFor(texarrayBase));
 
     public static LogoKind Kind(string id)
         => Kinds.FirstOrDefault(k => k.Id == id)

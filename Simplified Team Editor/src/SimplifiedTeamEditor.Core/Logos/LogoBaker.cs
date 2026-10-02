@@ -68,8 +68,7 @@ public static class LogoBaker
     public static bool ImportSlice(
         ErpFile overlay, string texarrayBase, int slice, string pngPath, TexconvRunner runner)
     {
-        var identifier = TeamLogos.IdentifierFor(texarrayBase);
-        var resource = overlay.FindResource(identifier)
+        var resource = TeamLogos.ResourceFor(overlay, texarrayBase)
             ?? throw new InvalidOperationException($"The overlay has no {texarrayBase}.");
 
         var srv = new ErpGfxSRVResource();
@@ -113,7 +112,7 @@ public static class LogoBaker
     /// </summary>
     public static byte[]? SliceBytes(ErpFile archive, string texarrayBase, int slice)
     {
-        var resource = archive.FindResource(TeamLogos.IdentifierFor(texarrayBase));
+        var resource = TeamLogos.ResourceFor(archive, texarrayBase);
         if (resource is null) return null;
 
         var srv = new ErpGfxSRVResource();
@@ -142,7 +141,7 @@ public static class LogoBaker
         ErpFile archive, string texarrayBase, int slice, string outDir,
         TexconvRunner runner, string? fileName = null)
     {
-        var resource = archive.FindResource(TeamLogos.IdentifierFor(texarrayBase));
+        var resource = TeamLogos.ResourceFor(archive, texarrayBase);
         if (resource is null) return null;
 
         var srv = new ErpGfxSRVResource();

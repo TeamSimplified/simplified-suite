@@ -420,6 +420,13 @@ public partial class MainWindow : Window
 
     private void Package_Click(object sender, RoutedEventArgs e) => PackageProject();
 
+    /// <summary>
+    /// Bring something in from outside the project. Team logos, for now, which
+    /// is why it hands straight to the Teams tab — the pictures land on its
+    /// rows, whichever tab is in front.
+    /// </summary>
+    private void Import_Click(object sender, RoutedEventArgs e) => Teams.ImportLogos();
+
     // ── Window chrome ───────────────────────────────────────────────────────
 
     private void WindowMinimize_Click(object sender, RoutedEventArgs e) =>
@@ -561,6 +568,7 @@ public partial class MainWindow : Window
 
         SaveButton.IsEnabled = open;
         EditProjectButton.IsEnabled = open;
+        ImportButton.IsEnabled = open;
         PackageButton.IsEnabled = open;
         CloseProjectButton.IsEnabled = open;
         Tabs.IsEnabled = open;
