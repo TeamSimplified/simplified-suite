@@ -128,7 +128,7 @@ public static class PackageDialog
 
         var window = new Window
         {
-            Title = "Package team edits",
+            Title = "Package project",
             Content = grid,
             Owner = owner,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,

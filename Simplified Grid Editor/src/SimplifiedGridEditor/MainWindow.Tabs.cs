@@ -258,6 +258,46 @@ public partial class MainWindow
         return lines;
     }
 
+    /// <summary>
+    /// How many changes this project holds in each part — the tab, and the year
+    /// where a tab has one.
+    ///
+    /// Against the game's own database rather than the project's working copy:
+    /// a change is a difference from the game, and the map that says which part
+    /// a record belongs to is built from the game's own paths.
+    /// </summary>
+    private IReadOnlyDictionary<PackagePart, int> PackageCounts()
+    {
+        if (_project is null) return new Dictionary<PackagePart, int>();
+
+        try
+        {
+            var edits = ProjectEdits.Load(_project.EditsPath);
+            var chosen = Simplified.Shared.GameDatabaseSource.Resolve(
+                _config.GameDir, Path.Combine(AppPaths.OriginalsDir, ProjectStore.DatabaseFileName));
+
+            if (!File.Exists(chosen.Path)) return new Dictionary<PackagePart, int>();
+
+            var keys2026 = SimplifiedTeamEditor.Core.Teams.Season2026.LoadDefaults(_project.LanguageFolder).Keys.ToHashSet(StringComparer.Ordinal);
+            var counts = new Dictionary<PackagePart, int>(
+                PackageParts.Read(
+                    EgoEngineLibrary.Data.GameDatabases.GameDatabase.Load(chosen.Path), edits, keys2026).Counts);
+
+            // The logos are pixels in an archive rather than records, so they
+            // are counted by the kinds the project says it carries.
+            if (_project.Info.LogoKinds.Count > 0)
+                counts[PackagePart.Logos] = _project.Info.LogoKinds.Count;
+
+            return counts;
+        }
+        catch
+        {
+            // A project whose changes can't be read is still packageable, with
+            // everything in it - which is what an empty list means downstream.
+            return new Dictionary<PackagePart, int>();
+        }
+    }
+
     private void PackageProject()
     {
         if (_project is null) return;
@@ -279,25 +319,56 @@ public partial class MainWindow
             return;
         }
 
+        // Saved first, before anything is asked.
+        //
+        // A package ships what was saved, so a save had to happen somewhere
+        // along here anyway. It happens before the dialog because the list of
+        // parts is read from the project's own changes, and until the save
+        // those are still sitting in the tabs — which is why a project whose
+        // work had not been saved yet offered nothing to tick.
+        //
+        // It does mean pressing Package and then cancelling leaves the project
+        // saved. That is a fair reading of pressing Package, and the
+        // alternative is offering a list that is one session out of date.
+        if (!SaveProject(saveAs: false)) return;
+
+        // What this project has changed, by tab and by year, so the dialog can
+        // offer them and leave out what nobody has touched.
+        var counts = PackageCounts();
+
         var request = PackageDialog.Show(
             this, _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName,
-            _project.Info.Version, _config.LastPackageFolder);
+            _project.Info.Version, _config.LastPackageFolder, counts);
         if (request is null) return;
 
-        _project.Info.Version = request.Version;
+        if (counts.Count > 0 && request.Parts.Count == 0)
+        {
+            SimplifiedUi.MessageDialog.Show(this,
+                "Nothing was ticked, so there would be nothing of yours in the package.",
+                "Package", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         _config.LastPackageFolder = Path.GetDirectoryName(request.Path);
         _config.Save();
 
-        // Package what is in the project, so what ships is what was saved —
-        // which means anything staged in a tab has to be written down first.
-        // That is its own several seconds, and its own progress window.
-        if (!SaveProject(saveAs: false)) return;
+        // The version came from the dialog, so the project is written once more
+        // to keep it. Only info.json and the zip — the changes were read out a
+        // moment ago and have not moved since.
+        if (_project.Info.Version != request.Version)
+        {
+            _project.Info.Version = request.Version;
+            try { ProjectStore.Save(_project); }
+            catch { /* the package is what matters here; the version is kept next save */ }
+        }
 
         try
         {
             var name = _project.Info.Name.Length > 0 ? _project.Info.Name : _project.DisplayName;
             var result = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, $"Packaging {name}",
-                say => GridPackager.Write(request.Path, _project, _config.GameDir, say));
+                say => GridPackager.Write(
+                    request.Path, _project, AppPaths.OriginalsDir, _config.GameDir,
+                    request.Parts, request.AsZip, say));
 
             SetStatus(GridPackager.Describe(result, request.Path), OkBrush);
 

@@ -3737,7 +3737,7 @@ public partial class MainWindow : Window
 
         var win = new Window
         {
-            Title = "Export project",
+            Title = "Package project",
             Content = grid,
             Owner = this,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,

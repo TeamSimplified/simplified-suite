@@ -32,10 +32,14 @@ public sealed record GridPackageResult(
 /// Writing a project down, and writing it out.
 ///
 /// Two jobs, in that order. <see cref="ApplyToProject"/> turns what the tabs are
-/// holding into the project's own files; <see cref="Write"/> puts those files in
-/// a zip at the paths the game reads them from. Keeping them apart is what makes
-/// a package reproducible: it ships what was saved, not a second rendering of
-/// the same edits.
+/// holding into the project's working files, which <see cref="ProjectStore"/>
+/// then reads the project's changes out of; <see cref="Write"/> builds the mod
+/// from the installed game plus whichever of those changes were asked for, at
+/// the paths the game reads them from — as a zip or as a folder, which hold the
+/// same files either way.
+///
+/// Keeping the two apart is what makes a package reproducible: it ships what
+/// was saved, not a second rendering of the same edits.
 ///
 /// The Team Editor does both at once, because it has nowhere to put a working
 /// copy. A project is that place.
@@ -229,26 +233,48 @@ public static class GridPackager
     // ── The package ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Zip the project's files at the paths the game reads them from.
+    /// Build the mod at the paths the game reads its files from: the game's own
+    /// database and text, with the parts of this project that were asked for
+    /// applied on top.
     ///
-    /// Nothing is rebuilt here: whatever the project holds is what ships, which
-    /// is why the caller saves first. Logos are the exception, because the UI
-    /// shader packages they merge into belong to the install rather than to the
-    /// project.
+    /// Everything is ticked by default and that is the usual package. Ticking
+    /// less is how a project that holds several pieces of work — this year's
+    /// grid while last year's is half finished, the names without the colours —
+    /// goes out as one of them.
     /// </summary>
+    /// <param name="parts">
+    /// Which parts to include. Null means all of them, which is what a caller
+    /// that never asks should get.
+    /// </param>
+    /// <param name="asZip">
+    /// True for a .zip, false for a folder of the same files at the same paths.
+    /// </param>
     public static GridPackageResult Write(
         string zipPath,
         GridProject project,
+        string originalsDir,
         string? gameDir,
+        IReadOnlySet<PackagePart>? parts = null,
+        bool asZip = true,
         IProgress<string>? say = null)
     {
         var warnings = new List<string>();
+        var wanted = parts ?? Enum.GetValues<PackagePart>().ToHashSet();
+
+        // What this project changed, and which part of it each change belongs
+        // to. The database underneath is the game's own, so what ships is the
+        // game as it is now plus the ticked work.
+        var edits = ProjectEdits.Load(project.EditsPath);
+        var chosen = Simplified.Shared.GameDatabaseSource.Resolve(
+            gameDir, Path.Combine(originalsDir, ProjectStore.DatabaseFileName));
+
+        var keys2026 = Season2026.LoadDefaults(project.LanguageFolder).Keys.ToHashSet(StringComparer.Ordinal);
 
         // Build beside the destination and move it into place at the end, so a
-        // half-written zip never appears at the path the user is watching.
+        // half-written package never appears at the path the user is watching.
         var directory = Path.GetDirectoryName(Path.GetFullPath(zipPath))!;
         Directory.CreateDirectory(directory);
-        var temporary = Path.Combine(directory, $".{Guid.NewGuid():N}.zip.part");
+        var temporary = Path.Combine(directory, $".{Guid.NewGuid():N}.part");
 
         var languageFiles = 0;
         var database = false;
@@ -256,32 +282,64 @@ public static class GridPackager
 
         try
         {
-            using (var stream = File.Create(temporary))
-            using (var zip = new ZipArchive(stream, ZipArchiveMode.Create))
+            using (IPackageSink zip = asZip
+                       ? new ZipSink(File.Create(temporary))
+                       : new FolderSink(Directory.CreateDirectory(temporary).FullName))
             {
+                // The text: the game's own, with the ticked name changes in it.
+                // Untouched files still ship, because a package replaces every
+                // language file it names and a missing one would leave the
+                // game reading a mix of two builds.
                 say?.Report("Adding your team names…");
-                foreach (var path in project.LanguageFiles.OrderBy(f => f))
-                {
-                    Add(zip, string.Join('/', GameFiles.PackageLocalisationPath.Append(Path.GetFileName(path))),
-                        File.ReadAllBytes(path));
-                    languageFiles++;
-                }
-                if (languageFiles == 0)
-                    warnings.Add("The project has no language files, so no names were packaged.");
+                var textWanted = edits.Text
+                    .Where(e => wanted.Contains(PackageParts.PartOfText(e.Key, keys2026)))
+                    .ToDictionary(e => e.Key, e => e.Value, StringComparer.Ordinal);
 
+                var languageDir = Path.Combine(originalsDir, Simplified.Language.LanguageFiles.FolderName);
+                if (Directory.Exists(languageDir))
+                    foreach (var path in Directory.EnumerateFiles(languageDir, "language_*.lng").OrderBy(f => f))
+                    {
+                        var bytes = textWanted.Count == 0
+                            ? File.ReadAllBytes(path)
+                            : new ProjectEdits { Text = textWanted }.ApplyTo(LngFile.Load(path));
+
+                        zip.Add(string.Join('/', GameFiles.PackageLocalisationPath.Append(Path.GetFileName(path))),
+                            bytes);
+                        languageFiles++;
+                    }
+
+                if (languageFiles == 0)
+                    warnings.Add("The game's language files aren't here, so no names were packaged.");
+
+                // The database: the game's own, with the ticked records applied.
                 say?.Report("Adding your teams, seats and drivers…");
-                if (File.Exists(project.DatabasePath))
+                if (File.Exists(chosen.Path))
                 {
-                    Add(zip, string.Join('/', new[] { GameFiles.GameFolderName }.Concat(GameFiles.GameDatabaseRelPath)),
-                        File.ReadAllBytes(project.DatabasePath));
+                    var built = GameDatabase.Load(chosen.Path);
+                    var map = PackageParts.Read(built, edits, keys2026);
+
+                    var included = new ProjectEdits
+                    {
+                        Database = edits.Database
+                            .Where(e => ulong.TryParse(e.Key, out var key) && wanted.Contains(map.PartOf(key)))
+                            .ToDictionary(e => e.Key, e => e.Value, StringComparer.Ordinal),
+                    };
+
+                    var left = edits.Database.Count - included.Database.Count;
+                    if (left > 0) warnings.Add($"{left} change(s) were left out because their part wasn't ticked.");
+
+                    included.ApplyTo(built);
+
+                    zip.Add(string.Join('/', new[] { GameFiles.GameFolderName }.Concat(GameFiles.GameDatabaseRelPath)),
+                        built.ToBytes());
                     database = true;
                 }
                 else
                 {
-                    warnings.Add("The project has no database, so no teams, seats or drivers were packaged.");
+                    warnings.Add("The game's database isn't here, so no teams, seats or drivers were packaged.");
                 }
 
-                if (project.Info.LogoKinds.Count > 0)
+                if (wanted.Contains(PackagePart.Logos) && project.Info.LogoKinds.Count > 0)
                 {
                     // The long one: both of the game's shader packages are read,
                     // merged into and written back, and they are 300 MB each.
@@ -289,15 +347,25 @@ public static class GridPackager
                     shaderPackages = WriteShaderPackages(zip, project, gameDir, warnings);
                 }
 
-                Add(zip, "mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(project, gameDir)));
+                zip.Add("mod.serps", Encoding.UTF8.GetBytes(BuildModSerps(project, gameDir)));
             }
 
             say?.Report("Finishing your mod…");
-            File.Move(temporary, zipPath, overwrite: true);
+
+            if (asZip)
+            {
+                File.Move(temporary, zipPath, overwrite: true);
+            }
+            else
+            {
+                if (Directory.Exists(zipPath)) Directory.Delete(zipPath, recursive: true);
+                Directory.Move(temporary, zipPath);
+            }
         }
         catch
         {
             try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
+            try { if (Directory.Exists(temporary)) Directory.Delete(temporary, recursive: true); } catch { }
             throw;
         }
 
@@ -313,7 +381,7 @@ public static class GridPackager
     /// the grid are worth having without logos.
     /// </summary>
     private static int WriteShaderPackages(
-        ZipArchive zip, GridProject project, string? gameDir, List<string> warnings)
+        IPackageSink zip, GridProject project, string? gameDir, List<string> warnings)
     {
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
         {
@@ -362,7 +430,7 @@ public static class GridPackager
 
                     var baked = Path.Combine(work, name);
                     LogoBaker.MergeInto(source, overlay, baked);
-                    Add(zip, $"{GameFiles.GameFolderName}/{GameFiles.ShaderFolderName}/{name}", File.ReadAllBytes(baked));
+                    zip.Add($"{GameFiles.GameFolderName}/{GameFiles.ShaderFolderName}/{name}", File.ReadAllBytes(baked));
                     written++;
                 }
             }
@@ -431,10 +499,48 @@ public static class GridPackager
         return result.Warnings.Count == 0 ? line : line + $" {result.Warnings.Count} note(s).";
     }
 
-    private static void Add(ZipArchive zip, string entryPath, byte[] data)
+    /// <summary>
+    /// Where a package is being written: a zip, or a folder.
+    ///
+    /// A mod manager takes a zip and a person dropping files into their game
+    /// takes a folder, and the two hold exactly the same thing at exactly the
+    /// same paths — so the difference is one interface and the rest of this
+    /// file never asks which it is.
+    /// </summary>
+    private interface IPackageSink : IDisposable
     {
-        var entry = zip.CreateEntry(entryPath, CompressionLevel.Optimal);
-        using var stream = entry.Open();
-        stream.Write(data, 0, data.Length);
+        void Add(string entryPath, byte[] data);
+    }
+
+    private sealed class ZipSink(Stream stream) : IPackageSink
+    {
+        private readonly ZipArchive _zip = new(stream, ZipArchiveMode.Create);
+
+        public void Add(string entryPath, byte[] data)
+        {
+            var entry = _zip.CreateEntry(entryPath, CompressionLevel.Optimal);
+            using var writing = entry.Open();
+            writing.Write(data, 0, data.Length);
+        }
+
+        public void Dispose()
+        {
+            _zip.Dispose();
+            stream.Dispose();
+        }
+    }
+
+    private sealed class FolderSink(string root) : IPackageSink
+    {
+        public void Add(string entryPath, byte[] data)
+        {
+            // The entry paths are the game’s, which use forward slashes; on
+            // the way to a folder they become this platform’s.
+            var path = Path.Combine(root, entryPath.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, data);
+        }
+
+        public void Dispose() { }
     }
 }
