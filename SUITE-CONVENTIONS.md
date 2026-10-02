@@ -457,14 +457,24 @@ are; this one takes their logic rather than a copy of it, by referencing their
    cost is that a record the game drops is dropped with it, and a record both
    the patch and the project changed keeps the project's value.
 
-   `ERPs/` is still carried whole: a logo edit is pixels merged into an archive
-   rather than records with keys, and reading those back out as a difference is
-   a different job.
+   The logos follow the same rule by a different route. A logo is pixels in a
+   texture array rather than records with keys, so there is no difference to
+   store — but there is a choice to store, which is the PNG somebody picked.
+   `Logos/badges-6.png` is slice 6 of the badge arrays, and the game's own
+   layout says that is McLaren's 2025 badge. The archive is built at packaging
+   time from the bundled copy with those pictures put into it, so nothing of
+   the game's travels in a project.
+
+   That also makes each logo separable. Three of the five arrays hold both
+   grids at once, so a package of one season's logos is only possible because
+   the slice says which year a picture was chosen for; and a logo can now be
+   put back to the game's own, which a baked archive could never undo.
 
    Measured before it was built: a driver swap and two menu changes come to
    twelve records and about six hundred bytes, a full comparison of 742,857
-   records takes 70ms, and a real project went from 36 MB to 3.2 MB — all of
-   which is the branding archive.
+   records takes 70ms, and a real project went from 36 MB to 3.2 MB with the
+   records change and then to 2 KB with the logos — all of the remainder was
+   the branding archive.
 
 The `original/` bundle is referenced from the Team Editor's folder rather than
 copied. It is 90 MB of identical bytes, and two copies in the repository is two

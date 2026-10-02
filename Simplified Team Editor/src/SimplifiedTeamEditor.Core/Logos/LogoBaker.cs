@@ -108,6 +108,70 @@ public static class LogoBaker
     }
 
     /// <summary>
+    /// The bytes of one slice, or null when the array is too short to have
+    /// one. Enough to tell two copies of an array apart slice by slice.
+    /// </summary>
+    public static byte[]? SliceBytes(ErpFile archive, string texarrayBase, int slice)
+    {
+        var resource = archive.FindResource(TeamLogos.IdentifierFor(texarrayBase));
+        if (resource is null) return null;
+
+        var srv = new ErpGfxSRVResource();
+        srv.FromResource(resource);
+
+        var count = (int)srv.SurfaceRes.Fragment0.ArraySize;
+        if (slice < 0 || slice >= count) return null;
+
+        var per = srv.SurfaceRes.Fragment1.Data.Length / count;
+        return srv.SurfaceRes.Fragment1.Data.AsSpan(slice * per, per).ToArray();
+    }
+
+    /// <summary>
+    /// One slice, out as a PNG: the inverse of <see cref="ImportSlice"/>.
+    ///
+    /// The slice goes out as a one-image DDS and texconv turns that into a
+    /// picture, which is how the logo picker shows what the game has in a slot
+    /// and how a project that baked its logos into an archive gets them back.
+    /// </summary>
+    /// <param name="fileName">
+    /// What to call it. Defaults to the array and the slice, which is what a
+    /// cache of previews wants; a project names them after the kind instead.
+    /// </param>
+    /// <returns>The PNG's path, or null when there is nothing there to read.</returns>
+    public static string? ExportSlice(
+        ErpFile archive, string texarrayBase, int slice, string outDir,
+        TexconvRunner runner, string? fileName = null)
+    {
+        var resource = archive.FindResource(TeamLogos.IdentifierFor(texarrayBase));
+        if (resource is null) return null;
+
+        var srv = new ErpGfxSRVResource();
+        srv.FromResource(resource);
+        if (slice < 0 || slice >= srv.SurfaceRes.Fragment0.ArraySize) return null;
+
+        var stem = Path.GetFileNameWithoutExtension(fileName ?? $"{texarrayBase}.{slice}");
+
+        Directory.CreateDirectory(outDir);
+        var ddsPath = Path.Combine(outDir, stem + ".dds");
+
+        var dds = srv.ToDdsFile(null, exportTexArray: false, texArrayIndex: (uint)slice);
+        using (var file = File.Create(ddsPath)) dds.Write(file, -1);
+
+        try
+        {
+            runner.DdsToPng(ddsPath, outDir,
+                isSrgb: TexconvRunner.IsSrgbFormat(srv.SurfaceRes.Fragment0.ImageType));
+        }
+        finally
+        {
+            try { File.Delete(ddsPath); } catch { }
+        }
+
+        var pngPath = Path.Combine(outDir, stem + ".png");
+        return File.Exists(pngPath) ? pngPath : null;
+    }
+
+    /// <summary>
     /// Apply every edit to the overlay, fanning each across its kind's arrays.
     /// Reports what went in and what would not fit.
     /// </summary>

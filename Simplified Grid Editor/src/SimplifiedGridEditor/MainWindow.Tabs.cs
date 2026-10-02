@@ -202,8 +202,7 @@ public partial class MainWindow
         (KitOptions Kit, SeasonEdits Y2025, SeasonEdits Y2026, IReadOnlyList<LogoEdit> Logos) staged,
         List<string> notes) =>
         GridPackager.ApplyToProject(
-            _project!, _document, staged.Kit, staged.Y2025, staged.Y2026, staged.Logos,
-            new TexconvRunner(), notes);
+            _project!, _document, staged.Kit, staged.Y2025, staged.Y2026, staged.Logos, notes);
 
     /// <summary>What to do with the notes a write produced, back on this thread.</summary>
     private void AfterEditsWritten(List<string> notes)
@@ -283,10 +282,10 @@ public partial class MainWindow
                 PackageParts.Read(
                     EgoEngineLibrary.Data.GameDatabases.GameDatabase.Load(chosen.Path), edits, keys2026).Counts);
 
-            // The logos are pixels in an archive rather than records, so they
-            // are counted by the kinds the project says it carries.
-            if (_project.Info.LogoKinds.Count > 0)
-                counts[PackagePart.Logos] = _project.Info.LogoKinds.Count;
+            // The logos are pictures the project carries rather than records,
+            // so they are counted from the folder they sit in.
+            foreach (var logos in PackageParts.CountLogos(ProjectLogos.Read(_project)))
+                counts[logos.Key] = logos.Value;
 
             return counts;
         }
@@ -368,7 +367,7 @@ public partial class MainWindow
             var result = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, $"Packaging {name}",
                 say => GridPackager.Write(
                     request.Path, _project, AppPaths.OriginalsDir, _config.GameDir,
-                    request.Parts, request.AsZip, say));
+                    new TexconvRunner(), request.Parts, request.AsZip, say));
 
             SetStatus(GridPackager.Describe(result, request.Path), OkBrush);
 

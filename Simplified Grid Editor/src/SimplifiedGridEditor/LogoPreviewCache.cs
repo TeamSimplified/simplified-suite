@@ -1,11 +1,8 @@
 using System.IO;
 using EgoEngineLibrary.Archive.Erp;
-using EgoEngineLibrary.Archive.Erp.Data;
-using EgoEngineLibrary.Graphics;
-using SimplifiedTeamEditor.Core;
-using SimplifiedTeamEditor.Core.Logos;
 using EgoEngineLibrary.Texconv;
 using EgoEngineLibrary.Util;
+using SimplifiedTeamEditor.Core.Logos;
 
 namespace SimplifiedGridEditor;
 
@@ -31,9 +28,9 @@ public sealed class LogoPreviewCache
     private ErpFile? _branding;
 
     /// <param name="brandingErpPath">
-    /// The team-branding texarray archive. A path rather than a folder to look
-    /// in: this came from an app with one fixed bundle layout, and a project
-    /// keeps the same file somewhere else.
+    /// The team-branding texarray archive, which is the game's own. A project
+    /// carries the pictures that were chosen rather than the archive they go
+    /// into, so what comes out of here really is what the game has in the slot.
     /// </param>
     public LogoPreviewCache(string brandingErpPath, TexconvRunner runner)
     {
@@ -58,29 +55,7 @@ public sealed class LogoPreviewCache
             if (File.Exists(_brandingErpPath))
             {
                 _branding ??= ErpFileIO.Load(_brandingErpPath);
-
-                var resource = _branding.FindResource(TeamLogos.IdentifierFor(texarray));
-                if (resource is not null)
-                {
-                    var srv = new ErpGfxSRVResource();
-                    srv.FromResource(resource);
-
-                    if (slice < srv.SurfaceRes.Fragment0.ArraySize)
-                    {
-                        Directory.CreateDirectory(_directory);
-                        var ddsPath = Path.Combine(_directory, key + ".dds");
-
-                        var dds = srv.ToDdsFile(null, exportTexArray: false, texArrayIndex: (uint)slice);
-                        using (var file = File.Create(ddsPath)) dds.Write(file, -1);
-
-                        _runner.DdsToPng(ddsPath, _directory,
-                            isSrgb: TexconvRunner.IsSrgbFormat(srv.SurfaceRes.Fragment0.ImageType));
-
-                        var pngPath = Path.Combine(_directory, key + ".png");
-                        if (File.Exists(pngPath)) result = pngPath;
-                        try { File.Delete(ddsPath); } catch { }
-                    }
-                }
+                result = LogoBaker.ExportSlice(_branding, texarray, slice, _directory, _runner, key + ".png");
             }
         }
         catch

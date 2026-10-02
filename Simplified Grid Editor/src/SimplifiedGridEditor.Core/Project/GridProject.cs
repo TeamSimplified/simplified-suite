@@ -9,8 +9,8 @@ namespace SimplifiedGridEditor.Core.Project;
 /// <code>
 /// info.json
 /// edits.json                       the database records and text this project changes
-/// ERPs/
-///     ui_texarrays_team_branding.erp
+/// Logos/
+///     badges-6.png                 the pictures chosen for the game's logo slots
 /// </code>
 ///
 /// The database and the eleven language files are not in there. They are taken
@@ -19,9 +19,9 @@ namespace SimplifiedGridEditor.Core.Project;
 /// a project started a month ago still packages against today's game instead of
 /// putting back the game it was started on. See <see cref="ProjectEdits"/>.
 ///
-/// The team-branding archive is still carried whole. Its edits are pixels
-/// merged into an archive rather than records with keys, and reading them back
-/// out as a difference is a different job; it stays as it was for now.
+/// The logos follow the same rule. A project carries the pictures that were
+/// chosen, not the archive they were put into; that archive is built fresh at
+/// packaging time. See <see cref="ProjectLogos"/>.
 ///
 /// One database serves all three tabs: team colours, the grid's seats and the
 /// driver table are all records in the same file, which is the reason this app
@@ -50,7 +50,16 @@ public sealed class GridProject
 
     public string DatabaseFolder => Path.Combine(WorkDir, ProjectStore.DatabaseFolderName);
     public string LanguageFolder => Path.Combine(WorkDir, ProjectStore.LanguageFolderName);
-    public string ErpsFolder     => Path.Combine(TempDir, ProjectStore.ErpsFolderName);
+
+    /// <summary>The pictures chosen for the game's logo slots.</summary>
+    public string LogosFolder => Path.Combine(TempDir, ProjectStore.LogosFolderName);
+
+    /// <summary>
+    /// Where an older project kept the game's UI archives, with its logos baked
+    /// into them. Read once when such a project is opened, to get the pictures
+    /// back out, and then dropped.
+    /// </summary>
+    public string ErpsFolder => Path.Combine(TempDir, ProjectStore.ErpsFolderName);
 
     /// <summary>The changes themselves, which is what the project really is.</summary>
     public string EditsPath => Path.Combine(TempDir, ProjectEdits.FileName);
@@ -67,10 +76,11 @@ public sealed class GridProject
         : Path.GetFileNameWithoutExtension(ZipPath);
 
     /// <summary>
-    /// The team-branding texarray, which logo edits are imported into and which
-    /// a package merges over the game's UI shader packages.
+    /// The team-branding texarray an older project carried, with its logos
+    /// already in it. The game's own copy lives in the originals folder; see
+    /// <see cref="ProjectStore.PristineBrandingPath"/>.
     /// </summary>
-    public string BrandingErpPath => Path.Combine(ErpsFolder, "ui_texarrays_team_branding.erp");
+    public string BrandingErpPath => Path.Combine(ErpsFolder, ProjectStore.BrandingFileName);
 
     /// <summary>The eleven language files, in whatever order the folder gives them.</summary>
     public IEnumerable<string> LanguageFiles =>

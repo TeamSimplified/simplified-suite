@@ -16,11 +16,33 @@ namespace SimplifiedGridEditor.Core.Packaging;
 /// </summary>
 public enum PackagePart
 {
-    /// <summary>2025 team names and colours.</summary>
-    Teams2025,
+    /// <summary>What the 2025 teams are called, in every language.</summary>
+    TeamNames2025,
 
-    /// <summary>2026 team names and colours, and the keys the 2026 names live in.</summary>
-    Teams2026,
+    /// <summary>
+    /// What the 2026 teams are called. Their names live in keys the game ships
+    /// without, so this carries the keys as well as the text in them.
+    /// </summary>
+    TeamNames2026,
+
+    /// <summary>The 2025 teams' four colours.</summary>
+    TeamColours2025,
+
+    /// <summary>The 2026 teams' four colours.</summary>
+    TeamColours2026,
+
+    /// <summary>The 2025 team logos, merged into the game's UI shader packages.</summary>
+    Logos2025,
+
+    /// <summary>The 2026 team logos.</summary>
+    Logos2026,
+
+    /// <summary>
+    /// A logo in a slice no team sits at, which only a project somebody has
+    /// opened up and put a file into can have. It gets a line of its own
+    /// rather than being dropped without a word.
+    /// </summary>
+    Logos,
 
     /// <summary>The 2025 grid: who sits where, and their numbers.</summary>
     Grid2025,
@@ -60,8 +82,6 @@ public enum PackagePart
     /// </summary>
     Other,
 
-    /// <summary>The team logos, merged into the game's UI shader packages.</summary>
-    Logos,
 }
 
 /// <summary>
@@ -84,8 +104,10 @@ public sealed class PackageParts
     /// <summary>What a part is called on screen.</summary>
     public static string Label(PackagePart part) => part switch
     {
-        PackagePart.Teams2025 => "Teams — 2025",
-        PackagePart.Teams2026 => "Teams — 2026",
+        PackagePart.TeamNames2025 => "Team names — 2025",
+        PackagePart.TeamNames2026 => "Team names — 2026",
+        PackagePart.TeamColours2025 => "Team colours — 2025",
+        PackagePart.TeamColours2026 => "Team colours — 2026",
         PackagePart.Grid2025  => "Grid — 2025",
         PackagePart.Grid2026  => "Grid — 2026",
         PackagePart.GridF2    => "Grid — 2026 F2",
@@ -93,15 +115,19 @@ public sealed class PackageParts
         PackagePart.Menus     => "Menus",
         PackagePart.HelmetsAndKit => "Helmets and kit",
         PackagePart.Other     => "Everything else",
-        PackagePart.Logos     => "Team logos",
+        PackagePart.Logos2025 => "Team logos — 2025",
+        PackagePart.Logos2026 => "Team logos — 2026",
+        PackagePart.Logos     => "Team logos — no season",
         _ => part.ToString(),
     };
 
     /// <summary>A line under the name, saying what is in it.</summary>
     public static string Hint(PackagePart part) => part switch
     {
-        PackagePart.Teams2025 => "names and colours",
-        PackagePart.Teams2026 => "names and colours",
+        PackagePart.TeamNames2025 => "in every language",
+        PackagePart.TeamNames2026 => "in every language, and the keys they live in",
+        PackagePart.TeamColours2025 => "the four each team carries",
+        PackagePart.TeamColours2026 => "the four each team carries",
         PackagePart.Grid2025  => "who sits where, and their numbers",
         PackagePart.Grid2026  => "who sits where, and their numbers",
         PackagePart.GridF2    => "who sits where, and their numbers",
@@ -109,7 +135,9 @@ public sealed class PackageParts
         PackagePart.Menus     => "the start screen and career menu",
         PackagePart.HelmetsAndKit => "classic and custom kit, and earlier seasons",
         PackagePart.Other     => "changes this app doesn't recognise",
-        PackagePart.Logos     => "merged into the game's shader packages",
+        PackagePart.Logos2025 => "merged into the game's shader packages",
+        PackagePart.Logos2026 => "merged into the game's shader packages",
+        PackagePart.Logos     => "in a slice no team sits at",
         _ => "",
     };
 
@@ -121,7 +149,7 @@ public sealed class PackageParts
     /// ones the game ships without, and the project carries the list.
     /// </summary>
     public static PackagePart PartOfText(string key, IReadOnlySet<string> keys2026) =>
-        keys2026.Contains(key) ? PackagePart.Teams2026 : PackagePart.Teams2025;
+        keys2026.Contains(key) ? PackagePart.TeamNames2026 : PackagePart.TeamNames2025;
 
     /// <summary>
     /// Work out what each of a project's changes is, against the database it
@@ -176,14 +204,22 @@ public sealed class PackageParts
             foreach (var field in SimplifiedDriverSwapper.Core.Drivers.DriverAttributes.Fields)
                 Put(DriverSeason.DriverPath(i, field), PackagePart.Drivers);
 
-        // The teams: colours, and the fields the 2026 names are pointed at.
+        // The teams. A team record carries two different jobs — the colours it
+        // races in, and which key its name is read from — and somebody
+        // recolouring a grid is not usually the same person renaming it, so
+        // they are offered apart.
         var teams = CountOf(database, "entrants.teams._team_instancecount_");
         for (var i = 0; i < teams; i++)
         {
-            var season = SeasonOfTeam(database, i);
+            var is2026 = Is2026Team(database, i);
 
-            foreach (var field in TeamFields)
-                Put($"entrants.teams.team_{i}.{field}", season);
+            foreach (var field in ColourFields)
+                Put($"entrants.teams.team_{i}.{field}",
+                    is2026 ? PackagePart.TeamColours2026 : PackagePart.TeamColours2025);
+
+            foreach (var field in SimplifiedTeamEditor.Core.Teams.Season2026.NameFields)
+                Put($"entrants.teams.team_{i}.{field}",
+                    is2026 ? PackagePart.TeamNames2026 : PackagePart.TeamNames2025);
         }
 
         // The helmet, suit and glove pools. Two fields each: the name the game
@@ -216,24 +252,60 @@ public sealed class PackageParts
     }
 
     /// <summary>
-    /// The fields a team record carries that this app writes: its four colours,
-    /// from TeamColours, and the three the 2026 names are pointed at, from
-    /// Season2026. Taken from those two rather than written out again, so a
-    /// field added there is classified here without anybody remembering to.
+    /// The colour fields, from TeamColours rather than written out again, so a
+    /// colour added there is classified here without anybody remembering to.
+    /// The name fields come from Season2026 for the same reason.
     /// </summary>
-    private static IEnumerable<string> TeamFields =>
+    private static IEnumerable<string> ColourFields =>
         Enum.GetValues<SimplifiedTeamEditor.Core.Teams.ColourField>()
-            .Select(SimplifiedTeamEditor.Core.Teams.TeamColours.FieldName)
-            .Concat(SimplifiedTeamEditor.Core.Teams.Season2026.NameFields);
+            .Select(SimplifiedTeamEditor.Core.Teams.TeamColours.FieldName);
 
     /// <summary>
-    /// Which season a team record belongs to, read from its own id: the 2026
-    /// teams are the ones whose metadata ends _26.
+    /// Whether a team record is one of the 2026 teams, read from its own id:
+    /// those are the ones whose metadata ends _26.
     /// </summary>
-    private static PackagePart SeasonOfTeam(GameDatabase database, int index)
+    private static bool Is2026Team(GameDatabase database, int index) =>
+        database.Text($"entrants.teams.team_{index}._metadata_")
+                .EndsWith("_26", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Which season a replaced logo belongs to.
+    ///
+    /// Not a question the project can be asked directly: a logo is pixels in a
+    /// texture array rather than a record with a path, and three of the five
+    /// arrays hold both grids at once. What tells them apart is the slice, so
+    /// the season comes from reading the game's own layout backwards — whose
+    /// slot is this?
+    ///
+    /// A slice no team sits at falls back to the pair taken together rather
+    /// than guessing a year.
+    /// </summary>
+    public static PackagePart PartOfLogo(string kindId, int slice) =>
+        SimplifiedTeamEditor.Core.Logos.LogoSlices.WhoseSlice(kindId, slice)?.Season switch
+        {
+            TeamSeason.Y2025 => PackagePart.Logos2025,
+            TeamSeason.Y2026 => PackagePart.Logos2026,
+            _ => PackagePart.Logos,
+        };
+
+    /// <summary>
+    /// How many logos a project carries, by season.
+    ///
+    /// Counted from the pictures it holds rather than from its changes: a logo
+    /// is not a change to a file this app diffs, it is a picture that goes into
+    /// the game's arrays when the mod is built.
+    /// </summary>
+    public static Dictionary<PackagePart, int> CountLogos(IEnumerable<StoredLogo> stored)
     {
-        var id = database.Text($"entrants.teams.team_{index}._metadata_");
-        return id.EndsWith("_26", StringComparison.Ordinal) ? PackagePart.Teams2026 : PackagePart.Teams2025;
+        var counts = new Dictionary<PackagePart, int>();
+
+        foreach (var logo in stored)
+        {
+            var part = PartOfLogo(logo.Kind.Id, logo.Slice);
+            counts[part] = counts.GetValueOrDefault(part) + 1;
+        }
+
+        return counts;
     }
 
     /// <summary>

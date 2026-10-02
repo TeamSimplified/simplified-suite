@@ -96,6 +96,30 @@ public static class LogoSlices
             ? slice
             : null;
 
+    /// <summary>
+    /// Whose logo of this kind sits at a slice, and on which grid, or null
+    /// when nobody's does.
+    ///
+    /// The table read backwards, which is how a stored picture is traced back
+    /// to the team and the year it was chosen for. Three of the five kinds
+    /// hold both grids in the one array — 2025 low, 2026 offset above it —
+    /// so the slice is the only thing that says which year a logo is for, and
+    /// that is what lets a package carry one season's logos and leave the
+    /// other's behind.
+    /// </summary>
+    public static (Season Season, string TeamId)? WhoseSlice(string kindId, int slice)
+    {
+        foreach (var entry in Table)
+        {
+            if (entry.Key.Kind != kindId) continue;
+
+            foreach (var team in entry.Value)
+                if (team.Value == slice) return (entry.Key.Season, team.Key);
+        }
+
+        return null;
+    }
+
     /// <summary>The kinds a team actually has a logo for, in this season.</summary>
     public static IEnumerable<LogoKind> KindsFor(Season season, string teamId)
         => TeamLogos.Kinds.Where(k => SliceFor(k, season, teamId) is not null);

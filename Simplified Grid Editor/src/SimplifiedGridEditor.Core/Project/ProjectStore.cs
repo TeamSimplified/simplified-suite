@@ -24,8 +24,25 @@ public static class ProjectStore
     public const string ProjectFileExtension = ".simplified";
     public const string InfoFileName         = "info.json";
 
-    /// <summary>The UI archives team logos are merged into.</summary>
+    /// <summary>The pictures chosen for the game's logo slots.</summary>
+    public const string LogosFolderName = "Logos";
+
+    /// <summary>
+    /// Where an older project kept the game's UI archives with its logos baked
+    /// in. Nothing writes here any more; opening such a project reads the
+    /// pictures back out and removes it.
+    /// </summary>
     public const string ErpsFolderName = "ERPs";
+
+    /// <summary>
+    /// The archive holding the team logo texture arrays. Shipped in the
+    /// originals folder, and the base a package's logos are merged from.
+    /// </summary>
+    public const string BrandingFileName = "ui_texarrays_team_branding.erp";
+
+    /// <summary>The game's own copy of that archive.</summary>
+    public static string PristineBrandingPath(string originalsDir)
+        => Path.Combine(originalsDir, "ui", BrandingFileName);
 
     /// <summary>
     /// The eleven language files, and the 2026 key list beside them. In the
@@ -94,16 +111,7 @@ public static class ProjectStore
             },
         };
 
-        Directory.CreateDirectory(project.ErpsFolder);
-
-        // The UI archives, which the project does carry: a logo edit is pixels
-        // merged into an archive rather than records with keys, so there is no
-        // difference to store instead.
-        progress?.Report("Copying the game’s menu art…");
-        var ui = Path.Combine(originalsDir, "ui");
-        if (Directory.Exists(ui))
-            foreach (var file in Directory.EnumerateFiles(ui, "*.erp"))
-                File.Copy(file, Path.Combine(project.ErpsFolder, Path.GetFileName(file)), overwrite: true);
+        Directory.CreateDirectory(project.LogosFolder);
 
         // A new project has changed nothing yet, so its files are the game’s.
         new ProjectEdits().Save(project.EditsPath);
@@ -278,7 +286,7 @@ public static class ProjectStore
             Info = info,
         };
 
-        Directory.CreateDirectory(project.ErpsFolder);
+        Directory.CreateDirectory(project.LogosFolder);
 
         // A project from before this change carries whole files rather than the
         // changes to them. What it changed is still in there — it is the
@@ -294,6 +302,11 @@ public static class ProjectStore
     /// Turn a project that carries whole files into one that carries its
     /// changes. Does nothing to a project that already does.
     ///
+    /// Two separate conversions, because they happened at different times: the
+    /// database and the language files stopped being carried first, and the
+    /// branding archive after them. A project can be partway, so each is
+    /// looked for on its own.
+    ///
     /// What it cannot know is which build of the game the old project was
     /// started from, so the comparison is against the game as it is now. A
     /// record the game has patched since will read as something this project
@@ -303,6 +316,21 @@ public static class ProjectStore
     /// </summary>
     private static void Convert(GridProject project, string originalsDir, string? gameDir,
                                 Action<string>? note, IProgress<string>? progress)
+    {
+        var said = new List<string>();
+
+        ConvertFiles(project, originalsDir, gameDir, said, progress);
+        ConvertLogos(project, originalsDir, said, note, progress);
+
+        if (said.Count > 0)
+            note?.Invoke("This project was made before the change and has been converted: "
+                         + string.Join(", ", said)
+                         + ". The game files come from your install now.");
+    }
+
+    /// <summary>The database and the language files, as the changes to them.</summary>
+    private static void ConvertFiles(GridProject project, string originalsDir, string? gameDir,
+                                     List<string> said, IProgress<string>? progress)
     {
         var storedDatabase = Path.Combine(project.TempDir, DatabaseFolderName, DatabaseFileName);
         var storedText = Path.Combine(project.TempDir, LanguageFolderName, ReferenceLanguage);
@@ -330,16 +358,69 @@ public static class ProjectStore
 
         // The files themselves go, or the next save would put them back in the
         // zip beside the changes they have become.
-        foreach (var folder in new[] { DatabaseFolderName, LanguageFolderName })
+        Drop(project, DatabaseFolderName, LanguageFolderName);
+
+        said.Add($"{edits.Database.Count} database change(s) and {edits.Text.Count} text change(s) "
+                 + "are kept as changes");
+    }
+
+    /// <summary>
+    /// The logos, as the pictures rather than the archive they were baked into.
+    ///
+    /// Needs the bundled branding archive to compare against and texconv to
+    /// write the pictures with. Both ship with the app, so the usual outcome is
+    /// either some pictures or a project that changed no logos. If something
+    /// does go wrong the archive stays where it is, so a later open can try
+    /// again rather than the logos being quietly lost.
+    /// </summary>
+    private static void ConvertLogos(GridProject project, string originalsDir,
+                                     List<string> said, Action<string>? note,
+                                     IProgress<string>? progress)
+    {
+        if (!File.Exists(project.BrandingErpPath)) return;
+
+        progress?.Report("Taking this project’s logos out of its archive…");
+
+        int recovered, failed;
+        try
+        {
+            (recovered, failed) = ProjectLogos.Recover(
+                project, PristineBrandingPath(originalsDir), new EgoEngineLibrary.Texconv.TexconvRunner());
+        }
+        catch (Exception ex)
+        {
+            note?.Invoke("This project's logos couldn't be read out of the archive it keeps them in, "
+                         + $"so they won't be packaged: {ex.Message}. They are still in the project, "
+                         + "and opening it again will try once more.");
+            return;
+        }
+
+        if (failed > 0)
+        {
+            note?.Invoke($"{failed} of this project's logos couldn't be read out of the archive it "
+                         + "keeps them in, so they won't be packaged. They are still in the project, "
+                         + "and opening it again will try once more.");
+            return;
+        }
+
+        // Only now: the pictures are out, so the archive is dead weight.
+        Drop(project, ErpsFolderName);
+
+        if (recovered > 0) said.Add($"{recovered} logo(s) are kept as pictures");
+    }
+
+    /// <summary>
+    /// Remove folders an older project carried. Failing leaves them in the zip,
+    /// which is harmless — nothing reads them — and the next save tries again.
+    /// </summary>
+    private static void Drop(GridProject project, params string[] folders)
+    {
+        foreach (var folder in folders)
         {
             var path = Path.Combine(project.TempDir, folder);
             try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
-            catch { /* left in the zip; harmless, and the next save tries again */ }
+            catch { /* see above */ }
         }
-
-        note?.Invoke($"This project was made before the change and has been converted: " +
-                     $"{edits.Database.Count} database change(s) and {edits.Text.Count} text change(s) are " +
-                     "kept as changes now, and the game files come from your install.");
     }
 
     /// <summary>

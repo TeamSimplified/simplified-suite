@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using EgoEngineLibrary.Data.GameDatabases;
 using EgoEngineLibrary.Texconv;
+using SimplifiedGridEditor.Core;
 using SimplifiedGridEditor.Core.Project;
 using SimplifiedGridEditor.Model;
 using SimplifiedTeamEditor.Core.Lng;
@@ -49,15 +50,9 @@ public partial class TeamsPanel : UserControl
 
     private LogoPreviewCache? _previews;
 
-    /// <summary>Made on first use: building one reads an 18 MB archive.</summary>
-    private LogoPreviewCache Previews => _previews ??= new LogoPreviewCache(BrandingErpPath, new TexconvRunner());
-
-    /// <summary>
-    /// The team-branding texarray, in the project's own ERPs folder. That is
-    /// the copy a logo edit is previewed against, so a project carries its
-    /// logos the way it carries its names and colours.
-    /// </summary>
-    private string BrandingErpPath => _project?.BrandingErpPath ?? "";
+    /// <summary>Made on first use: building one reads a 3 MB archive.</summary>
+    private LogoPreviewCache Previews => _previews ??=
+        new LogoPreviewCache(ProjectStore.PristineBrandingPath(AppPaths.OriginalsDir), new TexconvRunner());
 
     public TeamsPanel()
     {
@@ -90,8 +85,6 @@ public partial class TeamsPanel : UserControl
         _database = database;
         _season = season;
 
-        // A new project means new files behind the previews.
-        _previews = null;
         _rowsBySeason.Clear();
         _rows.Clear();
         _modifiedDots.Clear();
@@ -219,12 +212,35 @@ public partial class TeamsPanel : UserControl
             }
 
             var colourNote = LoadColours();
+            LoadLogos();
             ShowSeason(_season);
             Say($"{lng.Entries.Count:N0} language entries. {colourNote}", problem: false);
         }
         catch (Exception ex)
         {
             Say($"The project's language file couldn't be read: {ex.Message}", problem: true);
+        }
+    }
+
+    /// <summary>
+    /// Put the pictures the project carries back on their rows, so a logo
+    /// chosen last week shows as chosen rather than as the game’s own.
+    ///
+    /// The project does not file them by team — a picture is a slice of an
+    /// array, and the slice is the record — so each one is traced back through
+    /// the same table the picker chose it with.
+    /// </summary>
+    private void LoadLogos()
+    {
+        if (_project is null) return;
+
+        foreach (var logo in ProjectLogos.Read(_project))
+        {
+            if (logo.Owner is not { } owner) continue;
+            if (!_rowsBySeason.TryGetValue(owner.Season, out var rows)) continue;
+
+            var row = rows.FirstOrDefault(r => r.Team.Id == owner.TeamId);
+            if (row is not null) row.Logos[logo.Kind.Id] = logo.PngPath;
         }
     }
 

@@ -231,7 +231,7 @@ public partial class TeamsPanel
             var size = image is null ? "" : $"{image.PixelWidth}\u00d7{image.PixelHeight}";
             text.Children.Add(new TextBlock
             {
-                Text = (chosen is null ? $"The game's own, slice {slice}" : IOPath.GetFileName(chosen))
+                Text = Describe(chosen, slice)
                      + (size.Length > 0 ? $"  \u00b7  {size}" : ""),
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -290,6 +290,26 @@ public partial class TeamsPanel
 
             PickerBody.Children.Add(PickerCard(grid));
         }
+    }
+
+    /// <summary>
+    /// What the line under a logo's name says.
+    ///
+    /// A picture the project already holds is named after its slot rather than
+    /// after the file it was picked from — the project renames it when it
+    /// stores it — so repeating that name would say "badges-6.png" under a
+    /// heading that already reads "Timing tower badge". One just chosen still
+    /// has the name it was chosen under, which is worth showing.
+    /// </summary>
+    private string Describe(string? chosen, int slice)
+    {
+        if (chosen is null) return $"The game's own, slice {slice}";
+
+        var stored = _project is not null
+                     && string.Equals(IOPath.GetDirectoryName(chosen), _project.LogosFolder,
+                         StringComparison.OrdinalIgnoreCase);
+
+        return stored ? $"Yours, slice {slice}" : IOPath.GetFileName(chosen);
     }
 
     /// <summary>
