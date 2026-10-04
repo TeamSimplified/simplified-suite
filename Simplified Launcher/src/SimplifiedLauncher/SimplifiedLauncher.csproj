@@ -104,10 +104,13 @@
        arrives as one family.
 
        OFL.txt travels with it. The licence asks for it, and a font shipped
-       inside an exe is still a font being distributed. -->
+       inside an exe is still a font being distributed. It is the only part of
+       this that is a file at all, and it goes in runtime\fonts with the rest of
+       what the app needs and nobody should be poking at — the Resource path
+       above is inside the assembly and is unrelated to where that lands. -->
   <ItemGroup>
     <Resource Include="..\..\..\Shared\Fonts\*.ttf" Link="Fonts\%(Filename)%(Extension)" />
-    <Content Include="..\..\..\Shared\Fonts\OFL.txt" Link="Fonts\OFL.txt"
+    <Content Include="..\..\..\Shared\Fonts\OFL.txt" Link="runtime\fonts\OFL.txt"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

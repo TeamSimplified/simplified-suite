@@ -189,10 +189,10 @@ $Apps = @(
         Project = 'src\SimplifiedLauncher\SimplifiedLauncher.csproj'
         Exe = 'Simplified Launcher'; Package = 'Simplified Launcher'
         Tag = 'launcher-v'; Kind = 'window'
-        # Fonts\ carries Outfit's licence. The font itself is inside the exe,
-        # but a font being distributed is a font whose licence travels with it,
-        # so the OFL goes in the package as a file.
-        Ships = @('*.exe', 'runtime\*', 'Fonts\*')
+        # Just the two: Outfit is inside the exe, and its licence sits under
+        # runtime\fonts with everything else the app needs and nobody should be
+        # poking at, so runtime\* already covers it.
+        Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'
