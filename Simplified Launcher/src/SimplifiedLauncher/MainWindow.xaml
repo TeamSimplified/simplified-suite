@@ -1,6 +1,7 @@
 ﻿<Window x:Class="SimplifiedLauncher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SimplifiedLauncher"
         Title="Simplified Launcher"
         Width="420" Height="760"
         WindowStartupLocation="CenterScreen"
@@ -169,67 +170,101 @@
                                 </ContextMenu>
                             </Border.ContextMenu>
 
-                            <Grid>
-                            <StackPanel Orientation="Horizontal">
-                                <Border x:Name="Marker" Style="{StaticResource Marker}"/>
-                                <TextBlock x:Name="Label"
-                                           Text="{Binding Name}"
-                                           Margin="12,0,0,0"
+                            <!-- Three columns: the marker, everything that
+                                 says what the mod is, and the number.
+
+                                 The name, the author and the version sit
+                                 against one another inside the middle one,
+                                 left to right, so the author and the version
+                                 stay with the name they belong to instead of
+                                 being pushed out to the right of the row. What
+                                 is spare is the gap after them, which is also
+                                 what keeps the number clear of all three.
+
+                                 Clipped at this level, which is the one level
+                                 here that cannot overflow: the middle column is
+                                 a star and a star is never wider than what it
+                                 was given. It covers the single frame between a
+                                 long name arriving and being cut to fit. -->
+                            <Grid ClipToBounds="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="24"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border x:Name="Marker" Grid.Column="0" Style="{StaticResource Marker}"/>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+
+                                    <!-- Trim.Full rather than Text: the whole
+                                         name is kept there and the block is
+                                         handed as much of it as fits, ending in
+                                         two dots. What fits is this column less
+                                         the two beside it, which is why they are
+                                         never the ones to give way. -->
+                                    <TextBlock x:Name="Label"
+                                               local:Trim.Full="{Binding Name}"
+                                               Margin="12,0,0,0"
+                                               VerticalAlignment="Center"
+                                               FontFamily="pack://application:,,,/Fonts/#Outfit"
+                                               FontWeight="Medium"
+                                               FontSize="15"
+                                               Foreground="#C8C8C8"/>
+
+                                    <!-- Who made it and which one it is, a size
+                                         down and several shades back, so the row
+                                         still reads as its name first. These two
+                                         do not brighten with selection: the point
+                                         of a quiet colour is lost if it only stays
+                                         quiet while unchosen. -->
+                                    <TextBlock Text="{Binding Author}"
+                                               Margin="10,1,0,0"
+                                               VerticalAlignment="Center"
+                                               FontFamily="pack://application:,,,/Fonts/#Outfit"
+                                               FontWeight="Regular"
+                                               FontSize="12"
+                                               Foreground="#6B6B6B"/>
+
+                                    <!-- No v put in front of it. The version is
+                                         whatever the mod's own manifest says, and
+                                         an author who wrote "1.6" meant 1.6 while
+                                         one who wrote "v1.6" would otherwise get
+                                         vv1.6. The suite packages under the same
+                                         rule: the version goes on verbatim. -->
+                                    <TextBlock Text="{Binding Version}"
+                                               Margin="8,1,0,0"
+                                               VerticalAlignment="Center"
+                                               FontFamily="pack://application:,,,/Fonts/#Outfit"
+                                               FontWeight="Regular"
+                                               FontSize="12"
+                                               Foreground="#6B6B6B"/>
+                                </StackPanel>
+
+                                <!-- Which number this one was ticked. A column
+                                     of its own, fixed width, with the number
+                                     centred in it — so 1, 2 and 10 sit on one
+                                     centre line down the right of the list
+                                     instead of lining up by their last digit.
+                                     Fixed, so the room the name has does not
+                                     change when the ninth mod is ticked.
+
+                                     Zero means unticked, and an unticked row
+                                     shows nothing — hidden by opacity rather
+                                     than by collapsing, so a row does not
+                                     change shape under the pointer that is
+                                     about to click it. -->
+                                <TextBlock x:Name="Order"
+                                           Grid.Column="2"
+                                           Text="{Binding Order}"
+                                           HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
+                                           Margin="0,1,0,0"
                                            FontFamily="pack://application:,,,/Fonts/#Outfit"
                                            FontWeight="Medium"
-                                           FontSize="15"
-                                           Foreground="#C8C8C8"/>
-
-                                <!-- Who made it and which one it is, a size
-                                     down and several shades back, so the row
-                                     still reads as its name first. These two
-                                     do not brighten with selection: the point
-                                     of a quiet colour is lost if it only stays
-                                     quiet while unchosen. -->
-                                <TextBlock Text="{Binding Author}"
-                                           Margin="10,1,0,0"
-                                           VerticalAlignment="Center"
-                                           FontFamily="pack://application:,,,/Fonts/#Outfit"
-                                           FontWeight="Regular"
-                                           FontSize="12"
-                                           Foreground="#6B6B6B"/>
-
-                                <!-- No v put in front of it. The version is
-                                     whatever the mod's own manifest says, and
-                                     an author who wrote "1.6" meant 1.6 while
-                                     one who wrote "v1.6" would otherwise get
-                                     vv1.6. The suite packages under the same
-                                     rule: the version goes on verbatim. -->
-                                <TextBlock Text="{Binding Version}"
-                                           Margin="8,1,0,0"
-                                           VerticalAlignment="Center"
-                                           FontFamily="pack://application:,,,/Fonts/#Outfit"
-                                           FontWeight="Regular"
-                                           FontSize="12"
-                                           Foreground="#6B6B6B"/>
-                            </StackPanel>
-
-                            <!-- Which number this one was ticked, out on the
-                                 right where it has the row to itself. Zero
-                                 means unticked, and an unticked row shows
-                                 nothing — hidden by opacity rather than by
-                                 collapsing, so a row does not change shape
-                                 under the pointer that is about to click it.
-
-                                 Tabular figures, so 1 and 2 occupy the same
-                                 width as 11 does and the column does not
-                                 shuffle as the numbers go up. -->
-                            <TextBlock x:Name="Order"
-                                       Text="{Binding Order}"
-                                       HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="0,1,0,0"
-                                       FontFamily="pack://application:,,,/Fonts/#Outfit"
-                                       FontWeight="Medium"
-                                       FontSize="13"
-                                       Foreground="#9B9B9B"
-                                       TextOptions.TextFormattingMode="Ideal"/>
+                                           FontSize="13"
+                                           Foreground="#9B9B9B"
+                                           TextOptions.TextFormattingMode="Ideal"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -589,8 +624,19 @@
                              template the bar is built inside it, where an
                              implicit style declared out here never reaches it
                              and Windows' seventeen pixel one stays. -->
+                        <!-- Horizontal scrolling off, and it has to be said
+                             here. The setter for it on the style above is an
+                             attached property that the stock template picks up
+                             with a TemplateBinding — this template writes its
+                             own ScrollViewer, so nothing was carrying it across
+                             and the list went on measuring its rows against
+                             infinite width. A row that can be as wide as it
+                             likes has no width to shorten a name to: the star
+                             column simply grew and the name ran off the end of
+                             the window instead. -->
                         <ScrollViewer Focusable="False"
                                       Padding="0,8"
+                                      HorizontalScrollBarVisibility="Disabled"
                                       VerticalScrollBarVisibility="Auto"
                                       Template="{StaticResource Scroller}">
                             <ItemsPresenter/>
