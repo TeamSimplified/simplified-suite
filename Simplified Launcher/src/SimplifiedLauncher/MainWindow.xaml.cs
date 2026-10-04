@@ -594,7 +594,22 @@ public partial class MainWindow : Window
         if (!await Rest(began)) return;
 
         if (!await Say("BACKING UP", "YOUR GAME")) return;
-        if (!await Wait(7)) return;
+
+        // Read here rather than inside the work: the box belongs to the window
+        // and the work is about to be handed to another thread.
+        var game = GameDir.Text.Trim();
+
+        began = DateTime.UtcNow;
+        var backup = await Task.Run(() => GameBackup.Take(game, staged.Folder));
+        if (!IsLoaded) return;
+
+        if (backup.Problem is not null)
+        {
+            await Settle("COULDN'T BACK UP", "YOUR GAME");
+            return;
+        }
+
+        if (!await Rest(began)) return;
 
         if (!await Say("INSTALLING", "YOUR MODS")) return;
         if (!await Wait(6)) return;
