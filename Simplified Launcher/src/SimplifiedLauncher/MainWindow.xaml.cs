@@ -665,17 +665,24 @@ public partial class MainWindow : Window
         {
             if (i > 0) Headline.Inlines.Add(new LineBreak());
 
-            // A pair of dots in front of the line the real ones will follow,
-            // never painted, there only to take up the same room.
+            // Anything on the end of a line that is not a letter gets a
+            // transparent twin in front of it, so what the eye reads as the line
+            // is what ends up centred.
             //
-            // The lines are centred one by one, and a line is laid out whole ~
-            // the dots on the end are part of its width whether or not anything
-            // is drawn for them. A pair on one end alone therefore pushes the
-            // words left by half of it, which is why the bottom line sat left
-            // of the top one, and only while something was working.
+            // The lines are centred one by one and a line is laid out whole, so
+            // every glyph on the end counts toward its width. A full stop counts
+            // as much as a letter and reads as almost nothing, which is why GAME
+            // LAUNCHED. looked wrong while measuring dead centre: the stop was on
+            // the middle, so LAUNCHED sat half a stop to the left of it. Same
+            // again for the progress dots, which carry width even while nothing
+            // is painted for them.
+            //
+            // Balanced, the letters land on the middle and the punctuation hangs
+            // off the right, which is what hanging punctuation is for.
+            if (lines[i].EndsWith('.')) Headline.Inlines.Add(Spacer("."));
+
             if (working && i == lines.Length - 1)
-                for (var d = 0; d < 2; d++)
-                    Headline.Inlines.Add(new Run(".") { Foreground = Brushes.Transparent });
+                for (var d = 0; d < 2; d++) Headline.Inlines.Add(Spacer("."));
 
             Headline.Inlines.Add(new Run(lines[i]));
         }
@@ -703,6 +710,12 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _ticker = new() { Interval = TimeSpan.FromMilliseconds(420) };
     private readonly List<Run> _dots = [];
     private int _shown;
+
+    /// <summary>
+    /// A glyph that takes up room and is never drawn. Used to balance whatever
+    /// sits on the end of a centred line.
+    /// </summary>
+    private static Run Spacer(string text) => new(text) { Foreground = Brushes.Transparent };
 
     private void Dots(int count)
     {
