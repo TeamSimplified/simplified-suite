@@ -47,6 +47,33 @@
     <Compile Include="..\..\..\Shared\MinimiseAnimation.cs" Link="MinimiseAnimation.cs" />
   </ItemGroup>
 
+  <!-- Outfit, embedded rather than installed. The app is portable and goes out
+       as a folder someone unzips, so a font it only borrowed from the machine
+       is a font it does not have: every heading would quietly fall back to
+       whatever Windows picked.
+
+       The variable font, not the static weights. WPF turns out to read its
+       named instances, so one file carries all nine — measured against the five
+       statics it replaces, and "Simplified" at 32px comes out 137.823, 139.293,
+       140.797, 144.353 and 147.750 wide at Light, Normal, Medium, SemiBold and
+       Bold either way. Identical metrics, 108 KB instead of 275 KB, and Thin,
+       ExtraLight, ExtraBold and Black available for nothing.
+
+       Worth knowing if this is ever swapped back: in the old naming only
+       Regular and Bold call themselves "Outfit", and Light, Medium and SemiBold
+       are their own families, grouping under Outfit only through the
+       typographic name. Fonts.GetFontFamilies is how to check what actually
+       arrives as one family.
+
+       OFL.txt travels with it. The licence asks for it, and a font shipped
+       inside an exe is still a font being distributed. -->
+  <ItemGroup>
+    <Resource Include="..\..\..\Shared\Fonts\*.ttf" Link="Fonts\%(Filename)%(Extension)" />
+    <Content Include="..\..\..\Shared\Fonts\OFL.txt" Link="Fonts\OFL.txt"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Reads a dropped mod archive whatever shape it is in: zip, 7z, rar, tar and
        the older ones. Managed, so there is no 7za.exe or UnRAR.exe to ship, no
        process to spawn and no console window to hide. The version is pinned in

@@ -1,4 +1,4 @@
-<Window x:Class="SimplifiedLauncher.MainWindow"
+﻿<Window x:Class="SimplifiedLauncher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Simplified Launcher"
@@ -54,7 +54,7 @@
              use, so a name reads as a name here too and the role sits behind it.
              Wrapping, because the roles are sentences and the window is narrow. -->
         <Style x:Key="CreditLine" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontFamily" Value="pack://application:,,,/Fonts/#Outfit"/>
             <Setter Property="FontWeight" Value="Regular"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="#6B6B6B"/>
@@ -70,7 +70,7 @@
 
         <Style x:Key="RowMenuItem" TargetType="MenuItem">
             <Setter Property="Foreground" Value="#C8C8C8"/>
-            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontFamily" Value="pack://application:,,,/Fonts/#Outfit"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -138,7 +138,19 @@
                              seeing it. Preview would arrive at the item first and
                              be too late. Only the down event is taken — the menu
                              itself opens on the way back up. -->
+                        <!-- Ideal, against the window's Display. Display mode
+                             grid-fits glyphs to whole pixels using the font's own
+                             hinting, and Outfit has none worth the name — no cvt,
+                             no fpgm, a seven-byte prep — so at fifteen pixels the
+                             stems get snapped on nothing and the names come out
+                             chipped. Ideal places them on fractional pixels and
+                             lets the anti-aliasing do the work, which is what the
+                             headline already does.
+
+                             The small grey Label style keeps Display on purpose:
+                             at twelve pixels a light grey needs the snapping. -->
                         <Border x:Name="RowPad" Background="Transparent" CornerRadius="8" Padding="10,9"
+                                TextOptions.TextFormattingMode="Ideal"
                                 MouseRightButtonDown="Row_MouseRightButtonDown">
 
                             <!-- On the row rather than on the list: a menu
@@ -163,7 +175,7 @@
                                            Text="{Binding Name}"
                                            Margin="12,0,0,0"
                                            VerticalAlignment="Center"
-                                           FontFamily="Outfit"
+                                           FontFamily="pack://application:,,,/Fonts/#Outfit"
                                            FontWeight="Medium"
                                            FontSize="15"
                                            Foreground="#C8C8C8"/>
@@ -177,7 +189,7 @@
                                 <TextBlock Text="{Binding Author}"
                                            Margin="10,1,0,0"
                                            VerticalAlignment="Center"
-                                           FontFamily="Outfit"
+                                           FontFamily="pack://application:,,,/Fonts/#Outfit"
                                            FontWeight="Regular"
                                            FontSize="12"
                                            Foreground="#6B6B6B"/>
@@ -191,7 +203,7 @@
                                 <TextBlock Text="{Binding Version}"
                                            Margin="8,1,0,0"
                                            VerticalAlignment="Center"
-                                           FontFamily="Outfit"
+                                           FontFamily="pack://application:,,,/Fonts/#Outfit"
                                            FontWeight="Regular"
                                            FontSize="12"
                                            Foreground="#6B6B6B"/>
@@ -303,7 +315,7 @@
              pixels snapping the stems to whole pixels is what keeps a light
              grey from turning to mush. -->
         <Style x:Key="Label" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontFamily" Value="pack://application:,,,/Fonts/#Outfit"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="#6B6B6B"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
@@ -349,7 +361,7 @@
             <Setter Property="CaretBrush" Value="#FFFFFF"/>
             <Setter Property="SelectionBrush" Value="#59FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontFamily" Value="pack://application:,,,/Fonts/#Outfit"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Template">
@@ -413,7 +425,7 @@
             <Setter Property="Height" Value="30"/>
             <Setter Property="Padding" Value="15,0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontFamily" Value="pack://application:,,,/Fonts/#Outfit"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -1086,7 +1098,7 @@
 
             <TextBlock x:Name="Headline"
                        HorizontalAlignment="Left"
-                       FontFamily="Outfit"
+                       FontFamily="pack://application:,,,/Fonts/#Outfit"
                        FontWeight="Bold"
                        FontSize="32"
                        LineHeight="28"
