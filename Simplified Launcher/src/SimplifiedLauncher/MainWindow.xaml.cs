@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         RefreshMods();
+        Caption(false, Resting);
         _ticker.Tick += (_, _) => Dots((_shown + 1) % 3);
         Ready();
 
@@ -207,6 +208,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// What the heading says when nothing is happening.
+    ///
+    /// An empty library is the one state where the window has to ask for
+    /// something instead of naming what is on it: there is no other way in, no
+    /// add button and no file dialog, so a window that only said CHOOSE YOUR
+    /// MODS over an empty list would be a dead end.
+    ///
+    /// Every place that falls back to rest reads this rather than spelling the
+    /// words out, so the empty case cannot be forgotten in one of them.
+    /// </summary>
+    private string[] Resting => Mods.Items.Count == 0
+        ? ["DROP YOUR", "MODS HERE"]
+        : ["CHOOSE", "YOUR MODS"];
+
+    /// <summary>
     /// What is installed, read off disk.
     ///
     /// The mods folder is the list. Nothing is cached and there is no index to
@@ -268,7 +284,7 @@ public partial class MainWindow : Window
 
         RefreshMods();
 
-        if (gone) await Say(false, "CHOOSE", "YOUR MODS");
+        if (gone) await Say(false, Resting);
         else await Say(false, "THAT MOD", "WOULDN'T GO");
 
         _running = false;
@@ -342,7 +358,7 @@ public partial class MainWindow : Window
         if (installed == 0 && problem is not null) await Say(false, "THAT FILE", "DIDN'T OPEN");
         else if (problem is not null) await Say(false, "SOME OF THOSE", "DIDN'T OPEN");
         else if (refused > 0) await Say(false, "ADDED, MINUS", "SOME ODD PATHS");
-        else await Say(false, "CHOOSE", "YOUR MODS");
+        else await Say(false, Resting);
 
         _running = false;
         Ready();
@@ -393,7 +409,7 @@ public partial class MainWindow : Window
         if (!await Wait(5)) return;
 
         Slide(0);
-        if (!await Say("CHOOSE", "YOUR MODS", working: false)) return;
+        if (!await Say(false, Resting)) return;
 
         Fade(Mods, 1, delay: 0.12);
         Fade(BottomBar, 1, delay: 0.12);
@@ -477,7 +493,7 @@ public partial class MainWindow : Window
         SettingsSlot.IsHitTestVisible = true;
         BackSlot.IsHitTestVisible = false;
 
-        await Say("CHOOSE", "YOUR MODS", working: false);
+        await Say(false, Resting);
     }
 
     private bool _inSettings;
