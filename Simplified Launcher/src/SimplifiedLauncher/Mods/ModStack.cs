@@ -105,6 +105,32 @@ public static class ModStack
     }
 
     /// <summary>
+    /// Throw the install folder away.
+    ///
+    /// For once the game has been put back: what is in it is then a copy of
+    /// files that are nowhere near the game any more, taking a whole set of
+    /// mods' worth of disk sitting beside the mods it was copied from.
+    ///
+    /// Moved aside and then deleted, the way it was built. What a delete that
+    /// stops partway leaves behind is a dot-prefixed folder the next launch
+    /// sweeps up, rather than half an install folder where a whole one goes.
+    /// </summary>
+    public static void Clear()
+    {
+        if (!Directory.Exists(FolderPath)) return;
+
+        var spent = Path.Combine(
+            Path.GetDirectoryName(FolderPath)!, BuildingPrefix + Guid.NewGuid().ToString("n"));
+
+        try
+        {
+            Directory.Move(FolderPath, spent);
+            Directory.Delete(spent, recursive: true);
+        }
+        catch { /* out of the way, and swept by the next launch */ }
+    }
+
+    /// <summary>
     /// Copy one mod's game files over whatever is already there, and say how
     /// many were written and how many of those took another mod's place.
     /// </summary>

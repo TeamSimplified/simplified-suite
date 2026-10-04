@@ -612,7 +612,24 @@ public partial class MainWindow : Window
         if (!await Rest(began)) return;
 
         if (!await Say("INSTALLING", "YOUR MODS")) return;
-        if (!await Wait(6)) return;
+
+        began = DateTime.UtcNow;
+        var installed = await Task.Run(() => GameInstall.Put(game, staged.Folder));
+        if (!IsLoaded) return;
+
+        if (installed.Problem is not null)
+        {
+            // The game is part way through being modded, which is the one state
+            // nobody should be left in. The backup was taken a step ago and is
+            // exactly what undoes it.
+            await Task.Run(() => GameBackup.Put(game));
+            if (!IsLoaded) return;
+
+            await Settle("COULDN'T INSTALL", "YOUR MODS");
+            return;
+        }
+
+        if (!await Rest(began)) return;
 
         if (!await Say("LAUNCHING", "YOUR GAME")) return;
         if (!await Wait(5)) return;
@@ -623,7 +640,26 @@ public partial class MainWindow : Window
 
         Drifting(true);
         if (!await Say("RESTORING", "YOUR GAME")) return;
-        if (!await Wait(5)) return;
+
+        began = DateTime.UtcNow;
+        var back = await Task.Run(() => GameBackup.Put(game));
+        if (!IsLoaded) return;
+
+        if (back.Problem is not null)
+        {
+            // The backup is still there, which is the thing that matters: it can
+            // be put back by hand, and the next launch will not overwrite it.
+            await Settle("COULDN'T PUT", "YOUR GAME BACK");
+            return;
+        }
+
+        // Spent: what is in it is a copy of what has just been taken back out of
+        // the game. Only now, though — while the game is modded it is the one
+        // description of what went in.
+        await Task.Run(ModStack.Clear);
+        if (!IsLoaded) return;
+
+        if (!await Rest(began)) return;
 
         await Settle(Resting);
     }

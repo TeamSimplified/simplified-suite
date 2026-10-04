@@ -27,6 +27,22 @@ public sealed record BackedUp(
     int FoldersToDelete = 0,
     string? Problem = null);
 
+/// <summary>What came of putting the game back.</summary>
+/// <param name="Restored">Files written back over the mods' versions.</param>
+/// <param name="Deleted">Files the mods had added, now removed.</param>
+/// <param name="Folders">Folders the mods had added, now gone.</param>
+/// <param name="Left">
+/// Folders that were noted as added but are not empty any more, so something is
+/// in them that this app did not put there. Left exactly where they are.
+/// </param>
+/// <param name="Problem">What stopped it. The backup is kept when there is one.</param>
+public sealed record PutBack(
+    int Restored = 0,
+    int Deleted = 0,
+    int Folders = 0,
+    int Left = 0,
+    string? Problem = null);
+
 /// <summary>
 /// Takes a copy of everything the mods are about to overwrite: for every file in
 /// the install folder, the game's own copy of that same file, kept at the same
@@ -135,6 +151,109 @@ public static class GameBackup
         {
             return new BackedUp(FolderPath, Problem: $"The game couldn't be backed up. ({e.GetType().Name})");
         }
+    }
+
+    /// <summary>
+    /// Put the game back as it was, and throw the backup away.
+    ///
+    /// Three things, in an order that matters. The saved copies go back over the
+    /// mods' versions. The files the mods added are deleted, because there is
+    /// nothing to put back over them — that is what <c>delete.json</c> is. Then
+    /// the folders the mods added go, deepest first and only while they are
+    /// empty: a folder with something in it is a folder somebody has put
+    /// something of their own into, and it stays.
+    ///
+    /// The backup is only cleared once all of that is done. Until then it is the
+    /// only copy of the game's own files, and a backup kept a launch too long
+    /// costs nothing while a backup thrown away one step too early cannot be got
+    /// back.
+    /// </summary>
+    /// <param name="game">The game's own folder, the one called <c>F1 25</c>.</param>
+    public static PutBack Put(string game)
+    {
+        if (string.IsNullOrWhiteSpace(game) || !Directory.Exists(game))
+            return new PutBack(Problem: "The game folder isn't where it was.");
+
+        // Nothing was ever saved, so there is nothing to undo. Not a failure:
+        // a launch that got no further than staging comes through here too.
+        if (!Directory.Exists(FolderPath)) return new PutBack();
+
+        try
+        {
+            var noted = Noted();
+            var restored = 0;
+            var deleted = 0;
+            var folders = 0;
+            var left = 0;
+
+            var saved = Path.Combine(FolderPath, ModStaging.GameFolderName);
+
+            if (Directory.Exists(saved))
+                foreach (var file in Directory.GetFiles(saved, "*", SearchOption.AllDirectories))
+                {
+                    var back = Path.Combine(game, Path.GetRelativePath(saved, file));
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(back)!);
+                    Keep(file, back);
+                    restored++;
+                }
+
+            foreach (var relative in noted.Files)
+            {
+                var ours = Path.Combine(game, relative);
+
+                if (!File.Exists(ours)) continue;
+
+                File.Delete(ours);
+                deleted++;
+            }
+
+            // Deepest first, so a folder is only looked at once everything this
+            // app put inside it has gone.
+            foreach (var relative in noted.Folders
+                         .OrderByDescending(f => f.Count(c => c == Path.DirectorySeparatorChar))
+                         .ThenByDescending(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                var ours = Path.Combine(game, relative);
+
+                if (!Directory.Exists(ours)) continue;
+
+                if (Directory.EnumerateFileSystemEntries(ours).Any())
+                {
+                    left++;
+                    continue;
+                }
+
+                Directory.Delete(ours);
+                folders++;
+            }
+
+            Clear();
+
+            return new PutBack(restored, deleted, folders, left);
+        }
+        catch (Exception e)
+        {
+            return new PutBack(Problem: $"The game couldn't be put back. ({e.GetType().Name})");
+        }
+    }
+
+    /// <summary>
+    /// Throw the spent backup away.
+    ///
+    /// Moved aside first and then deleted, so what is left on a delete that
+    /// stops partway is a dot-prefixed folder rather than half a backup sitting
+    /// where a whole one goes. Failing to delete it afterwards is not worth
+    /// failing the restore over: the game is already back.
+    /// </summary>
+    private static void Clear()
+    {
+        var spent = Path.Combine(
+            Path.GetDirectoryName(FolderPath)!, ".spent-" + Guid.NewGuid().ToString("n"));
+
+        Directory.Move(FolderPath, spent);
+
+        try { Directory.Delete(spent, recursive: true); } catch { /* it is out of the way */ }
     }
 
     /// <summary>
