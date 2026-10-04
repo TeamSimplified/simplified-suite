@@ -121,19 +121,45 @@ public static class ModLibrary
     /// Season 2 2.0" does not say which part is the version; with the dash in it,
     /// it does.
     ///
-    /// With no manifest to go on it is the archive's own file name, which is the
-    /// only other thing that was ever written down about it. That one is left
-    /// exactly as it was found — the author named the file, and second-guessing
-    /// where a dash belongs in it would be inventing information.
+    /// With no manifest to go on it is <paramref name="fallback"/> — the archive's
+    /// own file name, or the dropped folder's. That one is left exactly as it was
+    /// found: somebody named it, and second-guessing where a dash belongs in it
+    /// would be inventing information.
     /// </summary>
-    public static string FolderNameFor(ModManifest? manifest, string archivePath)
+    public static string FolderNameFor(ModManifest? manifest, string fallback)
     {
         if (ModManifest.Text(manifest?.Title) is not { } title)
-            return SafeName(Path.GetFileNameWithoutExtension(archivePath));
+            return SafeName(fallback);
 
         var version = ModManifest.Text(manifest?.Version);
         return version is null ? SafeName(title) : $"{SafeName(title)} - {SafeName(version)}";
     }
+
+    /// <summary>
+    /// The next free <c>Imported mod - N</c>.
+    ///
+    /// For a folder that arrives called F1 25, which is the game's own folder
+    /// name rather than anything about the mod inside it. Every such drop would
+    /// otherwise be called the same thing and replace the last one, so they are
+    /// numbered instead. Counting up from what is already there rather than
+    /// from how many mods there are, so deleting the third does not make the
+    /// next import collide with the fourth.
+    /// </summary>
+    public static string NextImportedName()
+    {
+        var taken = Directory.Exists(FolderPath)
+            ? Directory.EnumerateDirectories(FolderPath).Select(Path.GetFileName).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
+
+        for (var n = 1; ; n++)
+        {
+            var name = $"{ImportedPrefix}{n}";
+            if (!taken.Contains(name)) return name;
+        }
+    }
+
+    /// <summary>What a folder dropped in as F1 25 gets called instead.</summary>
+    public const string ImportedPrefix = "Imported mod - ";
 
     /// <summary>
     /// A name the filesystem will take. Same approach the suite's packagers use:

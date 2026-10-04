@@ -442,7 +442,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Install what was dropped, one archive after another.
+    /// Install what was dropped, one after another — archives, folders, or both
+    /// at once.
     ///
     /// Held under the same flag a launch runs under, for the same reason: the
     /// window should not be closed while files are half unpacked, and Play should
@@ -462,6 +463,10 @@ public partial class MainWindow : Window
         string? problem = null;
         var refused = 0;
 
+        // Asked before anything is imported, because by the time there is
+        // something to say about it the answer may have moved.
+        var one = paths.All(Directory.Exists) ? "THAT FOLDER" : "THAT FILE";
+
         await Say("ADDING", paths.Length == 1 ? "YOUR MOD" : "YOUR MODS");
 
         foreach (var path in paths)
@@ -480,7 +485,7 @@ public partial class MainWindow : Window
         // One line, and the first problem rather than all of them: there is one
         // heading to say it in, and a person who dropped five archives and got
         // one failure needs to know which rather than to read a list.
-        if (installed == 0 && problem is not null) await Say(false, "THAT FILE", "DIDN'T OPEN");
+        if (installed == 0 && problem is not null) await Say(false, one, "DIDN'T OPEN");
         else if (problem is not null) await Say(false, "SOME OF THOSE", "DIDN'T OPEN");
         else if (refused > 0) await Say(false, "ADDED, MINUS", "SOME ODD PATHS");
         else await Say(false, Resting);

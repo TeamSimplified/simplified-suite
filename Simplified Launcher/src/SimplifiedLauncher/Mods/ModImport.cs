@@ -28,12 +28,16 @@ public sealed record ImportResult(
     Staged Staging = Staged.Already);
 
 /// <summary>
-/// Takes an archive and leaves a mod in the library.
+/// Takes an archive, or a folder, and leaves a mod in the library.
 ///
 /// Format is decided by what is inside the file rather than by its extension,
 /// so "any archive" means any archive: zip, 7z, rar, tar, gzip and the older
 /// shapes too, under whatever name they happen to carry. A .zip renamed to
 /// .serps still opens, which matters because that is a thing people do.
+///
+/// A folder is the same import without the unpacking: people hand mods around
+/// unzipped, and one dragged in should land exactly where its archive would have
+/// put it rather than in some second shape of its own.
 ///
 /// Extraction goes to a staging folder first and only then becomes the mod. An
 /// import that fails halfway therefore costs nothing — in particular it cannot
@@ -43,14 +47,73 @@ public sealed record ImportResult(
 public static class ModImport
 {
     /// <summary>
-    /// Install one archive. Returns what happened rather than throwing: a bad
-    /// archive is an ordinary outcome here, not an exceptional one.
+    /// Install one dropped path, archive or folder. Returns what happened rather
+    /// than throwing: a bad archive is an ordinary outcome here, not an
+    /// exceptional one.
     /// </summary>
-    public static ImportResult Install(string archivePath)
+    public static ImportResult Install(string path)
     {
-        if (!File.Exists(archivePath))
-            return new ImportResult(null, $"{Path.GetFileName(archivePath)} isn't there any more.");
+        // The only difference between the two is how the content gets into
+        // staging — copied, or unpacked. Past that they are the same import,
+        // which is why the rest of this is handed a way in rather than a file.
+        if (Directory.Exists(path))
+            return WrapsTheLibrary(path)
+                ? new ImportResult(null, $"{Path.GetFileName(path)} is where the mods already live.")
+                : Bring(path, Copy, FallbackFor(path));
 
+        if (File.Exists(path))
+            return Bring(path, ExtractInto, Path.GetFileNameWithoutExtension(path));
+
+        return new ImportResult(null, $"{Path.GetFileName(path)} isn't there any more.");
+    }
+
+    /// <summary>
+    /// What to call a dropped folder when nothing inside it says.
+    ///
+    /// Its own name, unless its own name is the game's. A folder called
+    /// <c>F1 25</c> is named after the game rather than after the mod inside it,
+    /// so every one of them would arrive under the same name and quietly replace
+    /// the last. Those get numbered instead.
+    /// </summary>
+    private static string FallbackFor(string folder)
+    {
+        var name = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        return name.Equals(ModStaging.GameFolderName, StringComparison.OrdinalIgnoreCase)
+            ? ModLibrary.NextImportedName()
+            : name;
+    }
+
+    /// <summary>
+    /// Whether a dropped folder is the library, or has it somewhere inside it ~
+    /// someone dragging in the launcher's own folder, or the drive it sits on.
+    ///
+    /// Refused rather than attempted. Staging is created inside the library, so
+    /// this is a folder being copied into a place that is itself inside what is
+    /// being copied, and the mod it produced would be every mod already
+    /// installed.
+    /// </summary>
+    private static bool WrapsTheLibrary(string folder)
+    {
+        var outer = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar);
+        var library = Path.GetFullPath(ModLibrary.FolderPath);
+
+        return library.Equals(outer, StringComparison.OrdinalIgnoreCase)
+            || library.StartsWith(outer + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Everything from "the content is in staging" onwards, which is everything
+    /// that decides what the mod is called and where it ends up, and is the same
+    /// whichever way the content got there.
+    /// </summary>
+    /// <param name="source">The archive or folder, for the messages.</param>
+    /// <param name="into">
+    /// How to get the content into staging: returns how many entries it refused.
+    /// </param>
+    /// <param name="fallback">What to name the mod if it carries no manifest.</param>
+    private static ImportResult Bring(string source, Func<string, string, int> into, string fallback)
+    {
         Directory.CreateDirectory(ModLibrary.FolderPath);
 
         // Dot-prefixed so a half-finished import is skipped by the library
@@ -64,12 +127,12 @@ public static class ModImport
             int refused;
             try
             {
-                refused = ExtractInto(archivePath, staging);
+                refused = into(source, staging);
             }
             catch (Exception e)
             {
                 return new ImportResult(null,
-                    $"{Path.GetFileName(archivePath)} couldn't be read as an archive. ({e.GetType().Name})");
+                    $"{Path.GetFileName(source)} couldn't be read. ({e.GetType().Name})");
             }
 
             var content = ContentRoot(staging);
@@ -79,7 +142,7 @@ public static class ModImport
             // touched the library yet.
             var staged = ModStaging.Stage(content);
 
-            var target = Path.Combine(ModLibrary.FolderPath, ModLibrary.FolderNameFor(manifest, archivePath));
+            var target = Path.Combine(ModLibrary.FolderPath, ModLibrary.FolderNameFor(manifest, fallback));
 
             // Only now, with a complete extraction in hand, is the installed
             // copy worth disturbing. Re-importing is how a mod gets updated, so
@@ -103,7 +166,7 @@ public static class ModImport
         catch (Exception e)
         {
             return new ImportResult(null,
-                $"{Path.GetFileName(archivePath)} couldn't be installed. ({e.GetType().Name})");
+                $"{Path.GetFileName(source)} couldn't be installed. ({e.GetType().Name})");
         }
         finally
         {
@@ -114,6 +177,50 @@ public static class ModImport
 
     /// <summary>Marks a staging folder, so one left by a crash can be recognised.</summary>
     public const string ImportFolderPrefix = "import-";
+
+    /// <summary>
+    /// Copy a dropped folder's contents into staging, and return how many files
+    /// were refused for landing outside it.
+    ///
+    /// The contents rather than the folder itself, so a folder called
+    /// <c>F1 25</c> arrives as game content at the staging root and staging
+    /// gathers it into an <c>F1 25</c> of its own — the shape a zip of the same
+    /// thing would have produced. One rule for both, rather than a second one
+    /// here.
+    ///
+    /// Copied, not moved: the drag said Copy, and an import has no business
+    /// emptying a folder on somebody's desktop.
+    ///
+    /// The list is taken before any of it is written, because what is written to
+    /// is a folder inside the library, and the library may be inside what is
+    /// being copied from.
+    ///
+    /// The containment check is the extractor's, for the reason it is there: a
+    /// folder is likelier to be honest than an archive off the internet, but a
+    /// junction pointing somewhere else costs nothing to refuse.
+    /// </summary>
+    private static int Copy(string folder, string into)
+    {
+        var refused = 0;
+        var root = Path.GetFullPath(into);
+        var from = Path.GetFullPath(folder);
+
+        foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.GetFullPath(Path.Combine(root, Path.GetRelativePath(from, file)));
+
+            if (!destination.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                refused++;
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, overwrite: true);
+        }
+
+        return refused;
+    }
 
     /// <summary>
     /// Unpack everything into <paramref name="into"/>, and return how many
