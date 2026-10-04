@@ -20,6 +20,13 @@
     <NoWarn>$(NoWarn);CS0649;CS0168;CS0219;CS0414;CS1591;CA1416;NU1701</NoWarn>
   </PropertyGroup>
 
+  <!-- For the one dialog this project asks a question in. The suite's own
+       rather than Windows': a system box draws itself from SystemColors and
+       arrives as a white rectangle in a dark window. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="HelixToolkit.Wpf" />
     <PackageReference Include="ZstdSharp.Port" />

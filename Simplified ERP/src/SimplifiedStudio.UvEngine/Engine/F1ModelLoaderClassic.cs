@@ -1009,26 +1009,30 @@ namespace F1modding3dtoolV1
             if (_bypassClassicTyrePrompt)
                 return true;
 
-            const string text = "Classic car detected.\r\n\r\n" +
-                                "Would you like to load its tyres?";
-            const string caption = "F1 Modding 3D Tool";
-
+            // The suite's dialog, not Windows'. A system box draws itself from
+            // SystemColors, so in the dark palette it is a white rectangle with
+            // a system icon — the one thing on screen that does not belong to
+            // the app. And the buttons say what they do rather than Yes and No,
+            // with the one that changes nothing last, where Esc answers.
             try
             {
-                var app = System.Windows.Application.Current;
-                if (app != null && app.Dispatcher != null && !app.Dispatcher.CheckAccess())
-                {
-                    return app.Dispatcher.Invoke(() =>
-                        MessageBox.Show(text, caption,
-                                        MessageBoxButton.YesNo,
-                                        MessageBoxImage.Question)
-                            == MessageBoxResult.Yes);
-                }
+                return Ask() == MessageBoxResult.Yes;
 
-                return MessageBox.Show(text, caption,
-                                       MessageBoxButton.YesNo,
-                                       MessageBoxImage.Question)
-                       == MessageBoxResult.Yes;
+                static MessageBoxResult Ask()
+                {
+                    var app = System.Windows.Application.Current;
+
+                    if (app?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+                        return dispatcher.Invoke(Ask);
+
+                    return SimplifiedUi.MessageDialog.Choose(
+                        app?.MainWindow,
+                        "Classic car",
+                        "This car is a classic.",
+                        "Its tyres are in a separate archive and take a moment to load.",
+                        ("Load tyres", MessageBoxResult.Yes),
+                        ("Skip them", MessageBoxResult.No));
+                }
             }
             catch (Exception ex)
             {
