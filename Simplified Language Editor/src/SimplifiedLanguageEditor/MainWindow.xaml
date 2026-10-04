@@ -31,8 +31,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="140"/>
+            <RowDefinition Height="Auto" Name="LogRow"/>
         </Grid.RowDefinitions>
 
         <!-- Title bar -->
@@ -62,9 +61,22 @@
                 <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="16,0,0,0"
                         VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
 
-                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Margin="16,0,0,0" Foreground="{DynamicResource TextMuted}"
-                           Text="Every line the game says, as a table"/>
+                <!-- The open file, beside the mark, as every other app in the
+                     suite has it. Text is not hit-test-visible in the chrome, so
+                     dragging the window still works across it. MaxWidth sits on
+                     the label rather than the panel: a horizontal StackPanel
+                     measures its children unconstrained, and trimming needs a
+                     width to trim to. -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="16,0,0,0">
+                    <TextBlock Name="FilePathLabel" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextDisabled}"
+                               TextTrimming="CharacterEllipsis" MaxWidth="460"
+                               Text="No file open"/>
+                    <TextBlock Name="DirtyLabel" VerticalAlignment="Center" Margin="12,0,0,0"
+                               Foreground="{DynamicResource TextMuted}" FontStyle="Italic"
+                               Text="unsaved changes" Visibility="Collapsed"/>
+                </StackPanel>
 
                 <!-- Reverse visual order, as DockPanel resolves Dock=Right outward-in. -->
                 <Button DockPanel.Dock="Right" Name="WindowCloseButton" Style="{StaticResource CloseButton}"
@@ -108,9 +120,18 @@
                 <Button DockPanel.Dock="Left" Name="MergePreserveButton" Content="Merge + preserve"
                         Padding="12,7" Margin="6,0,0,0" IsEnabled="False" Click="MergePreserve_Click"
                         ToolTip="For each key in the picked file: add it only if it is not here already"/>
+                <Button DockPanel.Dock="Left" Name="CompareButton" Content="Compare"
+                        Padding="12,7" Margin="6,0,0,0" IsEnabled="False" Click="Compare_Click"
+                        ToolTip="Write out what this file says differently from another one: the lines whose text has changed, and the lines it adds"/>
 
-                <Button DockPanel.Dock="Right" Name="ClearLogButton" Content="Clear log"
-                        Padding="12,7" Click="ClearLog_Click"/>
+                <!-- Close is the file, not the app: the window's own X shuts the
+                     app, and a second button doing that would sit beside one
+                     that doesn't. Right-docked, so the first declared sits
+                     furthest right — and the gap between two is the right-hand
+                     one's left margin. -->
+                <Button DockPanel.Dock="Right" Name="CloseFileButton" Content="Close"
+                        Padding="12,7" IsEnabled="False" Click="CloseFile_Click"
+                        ToolTip="Close the open file"/>
             </DockPanel>
         </Border>
 
@@ -136,7 +157,18 @@
         <!-- The table. No styles of its own: DataGrid, its headers, rows and
              cells are templated in the shared theme, where the Driver Swapper
              put them when it became the first app in the suite with a table. -->
-        <DataGrid Grid.Row="3" Name="EntryGrid" Margin="18,12,18,0"
+        <!-- No border and no margin: the table is the window from the filter
+             bar down. A framed box inside a frame spends two edges and a gutter
+             saying where a thing starts, which the bar above it has already
+             said. The 18 everything else in the window keeps is in the cells
+             instead, so the first column still lines up with Filter. -->
+        <DataGrid Grid.Row="3" Name="EntryGrid" Margin="0"
+                  BorderThickness="0"
+                  GridLinesVisibility="All"
+                  Background="Transparent"
+                  CellStyle="{StaticResource RoomyCell}"
+                  ColumnHeaderStyle="{StaticResource RoomyHeader}"
+                  AlternationCount="2"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False" CanUserDeleteRows="False"
                   CanUserSortColumns="True" CanUserReorderColumns="False"
@@ -147,39 +179,35 @@
                   SelectedCellsChanged="EntryGrid_SelectedCellsChanged"
                   RowHeaderWidth="0">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Key"   Binding="{Binding Key,   UpdateSourceTrigger=PropertyChanged}" Width="2*"/>
-                <DataGridTextColumn Header="Value" Binding="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="3*"/>
+                <!-- EditingElementStyle, or the box a double-click opens is
+                     WPF's own: white with black text, because the column builds
+                     it from a style that has no BasedOn and so replaces the
+                     themed one. The style is in the shared theme, where the next
+                     app with an editable table will find it. -->
+                <!-- The key does not wrap: they are one word with underscores,
+                     and a key broken across two lines is harder to read than one
+                     that is a little too long for its column.
+
+                     The widths here are only what the table looks like before it
+                     is laid out: the window sets them from the saved split, and
+                     puts them back as stars whenever a header is dragged. -->
+                <DataGridTextColumn Header="Key" Width="2*"
+                                    HeaderStyle="{StaticResource RuledHeader}"
+                                    Binding="{Binding Key, UpdateSourceTrigger=PropertyChanged}"
+                                    EditingElementStyle="{StaticResource DataGridEditor}"/>
+                <DataGridTextColumn Header="Value" Width="3*"
+                                    Binding="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                    ElementStyle="{StaticResource WrappedCell}"
+                                    EditingElementStyle="{StaticResource WrappedEditor}"/>
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- What the open file is, in its own words: the hash settings a .lng
-             carries in its header. They decide where every key lands in the
-             table, so a file that will not match another is told apart here. -->
-        <Border Grid.Row="4" Padding="18,10,18,8">
-            <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" Name="FilePathLabel" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"
-                           MaxWidth="520" Text="No file open"/>
-                <TextBlock DockPanel.Dock="Left" Name="DirtyLabel" VerticalAlignment="Center"
-                           Margin="10,0,0,0" FontStyle="Italic" Visibility="Collapsed"
-                           Foreground="{DynamicResource TextMuted}" Text="unsaved changes"/>
-
-                <StackPanel DockPanel.Dock="Right" Name="MetaPanel" Orientation="Horizontal"
-                            VerticalAlignment="Center" Visibility="Collapsed">
-                    <TextBlock Style="{StaticResource MetaKey}" Text="Magic"/>
-                    <TextBlock Style="{StaticResource MetaVal}" Name="MagicLabel"/>
-                    <TextBlock Style="{StaticResource MetaKey}" Text="Buckets"/>
-                    <TextBlock Style="{StaticResource MetaVal}" Name="BucketsLabel"/>
-                    <TextBlock Style="{StaticResource MetaKey}" Text="Seed"/>
-                    <TextBlock Style="{StaticResource MetaVal}" Name="SeedLabel"/>
-                    <TextBlock Style="{StaticResource MetaKey}" Text="Multiplier"/>
-                    <TextBlock Style="{StaticResource MetaVal}" Name="MultiplierLabel"/>
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- Log -->
-        <DockPanel Grid.Row="5" Margin="18,0,18,18">
+        <!-- The log, off unless Settings says otherwise. Height on the panel
+             rather than on the row: a collapsed panel in an Auto row takes no
+             space at all, so the table grows into it without the row having to
+             be resized as well. -->
+        <DockPanel Grid.Row="4" Name="LogPanel" Height="150" Margin="18,12,18,18"
+                   Visibility="Collapsed">
             <TextBlock DockPanel.Dock="Top" Text="Log" Style="{StaticResource SectionHeader}"/>
 
             <!-- The shared TextBox style centres its content, which is right for

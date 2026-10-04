@@ -59,23 +59,26 @@ public static class AddRow
             Margin = new Thickness(0, 16, 0, 0),
         };
 
-        var cancel = new Button
-        {
-            Content = "Cancel",
-            Padding = new Thickness(18, 4, 18, 4),
-            Margin = new Thickness(0, 0, 8, 0),
-            IsCancel = true,
-        };
-
+        // The action first and Cancel last, as every dialog in the suite has
+        // them: the first answers Enter and the last answers Esc, so the one
+        // that changes nothing is the one on the end.
         var add = new Button
         {
             Content = "Add",
             Padding = new Thickness(18, 4, 18, 4),
+            Margin = new Thickness(0, 0, 8, 0),
             IsDefault = true,
         };
 
-        buttons.Children.Add(cancel);
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            Padding = new Thickness(18, 4, 18, 4),
+            IsCancel = true,
+        };
+
         buttons.Children.Add(add);
+        buttons.Children.Add(cancel);
         root.Children.Add(buttons);
 
         var window = new Window

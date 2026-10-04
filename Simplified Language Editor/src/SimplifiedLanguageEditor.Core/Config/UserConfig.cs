@@ -23,6 +23,21 @@ public sealed class UserConfig
     /// </summary>
     public string? LastFolder { get; set; }
 
+    /// <summary>
+    /// Whether to show the log. Off by default: what it says is what just
+    /// happened, which the table has already shown.
+    /// </summary>
+    public bool ShowLog { get; set; }
+
+    /// <summary>
+    /// How much of the table the key column takes, as a share of the whole ~
+    /// 0.4 being the two-to-three the window opens with.
+    ///
+    /// A share rather than a width in pixels, because it has to mean the same
+    /// thing on a window that is not the size this one was.
+    /// </summary>
+    public double KeyShare { get; set; } = 0.4;
+
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static string ConfigPath => AppPaths.ConfigFile;

@@ -25,6 +25,57 @@
                 <Setter Property="Margin" Value="0,0,0,4"/>
             </Style>
 
+            <!-- A roomier row than the theme's default. This table is a page of
+                 reading rather than a handful of records, and the one thing that
+                 makes a long list of text legible is air above and below the
+                 line. BasedOn, so everything else about a cell — the selected
+                 mark, the padding the editor relies on, the dropped focus
+                 rectangle — comes from the shared theme. -->
+            <Style x:Key="RoomyCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                <Setter Property="Padding" Value="18,11"/>
+            </Style>
+
+            <!-- And the headers with it. The table has no margin — it runs to
+                 the window's edges — so the 18 lives in the cell, which is what
+                 puts the first column on the same line as Filter and the
+                 wordmark above it. -->
+            <Style x:Key="RoomyHeader" TargetType="DataGridColumnHeader"
+                   BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                <Setter Property="Padding" Value="18,8"/>
+            </Style>
+
+            <!-- The same header, with the edge between the columns drawn. Only
+                 the key column wears it: the value column's right edge is the
+                 window's, and a line there would be a border rather than a
+                 divider.
+
+                 The brush is a DynamicResource the window fills in, because it
+                 is the palette's line faded, and a faded copy has to be made
+                 rather than written down. -->
+            <Style x:Key="RuledHeader" TargetType="DataGridColumnHeader"
+                   BasedOn="{StaticResource RoomyHeader}">
+                <Setter Property="SeparatorVisibility" Value="Visible"/>
+                <Setter Property="SeparatorBrush" Value="{DynamicResource ColumnRule}"/>
+            </Style>
+
+            <!-- A value is a sentence the game says, often a long one, so it
+                 wraps rather than running off the side of the window. The row
+                 grows to hold it and the columns are stars, so widening the
+                 window rewraps everything into the room it has. -->
+            <Style x:Key="WrappedCell" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+
+            <!-- And the editor the same, so a wrapped line does not snap into
+                 one long one the moment it is double-clicked. Enter still
+                 commits the edit — AcceptsReturn is left off, because a key
+                 that usually means "done" meaning "newline" in one control is
+                 worse than not being able to type a line break in a table. -->
+            <Style x:Key="WrappedEditor" TargetType="TextBox" BasedOn="{StaticResource DataGridEditor}">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="VerticalContentAlignment" Value="Top"/>
+            </Style>
+
             <!-- The line under the table, where the file says what it is. -->
             <Style x:Key="MetaKey" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                 <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>

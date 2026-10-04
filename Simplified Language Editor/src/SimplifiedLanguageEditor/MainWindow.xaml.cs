@@ -3,7 +3,9 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using EgoEngineLibrary.Language;
 using Microsoft.Win32;
@@ -50,6 +52,18 @@ public partial class MainWindow : Window
 
         VersionLabel.Text = Util.AppVersion.Display;
         ApplyWindowIcon();
+
+        ApplyLogVisibility(_config.ShowLog);
+        ApplyTableSelection();
+        ApplyColumnRule();
+        ApplySplit(_config.KeyShare);
+
+        // The gripper in each column header is a Thumb, and its DragCompleted
+        // bubbles out to here. There is no "a column was resized" event on
+        // DataGrid, and this is the moment the drag is finished rather than
+        // every pixel of it.
+        EntryGrid.AddHandler(Thumb.DragCompletedEvent,
+            new DragCompletedEventHandler(Column_DragCompleted), handledEventsToo: true);
 
         EntryGrid.ItemsSource = _entries;
         _entriesView = (CollectionView)CollectionViewSource.GetDefaultView(_entries);
@@ -255,6 +269,121 @@ public partial class MainWindow : Window
                 $"That file couldn't be merged in.\n\n{ex.Message}",
                 "Merge failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    // ────────────────────────── Comparing ──────────────────────────────
+
+    /// <summary>
+    /// Write out what this file says that another one does not: the entries
+    /// whose text has changed, and the entries it adds.
+    ///
+    /// The file that is picked is the one being compared against — the game's
+    /// own, usually — and what comes out is this file's work, which is what a
+    /// language mod is. A whole file is six megabytes of mostly the game's own
+    /// writing; the part somebody did is a few dozen lines, and a mod of only
+    /// those still applies after the game has been patched.
+    /// </summary>
+    private void Compare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lng is null) return;
+
+        if (CompareDialog.Show(this, StartingFolder(), _lngPath ?? "This file") is not { } asked) return;
+
+        try
+        {
+            LngFile theirs;
+            using (var file = File.Open(asked.Against, FileMode.Open, FileAccess.Read, FileShare.Read))
+                theirs = new LngFile(file);
+
+            // The table is the truth here, not the file as it was opened: a
+            // comparison that ignored the edits on screen would be comparing
+            // somebody's work against itself.
+            SyncToLng();
+
+            // Whichever way round it was asked for: the source is the file whose
+            // text is wanted, and the baseline is the one it is measured
+            // against. Everything below is the same either way.
+            var source = asked.FromThisFile ? _lng : theirs;
+            var baseline = asked.FromThisFile ? theirs : _lng;
+
+            var difference = LngCompare.Measure(source, baseline);
+
+            if (difference.Total == 0)
+            {
+                var which = asked.FromThisFile ? "this file" : Path.GetFileName(asked.Against);
+                var other = asked.FromThisFile ? Path.GetFileName(asked.Against) : "this file";
+
+                SimplifiedUi.MessageDialog.Show(this,
+                    $"Nothing to export.{Environment.NewLine}{Environment.NewLine}" +
+                    $"Every line {which} has, {other} has as well, word for word.",
+                    "No differences", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Named after the file the text is coming out of, because that is
+            // what is in it.
+            var from = asked.FromThisFile ? _lngPath ?? "untitled" : asked.Against;
+            var suggested = Path.GetFileNameWithoutExtension(from) + " - changes.lng";
+
+            var saver = new SaveFileDialog
+            {
+                Title = "Save the differences as",
+                Filter = "Language files|*.lng|All files|*.*",
+                FileName = suggested,
+                InitialDirectory = StartingFolder(),
+            };
+
+            if (saver.ShowDialog(this) != true) return;
+
+            var subset = LngCompare.Extract(source, baseline);
+
+            using (var output = File.Open(saver.FileName, FileMode.Create, FileAccess.Write, FileShare.Read))
+                subset.Write(output);
+
+            Remember(saver.FileName);
+
+            Log($"Compared with {Path.GetFileName(asked.Against)}, keeping " +
+                $"{(asked.FromThisFile ? "this file's" : "its")} text: " +
+                $"{difference.Changed} changed, {difference.Added} new " +
+                $"~ wrote {difference.Total} to {Path.GetFileName(saver.FileName)}");
+
+            SimplifiedUi.MessageDialog.Show(this,
+                Summary(difference, Path.GetFileName(saver.FileName), asked, theirs.Count),
+                "Compared", MessageBoxButton.OK);
+        }
+        catch (Exception ex)
+        {
+            SimplifiedUi.MessageDialog.Show(this,
+                $"That comparison couldn't be done.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                "Compare failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// What the comparison came to, as the message dialog wants it: a headline,
+    /// a blank line, then the detail.
+    ///
+    /// Both numbers are given even when one of them is zero. "3 changed" alone
+    /// leaves the reader working out whether nothing was added or whether the
+    /// app does not count that — and the whole point of the dialog is to say
+    /// what went into the file without opening it.
+    /// </summary>
+    private string Summary(Difference difference, string saved, CompareChoice asked, int theirs)
+    {
+        var entries = difference.Total == 1 ? "entry" : "entries";
+        var against = Path.GetFileName(asked.Against);
+        var blank = Environment.NewLine + Environment.NewLine;
+
+        // Which way round it was run, in the sentence rather than implied: the
+        // two exports are different files and look alike afterwards.
+        var side = asked.FromThisFile
+            ? $"Holding this file's text, against {against}."
+            : $"Holding {against}'s text, against this file.";
+
+        return $"Saved {difference.Total:N0} {entries} to {saved}" + blank +
+               $"{difference.Changed:N0} rewritten, {difference.Added:N0} new." + Environment.NewLine +
+               side + Environment.NewLine +
+               $"{_entries.Count:N0} entries here, {theirs:N0} there.";
     }
 
     // ────────────────────────── Saving ─────────────────────────────────
@@ -515,20 +644,142 @@ public partial class MainWindow : Window
         var open = _lng is not null;
 
         SaveAsButton.IsEnabled = open;
+        CloseFileButton.IsEnabled = open;
         AddButton.IsEnabled = open;
         MergeOverwriteButton.IsEnabled = open;
         MergePreserveButton.IsEnabled = open;
+        CompareButton.IsEnabled = open;
 
-        FilePathLabel.Text = _lngPath ?? (open ? "Untitled" : "No file open");
-        MetaPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-
-        if (_lng is null) return;
-
-        MagicLabel.Text = $"0x{_lng.magic:X8}";
-        BucketsLabel.Text = _lng.hshs.Buckets.ToString();
-        SeedLabel.Text = $"0x{_lng.hshs.Seed:X8}";
-        MultiplierLabel.Text = $"0x{_lng.hshs.Multiplier:X8}";
+        ShowWhatIsOpen();
     }
+
+    /// <summary>
+    /// What is open, said three times over: the name in the title bar, the whole
+    /// path on hovering it, and the name again in the window's own title, which
+    /// is what the taskbar and Alt-Tab show.
+    ///
+    /// The name rather than the path, as every other app in the suite has it: a
+    /// path is mostly folders somebody already knows they are in, and the one
+    /// word that tells two language files apart is at the end of it.
+    /// </summary>
+    private void ShowWhatIsOpen()
+    {
+        const string app = "Simplified Language Editor";
+
+        if (_lng is null)
+        {
+            FilePathLabel.Text = "No file open";
+            FilePathLabel.SetResourceReference(ForegroundProperty, "TextDisabled");
+            FilePathLabel.ToolTip = null;
+            Title = app;
+            return;
+        }
+
+        var name = _lngPath is null ? "Untitled" : Path.GetFileName(_lngPath);
+
+        FilePathLabel.Text = name;
+
+        // A resource reference rather than the brush itself: looking the key up
+        // and assigning what comes back freezes the colour the palette had at
+        // that moment, and the name then stays dark on a window that has since
+        // gone dark. This is what DynamicResource does, from code.
+        FilePathLabel.SetResourceReference(ForegroundProperty, "TextPrimary");
+        FilePathLabel.ToolTip = _lngPath;
+        Title = _isDirty ? $"{app} — {name} *" : $"{app} — {name}";
+    }
+
+    /// <summary>
+    /// Mark a selected cell in the accent blue rather than the suite's grey.
+    ///
+    /// Grey is right where selection is incidental; here it is the whole point
+    /// of the table — a cell is picked to edit it or to delete its row, and on
+    /// a page of grey rows a grey mark is the hardest thing to find.
+    ///
+    /// Put in the grid's own resources rather than the app's, so it is this
+    /// table that reads differently and not every list in the window. In code
+    /// rather than in the markup because the brush is the palette's, and a
+    /// palette key cannot be aliased to another one in markup — it has to be
+    /// looked up and put there, and looked up again when the palette changes.
+    /// </summary>
+    private void ApplyTableSelection()
+    {
+        if (Application.Current?.TryFindResource("SelectedAccent") is System.Windows.Media.Brush blue)
+            EntryGrid.Resources["Selected"] = blue;
+    }
+
+    /// <summary>
+    /// The hairline between the two columns.
+    ///
+    /// Fainter than the lines between rows, which are the palette's BorderSoft
+    /// at full strength: a key and its value are one line of the file, and a
+    /// divider as strong as the one separating rows would cut each line in two
+    /// before it said which cell was which. Half strength is enough to follow
+    /// the column down and little enough to stop reading as a border.
+    ///
+    /// Taken from the palette and faded rather than written as a colour, so it
+    /// is still the theme's line in either palette, and re-made when the
+    /// palette changes.
+    /// </summary>
+    private void ApplyColumnRule()
+    {
+        if (Application.Current?.TryFindResource("BorderSoft") is not SolidColorBrush line) return;
+
+        // A frozen brush cannot be given an opacity, and the palette's are
+        // frozen: this is a copy of it, faded.
+        var faint = new SolidColorBrush(line.Color) { Opacity = 0.45 };
+
+        EntryGrid.VerticalGridLinesBrush = faint;
+
+        // And the same one through the header, which draws its own edge rather
+        // than taking the grid's lines — so without this the rule would start
+        // under the headings instead of at the top of the table.
+        EntryGrid.Resources["ColumnRule"] = faint;
+    }
+
+    /// <summary>
+    /// Set the split between the two columns, as the key column's share of the
+    /// table.
+    ///
+    /// Stars rather than widths: a star column is a proportion of whatever the
+    /// table has, so the split survives the window being resized, maximised or
+    /// opened on another screen. Kept away from nothing at either end, because a
+    /// column dragged to zero cannot be dragged back — its gripper goes with it.
+    /// </summary>
+    private void ApplySplit(double keyShare)
+    {
+        var key = Math.Clamp(keyShare, 0.15, 0.85);
+
+        EntryGrid.Columns[0].Width = new DataGridLength(key, DataGridLengthUnitType.Star);
+        EntryGrid.Columns[1].Width = new DataGridLength(1 - key, DataGridLengthUnitType.Star);
+    }
+
+    /// <summary>
+    /// A column has been dragged. WPF resizes by setting a width in pixels,
+    /// which loses the proportion — so the new widths are read back and put
+    /// in as stars again, and the share is remembered.
+    /// </summary>
+    private void Column_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        var key = EntryGrid.Columns[0].ActualWidth;
+        var value = EntryGrid.Columns[1].ActualWidth;
+
+        if (key <= 0 || value <= 0) return;
+
+        var share = key / (key + value);
+        ApplySplit(share);
+
+        if (Math.Abs(share - _config.KeyShare) < 0.005) return;
+
+        _config.KeyShare = Math.Clamp(share, 0.15, 0.85);
+        _config.Save();
+    }
+
+    /// <summary>
+    /// Show or hide the log. Collapsed rather than hidden, so the table takes
+    /// the room back rather than leaving a gap where the log would have been.
+    /// </summary>
+    private void ApplyLogVisibility(bool show)
+        => LogPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
 
     private void MarkDirty()
     {
@@ -536,12 +787,14 @@ public partial class MainWindow : Window
 
         _isDirty = true;
         DirtyLabel.Visibility = Visibility.Visible;
+        ShowWhatIsOpen();
     }
 
     private void ClearDirty()
     {
         _isDirty = false;
         DirtyLabel.Visibility = Visibility.Collapsed;
+        ShowWhatIsOpen();
     }
 
     /// <summary>
@@ -578,9 +831,42 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Put the file down. The app stays where it is — this is the file being
+    /// closed, not the window.
+    /// </summary>
+    private void CloseFile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lng is null) return;
+        if (!ConfirmDiscardChanges("close it")) return;
+
+        var was = _lngPath;
+
+        _lng = null;
+        _lngPath = null;
+        _savedSnapshot = null;
+        _undoStack.Clear();
+
+        RebuildEntries();
+        ClearDirty();
+        Refresh();
+
+        Log(was is null ? "Closed the new file." : $"Closed {was}");
+    }
+
     // ────────────────────────── Window ─────────────────────────────────
 
-    private void Settings_Click(object sender, RoutedEventArgs e) => EditorSettings.Show(this, _config);
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        if (!EditorSettings.Show(this, _config)) return;
+
+        ApplyLogVisibility(_config.ShowLog);
+
+        // The palette may have changed with it, and both of these are the
+        // palette's.
+        ApplyTableSelection();
+        ApplyColumnRule();
+    }
 
     private void Window_Drop(object sender, DragEventArgs e)
     {
@@ -687,8 +973,6 @@ public partial class MainWindow : Window
         _config.LastFolder = folder;
         _config.Save();
     }
-
-    private void ClearLog_Click(object sender, RoutedEventArgs e) => LogBox.Clear();
 
     private void Log(string line)
     {
