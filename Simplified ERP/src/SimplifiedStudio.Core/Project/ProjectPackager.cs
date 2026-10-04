@@ -104,8 +104,7 @@ public static class ProjectPackager
             // that the game expects on every mod). The bytes are baked into
             // this assembly as an embedded resource so nothing ships loose;
             // we materialize it to the staging dir for the merge.
-            var serpsErpPath = Path.Combine(stagingRoot, "serps.erp");
-            ExtractEmbeddedSerpsErp(serpsErpPath);
+            var serpsErpPath = Simplified.Shared.SerpsOverlay.WriteTo(stagingRoot);
             sources.Insert(0, (serpsErpPath, ErpFileIO.Load(serpsErpPath)));
 
             MergeSourcesInto(stagedMain, sources);
@@ -341,19 +340,4 @@ public static class ProjectPackager
         return string.IsNullOrEmpty(s) ? "mod" : s;
     }
 
-    /// <summary>
-    /// Write the embedded <c>serps.erp</c> resource to disk. The resource is
-    /// declared in <c>SimplifiedStudio.Core.csproj</c> with <c>LogicalName="serps.erp"</c>
-    /// so the lookup name is stable regardless of the assembly's namespace.
-    /// </summary>
-    private static void ExtractEmbeddedSerpsErp(string destPath)
-    {
-        var asm = typeof(ProjectPackager).Assembly;
-        using var rs = asm.GetManifestResourceStream("serps.erp")
-            ?? throw new InvalidOperationException(
-                "Embedded resource 'serps.erp' not found in SimplifiedStudio.Core. " +
-                "Check the <EmbeddedResource> entry in the csproj.");
-        using var fs = File.Create(destPath);
-        rs.CopyTo(fs);
-    }
 }

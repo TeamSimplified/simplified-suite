@@ -17,6 +17,15 @@
     EgoEngineLibrary and all three use it, which is what lets one project file
     carry edits from both halves of this window.
   -->
+  <!-- The two resources the game wants in every mod that ships a shader
+       package. One file in Shared, embedded by each packager that needs it;
+       SerpsOverlay reads it back out. LogicalName is pinned so the lookup
+       does not depend on this assembly's namespace. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
+    <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
     <ProjectReference Include="..\..\..\Language Library\SimplifiedLanguage.csproj" />

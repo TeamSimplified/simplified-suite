@@ -177,6 +177,7 @@ public static class SponsorPackager
             var staging = Path.Combine(work, PackageRootName, ShaderFolderName);
             Directory.CreateDirectory(staging);
 
+
             foreach (var name in ShaderArchiveNames)
             {
                 cancel.ThrowIfCancellationRequested();
@@ -184,6 +185,12 @@ public static class SponsorPackager
                 say?.Report("Adding your decals to the mod…");
 
                 var target = ErpFileIO.Load(Path.Combine(shaderFolder, name));
+
+                // The pair the game expects in any mod that ships a shader
+                // package, the same two Studio and ERP put in theirs. First, so
+                // a decal would win on a collision — the order Studio uses, and
+                // nothing of these two can collide with artwork anyway.
+                Simplified.Shared.SerpsOverlay.AddTo(target);
                 MergeInto(target, carOverlay);
                 MergeInto(target, menuOverlay);
 

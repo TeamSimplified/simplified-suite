@@ -1,8 +1,10 @@
 ﻿using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using EgoEngineLibrary.Archive.Erp;
 using EgoEngineLibrary.Data.GameDatabases;
 using EgoEngineLibrary.Texconv;
+using EgoEngineLibrary.Util;
 using SimplifiedDriverSwapper.Core.Drivers;
 using SimplifiedGridEditor.Core.Project;
 using SimplifiedTeamEditor.Core;
@@ -463,6 +465,12 @@ public static class GridPackager
             // rest of the package down with it.
             var (imported, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
             warnings.AddRange(skipped);
+
+            // The pair the game expects in any mod that ships a shader package.
+            // They ride along in the overlay rather than as a second merge: the
+            // overlay carries ui_texarrays_* and these are a surface descriptor
+            // and a shadow material, so nothing of either can land on the other.
+            Simplified.Shared.SerpsOverlay.AddTo(overlay);
 
             if (imported == 0)
             {

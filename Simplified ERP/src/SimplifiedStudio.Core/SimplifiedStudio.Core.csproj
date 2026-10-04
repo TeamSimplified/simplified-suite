@@ -22,7 +22,8 @@
        Stored as a resource (not a Content file) so it never ships loose next
        to the EXE — only the assembly is published. -->
   <ItemGroup>
-    <EmbeddedResource Include="Embedded\serps.erp" LogicalName="serps.erp" />
+    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
+    <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
   </ItemGroup>
 
   <ItemGroup>

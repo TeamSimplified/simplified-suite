@@ -300,6 +300,11 @@ public static class TeamPackager
             var (_, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
             warnings.AddRange(skipped);
 
+            // The pair the game expects in any mod that ships a shader package.
+            // This app writes them the same way the Grid Editor does, and wants
+            // them for the same reason.
+            Simplified.Shared.SerpsOverlay.AddTo(overlay);
+
             var work = Path.Combine(Path.GetTempPath(), "simplified-team-editor", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(work);
             try
