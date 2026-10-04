@@ -36,7 +36,16 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) =>
         {
-            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(Anchor));
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                Anchor();
+
+                // Set rather than slid: a window that opens empty should already
+                // have the words in the middle, not drift there while you watch.
+                // Nothing has animated this property yet, so writing it still
+                // takes — after the first Slide it would not.
+                HeadingShift.Y = RestingShift;
+            }));
             _wasAt = Left;
         };
 
@@ -223,6 +232,18 @@ public partial class MainWindow : Window
         : ["CHOOSE", "YOUR MODS"];
 
     /// <summary>
+    /// Where the heading sits when nothing is happening, beside what it says.
+    ///
+    /// Asking for a mod over an empty window means the words are the whole
+    /// window, so they take the middle of it. The moment there is a list they
+    /// are a heading again and go back to the top to make room for it.
+    ///
+    /// The same two positions the launch sequence uses, and the same Slide, so
+    /// there is one idea of where the heading can be rather than two.
+    /// </summary>
+    private double RestingShift => Mods.Items.Count == 0 ? CentreOffset() : 0;
+
+    /// <summary>
     /// What is installed, read off disk.
     ///
     /// The mods folder is the list. Nothing is cached and there is no index to
@@ -230,14 +251,23 @@ public partial class MainWindow : Window
     /// from the list and the only thing that has to happen is this running
     /// again.
     /// </summary>
-    private void RefreshMods()
+    private void RefreshMods() => Show(ModLibrary.Read());
+
+    /// <summary>
+    /// Put a list on screen, keeping whatever was ticked.
+    ///
+    /// Separate from reading the library because the order matters when the
+    /// heading is moving: the rows have to be swapped while they are invisible,
+    /// which means the caller decides when, not this.
+    /// </summary>
+    private void Show(IReadOnlyList<InstalledMod> mods)
     {
         var chosen = Mods.SelectedItems
             .OfType<InstalledMod>()
             .Select(m => m.Folder)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Mods.ItemsSource = ModLibrary.Read();
+        Mods.ItemsSource = mods;
 
         // Put the ticks back on the same mods, by folder rather than by position:
         // an import can land anywhere in an alphabetical list and push everything
@@ -246,6 +276,56 @@ public partial class MainWindow : Window
             if (chosen.Contains(mod.Folder)) Mods.SelectedItems.Add(mod);
 
         Ready();
+    }
+
+    /// <summary>
+    /// Read the library again and move the window around it, one thing at a
+    /// time.
+    ///
+    /// The heading's two resting places overlap where the list starts, so the
+    /// two cannot travel together: rows sliding through a heading on its way
+    /// past reads as a collision rather than a sequence. So the room empties,
+    /// then the heading moves, then the room fills — and in the other
+    /// direction the heading goes up before anything arrives in the space it
+    /// leaves.
+    ///
+    /// Only when the heading is actually going somewhere, which is only ever
+    /// the empty boundary. A mod added to a list that already had some is just
+    /// a new row, and making that wait a second for a heading that is not
+    /// moving would be ceremony.
+    ///
+    /// The fade back in is scheduled rather than awaited, with the slide's own
+    /// length as its delay. It therefore starts exactly when the heading stops,
+    /// whatever else the caller is doing to the caption meanwhile.
+    /// </summary>
+    private async Task Resettle()
+    {
+        var had = Mods.Items.Count > 0;
+        var mods = ModLibrary.Read();
+        var has = mods.Count > 0;
+
+        if (had == has)
+        {
+            Show(mods);
+            return;
+        }
+
+        if (had)
+        {
+            Fade(Mods, 0, seconds: ClearSeconds);
+            if (!await Wait(ClearSeconds)) return;
+
+            Show(mods);
+            Slide(RestingShift);
+            return;
+        }
+
+        // Filling. The rows are put in place already invisible, so none of them
+        // shows for a frame before the heading has got out of the way.
+        Fade(Mods, 0, seconds: 0);
+        Show(mods);
+        Slide(RestingShift);
+        Fade(Mods, 1, seconds: ClearSeconds, delay: SlideSeconds);
     }
 
     /// <summary>
@@ -282,7 +362,7 @@ public partial class MainWindow : Window
         var gone = await Task.Run(() => ModLibrary.Remove(mod));
         if (!IsLoaded) return;
 
-        RefreshMods();
+        await Resettle();
 
         if (gone) await Say(false, Resting);
         else await Say(false, "THAT MOD", "WOULDN'T GO");
@@ -350,7 +430,7 @@ public partial class MainWindow : Window
             refused += result.Refused;
         }
 
-        RefreshMods();
+        await Resettle();
 
         // One line, and the first problem rather than all of them: there is one
         // heading to say it in, and a person who dropped five archives and got
@@ -388,13 +468,14 @@ public partial class MainWindow : Window
         _running = true;
         Ready();
 
-        // The list and the button clear the window first, and the heading
-        // changes after them. Everything at once reads as one lurch; letting
-        // the room empty before the words change reads as a sequence.
-        Fade(Mods, 0);
-        Fade(BottomBar, 0);
+        // The room empties in order: the list, then the buttons a breath
+        // behind it, and only once both are gone does the heading move. All of
+        // it at once reads as one lurch — staggered, it reads as a sequence,
+        // and the heading arrives somewhere that is already empty.
+        Fade(Mods, 0, seconds: ClearSeconds);
+        Fade(BottomBar, 0, seconds: ClearSeconds, delay: TrailSeconds);
         Mods.IsHitTestVisible = false;
-        Slide(CentreOffset(), delay: 0.25);
+        Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
 
         if (!await Say("INSTALLING", "YOUR MODS")) return;
         if (!await Wait(6)) return;
@@ -408,11 +489,10 @@ public partial class MainWindow : Window
         if (!await Say("RESTORING", "YOUR GAME")) return;
         if (!await Wait(5)) return;
 
-        Slide(0);
+        Slide(RestingShift);
+        Fade(Mods, 1, seconds: ClearSeconds, delay: SlideSeconds);
+        Fade(BottomBar, 1, seconds: ClearSeconds, delay: SlideSeconds + TrailSeconds);
         if (!await Say(false, Resting)) return;
-
-        Fade(Mods, 1, delay: 0.12);
-        Fade(BottomBar, 1, delay: 0.12);
         Mods.IsHitTestVisible = true;
 
         _running = false;
@@ -440,12 +520,26 @@ public partial class MainWindow : Window
         // while it is still invisible, so there is nothing to see jump.
         if (Options.Template.FindName("Scroll", Options) is ScrollViewer scroll) scroll.ScrollToTop();
 
-        Fade(Mods, 0);
-        Fade(SettingsSlot, 0);
-        Fade(PlaySlot, 0);
-        Fade(Options, 1, delay: 0.12);
-        Fade(TeamSlot, 1, delay: 0.12);
-        Fade(BackSlot, 1, delay: 0.12);
+        // Settings belongs under a heading at the top. Over an empty library
+        // the heading is in the middle of the window, sitting where the page is
+        // about to be, so it has to travel before anything can arrive — the
+        // room empties, the heading goes up, and the page appears under it.
+        //
+        // When the heading is already up there is nothing to wait for, and the
+        // page simply takes over from the list as it always did. Waiting out a
+        // slide that is not happening would be half a second of nothing.
+        var travelling = RestingShift != 0;
+        var ready = travelling ? ClearSeconds + TrailSeconds + SlideSeconds : TrailSeconds;
+
+        Fade(Mods, 0, seconds: ClearSeconds);
+        Fade(SettingsSlot, 0, seconds: ClearSeconds, delay: TrailSeconds);
+        Fade(PlaySlot, 0, seconds: ClearSeconds, delay: TrailSeconds);
+
+        if (travelling) Slide(0, delay: ClearSeconds + TrailSeconds);
+
+        Fade(Options, 1, seconds: ClearSeconds, delay: ready);
+        Fade(TeamSlot, 1, seconds: ClearSeconds, delay: ready);
+        Fade(BackSlot, 1, seconds: ClearSeconds, delay: ready);
         Mods.IsHitTestVisible = false;
         Options.IsHitTestVisible = true;
         PlaySlot.IsHitTestVisible = false;
@@ -481,12 +575,21 @@ public partial class MainWindow : Window
         _inSettings = false;
         Ready();
 
-        Fade(Options, 0);
-        Fade(TeamSlot, 0);
-        Fade(BackSlot, 0);
-        Fade(Mods, 1, delay: 0.12);
-        Fade(SettingsSlot, 1, delay: 0.12);
-        Fade(PlaySlot, 1, delay: 0.12);
+        // The same thing backwards: the page goes, then the heading drops to
+        // wherever the list says it belongs, and only then does the list come
+        // back under it.
+        var travelling = RestingShift != 0;
+        var ready = travelling ? ClearSeconds + SlideSeconds : TrailSeconds;
+
+        Fade(Options, 0, seconds: ClearSeconds);
+        Fade(TeamSlot, 0, seconds: ClearSeconds);
+        Fade(BackSlot, 0, seconds: ClearSeconds);
+
+        if (travelling) Slide(RestingShift, delay: ClearSeconds);
+
+        Fade(Mods, 1, seconds: ClearSeconds, delay: ready);
+        Fade(SettingsSlot, 1, seconds: ClearSeconds, delay: ready + TrailSeconds);
+        Fade(PlaySlot, 1, seconds: ClearSeconds, delay: ready + TrailSeconds);
         Mods.IsHitTestVisible = true;
         Options.IsHitTestVisible = false;
         PlaySlot.IsHitTestVisible = true;
@@ -605,8 +708,31 @@ public partial class MainWindow : Window
         return true;
     }
 
+    /// <summary>
+    /// How long the heading takes to travel, and how long the list takes to go
+    /// or come back.
+    ///
+    /// Named because three other things have to wait exactly this long. They
+    /// used to wait 0.25 and 0.12, numbers picked to look right against a slide
+    /// whose length was written down somewhere else — which held until the
+    /// slide changed.
+    /// </summary>
+    private const double SlideSeconds = 0.55;
+
+    private const double ClearSeconds = 0.3;
+
+    /// <summary>
+    /// How far behind the list the bottom row follows.
+    ///
+    /// Short enough to read as one movement rather than two, long enough that
+    /// the eye sees an order to it. Everything going at once is a light being
+    /// switched off; the list first and the buttons after is the room
+    /// emptying.
+    /// </summary>
+    private const double TrailSeconds = 0.12;
+
     private void Slide(double to, double delay = 0) =>
-        HeadingShift.BeginAnimation(TranslateTransform.YProperty, Glide(to, 0.55, delay));
+        HeadingShift.BeginAnimation(TranslateTransform.YProperty, Glide(to, SlideSeconds, delay));
 
     /// <summary>
     /// How far the heading has to drop for the block to sit on the window's
@@ -614,12 +740,19 @@ public partial class MainWindow : Window
     ///
     /// Measured rather than written down: the block is a wordmark, a label,
     /// two lines of type and the margins between them, and every one of those
-    /// has been changed today. Read at rest, which is the only state it is
-    /// ever asked from.
+    /// has been changed today.
+    ///
+    /// The shift already applied is taken back off, because TranslatePoint
+    /// reports where the heading is drawn and that includes the transform. Read
+    /// from a heading already sitting in the middle, the raw measurement says
+    /// it needs to move almost nowhere — which is true of where it is, and
+    /// useless as an answer to where it belongs. Taking the transform off makes
+    /// this the distance from its laid-out position, which is what Slide wants
+    /// and what makes it safe to ask at any moment rather than only at rest.
     /// </summary>
     private double CentreOffset()
     {
-        var top = Heading.TranslatePoint(new Point(0, 0), Surface).Y;
+        var top = Heading.TranslatePoint(new Point(0, 0), Surface).Y - HeadingShift.Y;
         return (Surface.ActualHeight - Heading.ActualHeight) / 2 - top;
     }
 
