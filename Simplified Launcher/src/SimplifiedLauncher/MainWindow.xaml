@@ -50,6 +50,24 @@
              shadow is drawn outside the popup and does not know about the
              corner radius, so it shows up as a grey square behind the
              rounded one. -->
+        <!-- A credit: who, then what they did. The same two weights the mod rows
+             use, so a name reads as a name here too and the role sits behind it.
+             Wrapping, because the roles are sentences and the window is narrow. -->
+        <Style x:Key="CreditLine" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#6B6B6B"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+
+        <Style x:Key="CreditName" TargetType="Run">
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#C8C8C8"/>
+        </Style>
+
         <Style x:Key="RowMenuItem" TargetType="MenuItem">
             <Setter Property="Foreground" Value="#C8C8C8"/>
             <Setter Property="FontFamily" Value="Outfit"/>
@@ -432,7 +450,13 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ItemsControl">
-                        <ScrollViewer Focusable="False"
+                        <!-- Named so the page can be put back to the top when it
+                             opens. A ScrollViewer keeps its offset for as long as
+                             it exists, and this one outlives every visit to the
+                             settings page: it is faded out rather than unloaded,
+                             so without this it reopens wherever it was left. -->
+                        <ScrollViewer x:Name="Scroll"
+                                      Focusable="False"
                                       Padding="0,8"
                                       VerticalScrollBarVisibility="Auto"
                                       Template="{StaticResource Scroller}">
@@ -1168,6 +1192,27 @@ CHOOSE<LineBreak/>YOUR MODS</TextBlock>
                                  GroupName="Gpu"
                                  Click="Gpu_Click"
                                  Margin="7,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Credits, the same three Simplified Studio carries in its own
+                 settings, worded the same. Two apps crediting the same people
+                 differently is worse than either wording. -->
+            <StackPanel Margin="10,0,10,20">
+                <TextBlock Text="CREDITS"
+                           Style="{StaticResource Label}"
+                           FontWeight="Regular"/>
+
+                <StackPanel Margin="0,9,0,0">
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Petar Tasev" Style="{StaticResource CreditName}"/><Run Text=" — Underlying ERP structure and format code"/>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Team Simplified" Style="{StaticResource CreditName}"/><Run Text=" — App functionality and Design"/>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Claude Code" Style="{StaticResource CreditName}"/><Run Text=" — Coding"/>
+                    </TextBlock>
                 </StackPanel>
             </StackPanel>
 

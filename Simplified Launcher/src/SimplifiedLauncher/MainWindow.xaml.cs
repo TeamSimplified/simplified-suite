@@ -52,7 +52,6 @@ public partial class MainWindow : Window
         // nothing guarantees the order.
         GameDir.LostFocus += (_, _) => SaveSettings();
         Closing += (_, _) => SaveSettings();
-
     }
 
     /// <summary>
@@ -414,6 +413,12 @@ public partial class MainWindow : Window
         if (_running || _inSettings) return;
         _inSettings = true;
         Ready();
+
+        // Open at the top, every time. The page is faded out rather than
+        // unloaded, so its ScrollViewer survives and would otherwise hand back
+        // whatever offset the last visit ended on. Done before the fade begins,
+        // while it is still invisible, so there is nothing to see jump.
+        if (Options.Template.FindName("Scroll", Options) is ScrollViewer scroll) scroll.ScrollToTop();
 
         Fade(Mods, 0);
         Fade(SettingsSlot, 0);
