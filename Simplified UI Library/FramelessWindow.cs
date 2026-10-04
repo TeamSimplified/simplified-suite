@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace SimplifiedUi;
 
@@ -16,7 +17,9 @@ namespace SimplifiedUi;
 /// obvious enough to leave each app to rediscover:
 ///
 ///   * a maximised chrome window covers the taskbar unless WM_GETMINMAXINFO is
-///     answered with the monitor's work area
+///     answered with the monitor's work area — and answering it is not enough
+///     on its own, because WindowChrome answers the same message afterwards and
+///     wins, so the content is inset to match instead
 ///   * the maximise glyph has to follow the window state rather than the click,
 ///     because double-clicking the bar maximises too
 ///   * WindowStyle None also drops WS_CAPTION, and the shell reads that bit to
@@ -43,7 +46,19 @@ public static class FramelessWindow
             DialogChrome.RoundCorners(window);
             Simplified.Shared.MinimiseAnimation.Enable(window);
             if (PresentationSource.FromVisual(window) is HwndSource source) source.AddHook(WindowProc);
+
+            Fit(window);
         };
+
+        // After the state has actually changed rather than during it: the window
+        // has not been moved or resized yet when this fires, so what is measured
+        // a moment later is the real thing.
+        window.StateChanged += (_, _) =>
+            window.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => Fit(window));
+
+        // A window dragged to a screen at another scale is maximised against a
+        // different work area, in different pixels.
+        window.DpiChanged += (_, _) => Fit(window);
 
         if (maximizeButton is null) return;
 
@@ -60,6 +75,103 @@ public static class FramelessWindow
         window.StateChanged += (_, _) => Follow();
         Follow();
     }
+
+    /// <summary>
+    /// Keep a maximised window's content inside the screen.
+    ///
+    /// Windows maximises a window with a resize frame to the work area plus the
+    /// frame on every side, and puts it at minus the frame: here, 2576x1408 at
+    /// -8,-8 against a work area of 2560x1392. An ordinary window spends those
+    /// eight pixels on its border. One that draws its own title bar has no
+    /// border to spend them on, so eight pixels of the app are off every edge ~
+    /// the top of the title bar, the left of the wordmark, the right of the
+    /// close button.
+    ///
+    /// WM_GETMINMAXINFO is answered with the work area above and it is not
+    /// enough: WindowChrome answers it too, after this does, and the last answer
+    /// is the one Windows takes. Measured — the hook runs, and the window is
+    /// maximised past the work area anyway.
+    ///
+    /// So the content is inset instead. The window still hangs over the edges,
+    /// where there is nothing to see and the taskbar is in front of it, and
+    /// everything drawn lands inside the work area. The inset is measured from
+    /// the window and the monitor rather than assumed, so a taskbar on another
+    /// edge, a second screen, or a different scale all come out right.
+    ///
+    /// On the content's margin rather than the window's padding, because the
+    /// stock Window template does not use Padding: measured, setting it moves
+    /// nothing.
+    /// </summary>
+    private static void Fit(Window window)
+    {
+        if (window.Content is not FrameworkElement root) return;
+
+        if (window.WindowState != WindowState.Maximized)
+        {
+            root.Margin = Resting(window, root);
+            return;
+        }
+
+        if (Overhang(window) is not { } inset) return;
+
+        // Remembered before the first change, so restoring puts back whatever
+        // the app asked for rather than nothing.
+        Resting(window, root);
+        root.Margin = inset;
+    }
+
+    /// <summary>
+    /// How far the window reaches past the work area, in the units a margin is
+    /// written in. Null when it cannot be worked out.
+    /// </summary>
+    private static Thickness? Overhang(Window window)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero) return null;
+
+            if (!GetWindowRect(hwnd, out var rect)) return null;
+
+            var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+            if (monitor == IntPtr.Zero) return null;
+
+            var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+            if (!GetMonitorInfo(monitor, ref info)) return null;
+
+            // Device pixels out of Windows, device-independent ones into WPF.
+            var scale = PresentationSource.FromVisual(window)?.CompositionTarget?.TransformToDevice
+                        ?? Matrix.Identity;
+
+            static double Over(int by, double scale) => by <= 0 || scale <= 0 ? 0 : by / scale;
+
+            return new Thickness(
+                Over(info.Work.Left - rect.Left, scale.M11),
+                Over(info.Work.Top - rect.Top, scale.M22),
+                Over(rect.Right - info.Work.Right, scale.M11),
+                Over(rect.Bottom - info.Work.Bottom, scale.M22));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The margin the content had before any of this, remembered the first time
+    /// it is asked for.
+    /// </summary>
+    private static Thickness Resting(Window window, FrameworkElement root)
+    {
+        if (window.GetValue(RestingMarginProperty) is Thickness kept) return kept;
+
+        window.SetValue(RestingMarginProperty, root.Margin);
+        return root.Margin;
+    }
+
+    private static readonly DependencyProperty RestingMarginProperty =
+        DependencyProperty.RegisterAttached(
+            "RestingMargin", typeof(Thickness?), typeof(FramelessWindow), new PropertyMetadata(null));
 
     /// <summary>Maximise, or come back down if it already is.</summary>
     public static void ToggleMaximize(Window window) =>
@@ -150,6 +262,9 @@ public static class FramelessWindow
         public Rect32 Work;
         public int Flags;
     }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hwnd, out Rect32 rect);
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
