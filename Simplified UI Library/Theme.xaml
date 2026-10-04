@@ -1411,6 +1411,12 @@
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <!-- Off unless a table turns it on, so every table that has one of
+             these today looks the way it did yesterday. SeparatorBrush and
+             SeparatorVisibility are the header's own properties — WPF's stock
+             template uses them for the same thing, and this one ignored them
+             until a table wanted a line down its columns. -->
+        <Setter Property="SeparatorVisibility" Value="Collapsed"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridColumnHeader">
@@ -1422,6 +1428,13 @@
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Border>
+                        <!-- The edge between this column and the next. Before the
+                             gripper in the tree, so the invisible drag handle
+                             still sits on top of it. -->
+                        <Border Width="1" HorizontalAlignment="Right"
+                                Background="{TemplateBinding SeparatorBrush}"
+                                Visibility="{TemplateBinding SeparatorVisibility}"/>
+
                         <!-- The drag handle DataGrid needs by name to resize a
                              column. Transparent and 8 wide: invisible, but wide
                              enough to grab. -->
@@ -1454,6 +1467,17 @@
                                                 SnapsToDevicePixels="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Every other line, faintly, which is what keeps the
+                             eye on one row across a wide table. Only when the
+                             table asks for it: AlternationIndex is 0 for every
+                             row until a DataGrid sets AlternationCount, so a
+                             table that says nothing is striped by nothing.
+
+                             First of the three, so hover and selection are both
+                             still visible on the shaded rows. -->
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hover}"/>
                         </Trigger>
@@ -1477,17 +1501,47 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
-                    <Border Background="{TemplateBinding Background}"
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter VerticalAlignment="Center"/>
                     </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- A table whose SelectionUnit is the cell selects one
+                             cell at a time and leaves the row unselected, so
+                             without this nothing on screen says what is chosen.
+                             The same grey the row uses, for the same reason. -->
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Selected}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
         <!-- The focus rectangle is the stock one and draws in a system colour;
              the row already says which line is current. -->
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
+    <!-- What a cell turns into while it is being edited.
+         DataGridTextColumn builds that box from its own DefaultEditingElementStyle,
+         which has no BasedOn — so it replaces the themed TextBox outright and the
+         cell opens white with black text in a dark window. The same gotcha the
+         conventions warn about, from inside WPF itself.
+
+         A column is not in the visual tree and an implicit style cannot reach it,
+         so this one has a key and the column has to be handed it:
+
+             <DataGridTextColumn EditingElementStyle="{StaticResource DataGridEditor}" ... />
+
+         No chrome of its own and no padding: the cell's border and padding are
+         already around it, so the text sits exactly where it was a moment ago
+         rather than jumping as the editor opens. -->
+    <Style x:Key="DataGridEditor" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Background" Value="{DynamicResource SurfaceSunken}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
 </ResourceDictionary>

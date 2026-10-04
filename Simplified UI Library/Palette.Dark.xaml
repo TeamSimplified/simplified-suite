@@ -46,6 +46,12 @@
 
     <SolidColorBrush x:Key="Selected"      Color="#414141"/>
 
+    <!-- Selection where selection is the point, which is a table: a cell is
+         picked in order to edit it or delete its row, and on a page of grey
+         rows the grey mark above is the hardest thing to find. Blue enough to
+         spot at a glance, dark enough to leave TextPrimary readable on it. -->
+    <SolidColorBrush x:Key="SelectedAccent" Color="#2F4A66"/>
+
     <!-- Brightened so it still reads as a warning against dark, where the light
          theme's #C42B1C goes muddy. -->
     <SolidColorBrush x:Key="Danger"        Color="#E04434"/>

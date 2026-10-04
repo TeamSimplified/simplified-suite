@@ -47,6 +47,12 @@
     <SolidColorBrush x:Key="Badge"        Color="#E2E8F0"/>
 
     <SolidColorBrush x:Key="Selected"      Color="#E2E8F0"/>
+
+    <!-- The same thing for the light palette, and not AccentSoft: that one is
+         a tint for a panel behind something, barely a step off white, and a
+         selected row wearing it reads as unselected. This is the blue a list
+         has always used to say "this one". -->
+    <SolidColorBrush x:Key="SelectedAccent" Color="#BBDCF5"/>
     <SolidColorBrush x:Key="Danger"        Color="#DC2626"/>
 
     <!-- The wordmark's ink. Named separately from body text so the logo can be
