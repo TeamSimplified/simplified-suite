@@ -1,0 +1,1382 @@
+<Window x:Class="SimplifiedLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Simplified Launcher"
+        Width="420" Height="760"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        SnapsToDevicePixels="True"
+
+        AllowDrop="True"
+        PreviewDragOver="Window_PreviewDragOver"
+        PreviewDrop="Window_PreviewDrop"
+
+        ><!-- The three that make a window its own shape: no frame from Windows,
+             a transparent window so the corners outside the radius show
+             nothing, and no resize so there is no border to grab. The rounding
+             is then drawn rather than asked for, which is the only way to pick
+             the radius. -->
+    <Window.Style>
+        <Style TargetType="Window">
+            <Setter Property="WindowStyle" Value="None"/>
+            <Setter Property="AllowsTransparency" Value="True"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="ResizeMode" Value="NoResize"/>
+        </Style>
+    </Window.Style>
+
+    <Window.Resources>
+
+        <!-- The list. A ListBox for the selection behaviour and the keyboard,
+             with everything it draws by default replaced: no border, no
+             highlight, no alternating anything. What marks a row as chosen is
+             the block to the left of it going from dark grey to white, which
+             is the whole of the visual language here. -->
+        <Style x:Key="Marker" TargetType="Border">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#3A3A3A"/>
+        </Style>
+
+        <!-- The right-click menu on a row. Windows' own is grey, square and
+             from another decade, so all of it is replaced: the popup
+             border, the item, the check column and the arrow column that
+             take up space whether or not anything uses them.
+
+             HasDropShadow off and a plain border instead ~ the system
+             shadow is drawn outside the popup and does not know about the
+             corner radius, so it shows up as a grey square behind the
+             rounded one. -->
+        <Style x:Key="RowMenuItem" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#C8C8C8"/>
+            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="ItemPad"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                Padding="12,7">
+                            <ContentPresenter ContentSource="Header"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemPad" Property="Background" Value="#14FFFFFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#5A5A5A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RowMenu" TargetType="ContextMenu">
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="#1C1C1C"
+                                BorderBrush="#2E2E2E"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="4"
+                                SnapsToDevicePixels="True">
+                            <StackPanel IsItemsHost="True"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource RowMenuItem}"/>
+        </Style>
+
+        <Style x:Key="Row" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand"/>
+
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <!-- MouseRightButtonDown is swallowed here so a right
+                             click does not also tick the row. ListBoxItem
+                             selects on the right button as well as the left,
+                             which with a multi-select list means opening a menu
+                             would quietly change what Play is about to run.
+
+                             The bubbling event, not the preview one: it travels
+                             outwards from here to the ListBoxItem, so marking it
+                             handled at this border is what stops the item ever
+                             seeing it. Preview would arrive at the item first and
+                             be too late. Only the down event is taken — the menu
+                             itself opens on the way back up. -->
+                        <Border x:Name="RowPad" Background="Transparent" CornerRadius="8" Padding="10,9"
+                                MouseRightButtonDown="Row_MouseRightButtonDown">
+
+                            <!-- On the row rather than on the list: a menu
+                                 belonging to the list would have to work out
+                                 which mod was meant, and this border's
+                                 DataContext already is that mod.
+
+                                 Inside the template rather than in a Setter on
+                                 the style above. A Setter's value is one shared
+                                 object and the markup compiler will not wire an
+                                 event handler into it; a template is compiled per
+                                 instance and will. -->
+                            <Border.ContextMenu>
+                                <ContextMenu Style="{StaticResource RowMenu}">
+                                    <MenuItem Header="Delete" Click="DeleteMod_Click"/>
+                                </ContextMenu>
+                            </Border.ContextMenu>
+
+                            <StackPanel Orientation="Horizontal">
+                                <Border x:Name="Marker" Style="{StaticResource Marker}"/>
+                                <TextBlock x:Name="Label"
+                                           Text="{Binding Name}"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Outfit"
+                                           FontWeight="Medium"
+                                           FontSize="15"
+                                           Foreground="#C8C8C8"/>
+
+                                <!-- Who made it and which one it is, a size
+                                     down and several shades back, so the row
+                                     still reads as its name first. These two
+                                     do not brighten with selection: the point
+                                     of a quiet colour is lost if it only stays
+                                     quiet while unchosen. -->
+                                <TextBlock Text="{Binding Author}"
+                                           Margin="10,1,0,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Outfit"
+                                           FontWeight="Regular"
+                                           FontSize="12"
+                                           Foreground="#6B6B6B"/>
+
+                                <!-- No v put in front of it. The version is
+                                     whatever the mod's own manifest says, and
+                                     an author who wrote "1.6" meant 1.6 while
+                                     one who wrote "v1.6" would otherwise get
+                                     vv1.6. The suite packages under the same
+                                     rule: the version goes on verbatim. -->
+                                <TextBlock Text="{Binding Version}"
+                                           Margin="8,1,0,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Outfit"
+                                           FontWeight="Regular"
+                                           FontSize="12"
+                                           Foreground="#6B6B6B"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RowPad" Property="Background" Value="#0DFFFFFF"/>
+                                <Setter TargetName="Marker" Property="Background" Value="#5A5A5A"/>
+                            </Trigger>
+                            <!-- Selection last, so it wins over the hover tint
+                                 on the row the pointer is already on. -->
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Marker" Property="Background" Value="#FFFFFF"/>
+                                <Setter TargetName="Label" Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A three pixel track, because the stock scrollbar is seventeen
+             pixels of grey furniture and would be the loudest thing in the
+             window. It only appears while there is something to scroll.
+
+             Handed to the bar by name from a ScrollViewer template of our
+             own, below. Two goes at this with an implicit style — once inside
+             the ScrollViewer, once at the window — both missed, because the
+             bar is built inside the ScrollViewer's template and an implicit
+             style from outside does not reach in there. Nothing errors when
+             it misses; the stock bar simply stays.
+
+             The thumb's radius is half its width, which is as round as a bar
+             this thin can be, and it is brighter than a wider one would need
+             to be because there is so little of it. -->
+        <Style x:Key="Slim" TargetType="ScrollBar">
+            <!-- MinWidth as well as Width, and it is the one that matters.
+                 The theme sets MinWidth to the system scrollbar width, and a
+                 minimum is a layout constraint rather than a competing value
+                 — it wins over Width whatever the style precedence says. Set
+                 Width alone and the bar measures 2 and lays out at 17. -->
+            <Setter Property="Width" Value="3"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4DFFFFFF" CornerRadius="1.5"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The scroll chrome, named once and used by both lists. It was
+             written inline in the mod list; a second list meant either a
+             second copy of it or this. -->
+        <ControlTemplate x:Key="Scroller" TargetType="ScrollViewer">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                        Grid.Column="0"
+                                                        Margin="{TemplateBinding Padding}"
+                                                        CanContentScroll="{TemplateBinding CanContentScroll}"/>
+
+                                <ScrollBar x:Name="PART_VerticalScrollBar"
+                                           Grid.Column="1"
+                                           Orientation="Vertical"
+                                           Style="{StaticResource Slim}"
+                                           Minimum="0"
+                                           Maximum="{TemplateBinding ScrollableHeight}"
+                                           ViewportSize="{TemplateBinding ViewportHeight}"
+                                           Value="{Binding VerticalOffset, Mode=OneWay,
+                                                   RelativeSource={RelativeSource TemplatedParent}}"
+                                           Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                            </Grid>
+                                </ControlTemplate>
+
+        <!-- Settings rows are not a list you pick from. They will be
+             toggles, buttons, and a box with a browse beside it — things you
+             operate, not things you choose between. An ItemsControl has no
+             selection to get in the way of that, where a ListBox would
+             highlight whatever you last touched, move that highlight with
+             the arrow keys, and take the click before the control inside
+             the row saw it.
+
+             Same scroll chrome and the same padding as the mod list, so the
+             two pages sit identically. -->
+        <!-- The small label: STATUS over the heading, and the name over each
+             group of settings. One style so the size and the colour cannot
+             drift apart; the weight is set where it is used, because STATUS
+             is Light and the settings labels are Regular.
+
+             Display formatting, against the headline's Ideal: at twelve
+             pixels snapping the stems to whole pixels is what keeps a light
+             grey from turning to mush. -->
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#6B6B6B"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <!-- A choice of two, side by side. RadioButton rather than a plain
+             toggle: Steam or the EA App, AMD or not — these are one answer
+             each, and two independent switches could be left saying both or
+             neither. GroupName is what keeps each pair to one.
+
+             White means chosen, the same as the markers in the mod list, so
+             the text goes to the window colour to stay readable on it.
+
+             Checked is declared after hover so it wins on a chip the pointer
+             is already over, and the pair of them after that so a chosen
+             chip still answers the pointer. -->
+        <!-- folder_open, Material Icons e2c8, filled. The path is verbatim
+             from google/material-design-icons at
+             src/file/folder_open/materialicons/24px.svg, and e2c8 is that
+             name in MaterialIcons-Regular.codepoints. Written out as
+             geometry like the other two icons: nothing to install, and
+             nothing to fall back from.
+
+             Material ships a transparent M0 0h24v24H0z square ahead of it
+             to hold the box at 24; a Viewbox does that job here, so it is
+             left out rather than drawn and hidden.
+
+             The hollow body is the icon, not a mistake. In this, the older
+             set, filled folder_open is a folder seen open from the side,
+             and the inner rectangle is wound the other way so nonzero
+             punches it through. The newer Material Symbols draw the same
+             name solid, with the front panel skewed. -->
+        <Geometry x:Key="Folder">F1 M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z</Geometry>
+
+        <!-- A field, at the same tenth of white the window buttons use for
+             their hover pad. TextBox has no corner radius of its own, so the
+             template puts one in and the content host sits inside it. -->
+        <Style x:Key="Field" TargetType="TextBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="CaretBrush" Value="#FFFFFF"/>
+            <Setter Property="SelectionBrush" Value="#59FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="Center"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The button beside it. The same fill and the same height as the
+             field, so the two read as one control rather than a box with
+             something next to it. -->
+        <Style x:Key="FieldButton" TargetType="Button">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Foreground" Value="#D0D0D0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Pad"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pad" Property="Background" Value="#2EFFFFFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Pad" Property="Background" Value="#3DFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Chip" TargetType="RadioButton">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="15,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Outfit"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#A0A0A0"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Pad"
+                                Background="#14FFFFFF"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pad" Property="Background" Value="#26FFFFFF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Pad" Property="Background" Value="#FFFFFF"/>
+                                <Setter Property="Foreground" Value="#0E0E0E"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Pad" Property="Background" Value="#E6E6E6"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Rows" TargetType="ItemsControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#C8C8C8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer Focusable="False"
+                                      Padding="0,8"
+                                      VerticalScrollBarVisibility="Auto"
+                                      Template="{StaticResource Scroller}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="List" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#C8C8C8"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource Row}"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <!-- The ScrollViewer's own template, so the bar can
+                             be handed its style by name. Left to its default
+                             template the bar is built inside it, where an
+                             implicit style declared out here never reaches it
+                             and Windows' seventeen pixel one stays. -->
+                        <ScrollViewer Focusable="False"
+                                      Padding="0,8"
+                                      VerticalScrollBarVisibility="Auto"
+                                      Template="{StaticResource Scroller}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The Team Simplified mark, from the same Asset 13.svg the
+             launcher lockup came out of — the file was replaced between
+             the two, so these are two different drawings that happen to
+             have shared a name. Fourteen shapes merged into one
+             geometry, nonzero like the other. -->
+        <Geometry x:Key="TeamMark">F1 M41.6,15.49h-6.95V0h-13.99v55.6c0,3.94.66,7.15,1.97,9.63,1.31,2.48,3.19,4.27,5.63,5.4,2.44,1.13,5.48,1.69,9.11,1.69,3.82,0,7.95-.5,12.4-1.5v-11.74c-.94.37-1.86.69-2.77.94-.91.24-1.8.46-2.68.66-1.76.31-3.19.46-4.32.46-1.19,0-2.18-.22-2.96-.66-.78-.44-1.38-1.14-1.78-2.11-.41-.97-.61-2.24-.61-3.81l-.09-26.77v-.84h15.21v-11.46h-8.17Z M99.82,70.15v-14.55c-2.69,1.25-5.38,2.19-8.08,2.82-2.69.62-5.32.93-7.89.93s-4.88-.37-6.95-1.12c-2.07-.75-3.84-1.9-5.31-3.43-1.47-1.53-2.52-3.46-3.14-5.77h36.35v-8.55c0-4.94-.94-9.39-2.82-13.33-1.88-3.94-4.63-7.06-8.27-9.34-3.63-2.29-8.04-3.43-13.24-3.43s-9.64,1.23-13.71,3.67c-4.07,2.44-7.26,5.85-9.58,10.23-2.32,4.38-3.48,9.39-3.48,15.03,0,5.95,1.24,11.13,3.71,15.54,2.47,4.42,5.9,7.79,10.28,10.14,4.38,2.35,9.39,3.52,15.03,3.52s11.46-.79,17.09-2.35ZM69.49,32.73c.81-1.91,2.05-3.43,3.71-4.56,1.66-1.12,3.77-1.69,6.34-1.69,4.13,0,6.98,1.16,8.55,3.47,1.56,2.32,2.44,5.49,2.63,9.49h-22.82c.25-2.56.78-4.8,1.6-6.71Z M126.03,72.51c3.63,0,6.93-.79,9.91-2.35,2.97-1.56,5.52-4.32,7.65-8.26h.75v9.49h13.62v-35.6c0-4.95-.96-9-2.86-12.17-1.91-3.16-4.62-5.49-8.12-7s-7.7-2.26-12.58-2.26c-6.39,0-13.05,1.01-20.01,3.01v14.18c3.32-1.25,6.79-2.28,10.42-3.1,3.25-.62,6.01-.94,8.27-.94,3.44,0,6.12.63,8.03,1.88s2.86,3.35,2.86,6.29v4.13h-13.9c-6.39,0-11.38,1.4-14.98,4.18-3.6,2.79-5.4,6.91-5.4,12.35,0,5.01,1.53,8.96,4.6,11.83,3.07,2.88,6.98,4.33,11.74,4.33ZM124.71,51.61c.69-.91,1.66-1.5,2.91-1.79,1.25-.28,2.91-.42,4.98-.42h11.36c-.25,3.25-1.07,5.84-2.44,7.75-1.38,1.91-2.94,3.24-4.7,3.98-1.75.75-3.44,1.13-5.07,1.13-2.57,0-4.56-.58-5.97-1.74-1.41-1.16-2.11-2.8-2.11-4.93,0-1.75.34-3.08,1.03-3.99Z M256.01,34.66c0-6.39-1.71-11.36-5.12-14.93-3.41-3.57-7.87-5.36-13.38-5.36-2.57,0-4.98.49-7.23,1.46-2.25.97-4.23,2.43-5.92,4.37-.82,1-1.57,2.11-2.25,3.34-.69,1.22-1.25,2.55-1.69,3.98h-1.13c-.44-1.44-.91-2.69-1.41-3.75-.5-.94-1.08-1.83-1.74-2.68-.66-.84-1.36-1.58-2.11-2.21-3.26-3-7.51-4.51-12.77-4.51-1.69,0-3.31.21-4.84.62-1.54.41-3.01,1.01-4.42,1.83-1.41.82-2.68,1.88-3.8,3.2-.88,1-1.66,2.13-2.35,3.38-.69,1.26-1.25,2.63-1.69,4.13h-.94v-12.02h-13.71v55.89h13.99v-29.49c0-3.76.62-6.7,1.88-8.83,1.25-2.13,2.8-3.58,4.65-4.37,1.85-.78,3.8-1.18,5.87-1.18,3.57,0,6.11.99,7.61,2.96,1.5,1.97,2.25,4.8,2.25,8.5v32.41h14v-29.49c0-5.45,1.22-9.2,3.66-11.27,2.44-2.06,5.35-3.1,8.73-3.1,3.57,0,6.1.99,7.61,2.96,1.5,1.97,2.25,4.8,2.25,8.5v32.41h.01v63.85h13.99V60.09h-.01v-25.44Z M35.03,105.6c-2.32-1.1-5.29-2.21-8.92-3.34-4.2-1.38-7.36-2.61-9.49-3.71-2.13-1.1-3.19-2.43-3.19-3.99s.84-2.63,2.54-3.38c1.69-.75,3.91-1.13,6.67-1.13.94,0,2,.06,3.19.19,1.19.13,2.38.31,3.57.56,2.07.44,4.05.95,5.96,1.55,1.91.6,3.55,1.24,4.93,1.93v-13.9c-5.45-1.44-10.61-2.16-15.5-2.16-7.39,0-13.37,1.52-17.94,4.56-4.57,3.04-6.86,7.53-6.86,13.48,0,3.7.8,6.7,2.4,9.02,1.6,2.32,3.57,4.09,5.92,5.31,2.35,1.22,5.21,2.36,8.59,3.42,4.19,1.25,7.32,2.38,9.39,3.38,2.07,1,3.1,2.13,3.1,3.38s-.91,2.25-2.72,2.82c-1.82.56-4.17.84-7.04.84-1.25,0-2.57-.08-3.94-.23-1.38-.16-2.76-.36-4.13-.61-2.07-.38-4.1-.84-6.11-1.41-2-.56-3.79-1.19-5.35-1.88v13.71c6.95,1.57,13.24,2.35,18.88,2.35,7.45,0,13.38-1.53,17.8-4.6,4.41-3.07,6.62-7.64,6.62-13.71,0-3.19-.81-5.79-2.44-7.8-1.63-2-3.6-3.55-5.92-4.65Z M52.31,87.38v47.85h13.99v-55.88h-13.99v8.03Z M146.51,78.22c-2.57,0-4.98.49-7.23,1.46-2.25.97-4.23,2.43-5.92,4.37-.82,1-1.57,2.11-2.25,3.34-.69,1.22-1.25,2.55-1.69,3.99h-1.13c-.44-1.44-.91-2.69-1.41-3.75-.5-.94-1.08-1.83-1.74-2.68-.66-.84-1.36-1.58-2.11-2.21-3.26-3-7.51-4.51-12.77-4.51-1.69,0-3.31.21-4.84.61-1.54.41-3.01,1.02-4.42,1.83-1.41.82-2.68,1.88-3.8,3.19-.88,1-1.66,2.13-2.35,3.38-.69,1.25-1.25,2.63-1.69,4.13h-.94v-12.02h-13.71v55.88h13.99v-29.49c0-3.76.62-6.7,1.88-8.83,1.25-2.13,2.8-3.58,4.65-4.37,1.85-.78,3.8-1.18,5.87-1.18,3.57,0,6.11.99,7.61,2.96,1.5,1.97,2.25,4.8,2.25,8.5v32.4h14v-29.49c0-5.45,1.22-9.21,3.66-11.27,2.44-2.07,5.35-3.1,8.73-3.1,3.57,0,6.1.99,7.61,2.96,1.5,1.97,2.25,4.8,2.25,8.5v32.4h13.99v-36.72c0-6.38-1.71-11.36-5.12-14.93-3.41-3.57-7.87-5.35-13.38-5.35Z M222.31,81.09c-3.38-1.91-7.14-2.86-11.27-2.86-4.38,0-8.38,1.14-11.98,3.43-3.6,2.28-6.21,5.53-7.84,9.72h-.66v-12.02h-13.99v71.85h13.99v-27.99h.66c1.19,3.88,3.38,7.04,6.57,9.49,3.19,2.44,7.17,3.66,11.93,3.66,4.38,0,8.37-1.07,11.98-3.19,3.6-2.13,6.48-5.43,8.64-9.91,2.16-4.48,3.24-10.03,3.24-16.67s-1.03-12.07-3.1-16.3c-2.07-4.22-4.79-7.29-8.17-9.2ZM215.73,118.61c-2.57,3.07-6.14,4.6-10.71,4.6-4.32,0-7.81-1.47-10.47-4.41-2.66-2.94-3.99-6.79-3.99-11.55,0-3.13.62-5.9,1.88-8.31,1.25-2.41,3-4.27,5.26-5.59,2.25-1.32,4.79-1.98,7.61-1.98,4.57,0,8.09,1.36,10.57,4.09,2.47,2.72,3.71,6.47,3.71,11.22s-1.28,8.86-3.85,11.93Z M268.23,87.38v47.85h13.99v-55.88h-13.99v8.03Z M275.09,53.99c-2.44,0-4.52.86-6.25,2.58-1.72,1.72-2.58,3.77-2.58,6.15s.86,4.52,2.58,6.25c1.72,1.72,3.8,2.58,6.25,2.58s4.43-.86,6.15-2.58c1.72-1.72,2.58-3.8,2.58-6.25s-.86-4.43-2.58-6.15c-1.72-1.72-3.77-2.58-6.15-2.58Z M337.07,53.48c-2.44,0-4.52.86-6.25,2.58-1.72,1.72-2.58,3.77-2.58,6.15s.86,4.52,2.58,6.25c1.72,1.72,3.8,2.58,6.25,2.58s4.43-.86,6.15-2.58c1.72-1.72,2.58-3.8,2.58-6.25s-.86-4.43-2.58-6.15c-1.72-1.72-3.77-2.58-6.15-2.58Z M319.23,79.35h-10.33v-2.72c0-2.38.59-4.04,1.79-4.98,1.19-.94,2.91-1.41,5.17-1.41.62,0,1.27.03,1.93.09.66.06,1.33.13,2.02.19,1.44.25,2.85.5,4.23.75v-12.3c-3.26-.69-6.57-1.03-9.96-1.03-4.01,0-7.44.62-10.28,1.88-2.85,1.25-5.04,3.25-6.58,6.01-1.53,2.76-2.3,6.29-2.3,10.61v58.8h13.99v-44.42h21.32v44.42h13.99v-55.88h-24.98Z M392.67,81.65c-3.63-2.28-8.04-3.43-13.24-3.43s-9.64,1.22-13.71,3.66c-4.07,2.44-7.26,5.86-9.58,10.24-2.32,4.38-3.48,9.39-3.48,15.03,0,5.95,1.24,11.13,3.71,15.54,2.47,4.42,5.9,7.8,10.28,10.14,4.38,2.35,9.39,3.52,15.03,3.52s11.46-.78,17.09-2.35v-14.56c-2.69,1.25-5.38,2.19-8.08,2.82-2.69.62-5.32.94-7.89.94s-4.88-.37-6.95-1.12c-2.07-.75-3.84-1.9-5.31-3.43-1.47-1.53-2.52-3.46-3.14-5.77h36.35v-8.55c0-4.94-.94-9.39-2.82-13.33-1.88-3.94-4.63-7.06-8.27-9.35ZM378.4,103.3h-11.55c.25-2.57.78-4.8,1.6-6.72.81-1.91,2.05-3.43,3.71-4.56,1.66-1.12,3.77-1.69,6.34-1.69,4.13,0,6.98,1.16,8.55,3.47,1.56,2.32,2.44,5.48,2.63,9.49h-11.27Z M451.19,60.09v31.27h-.66c-1.44-4.07-3.98-7.28-7.61-9.63-3.63-2.35-7.61-3.52-11.93-3.52-4.07,0-7.84,1.03-11.32,3.1-3.48,2.07-6.26,5.29-8.36,9.67-2.1,4.38-3.15,9.89-3.15,16.53s1.03,12.12,3.1,16.44c2.07,4.32,4.79,7.47,8.17,9.44,3.38,1.97,7.14,2.96,11.27,2.96,2.88,0,5.62-.5,8.22-1.51,2.6-1,4.9-2.49,6.9-4.46,2-1.97,3.57-4.37,4.7-7.19h.66v12.02h13.99V60.09h-13.99ZM449.31,115.65c-1.25,2.41-3,4.27-5.26,5.59-2.25,1.31-4.79,1.97-7.61,1.97-4.57,0-8.09-1.36-10.56-4.08-2.48-2.72-3.71-6.46-3.71-11.22,0-3.19.56-6.04,1.69-8.55,1.13-2.5,2.78-4.46,4.98-5.87,2.19-1.41,4.82-2.11,7.89-2.11,4.32,0,7.81,1.47,10.47,4.42,2.66,2.95,3.99,6.8,3.99,11.55,0,3.13-.63,5.9-1.88,8.31Z</Geometry>
+
+        <!-- The Simplified Launcher lockup, from Asset 13.svg. The file
+             draws it as seventeen separate shapes, all one colour and
+             none of them overlapping, so they are merged into a single
+             geometry here — seventeen Paths would be seventeen
+             elements to lay out and keep in step for no gain.
+
+             F1 at the front is the nonzero fill rule. A browser uses
+             nonzero by default, so that is what the file was drawn
+             against; WPF defaults to even-odd, and the counters in
+             these letters would fill differently under it. -->
+        <Geometry x:Key="Wordmark">F1 M.08,62.05v-10.63c1.21.53,2.6,1.02,4.15,1.46,1.55.44,3.13.8,4.73,1.09,1.07.2,2.14.35,3.21.48,1.07.12,2.09.18,3.06.18,2.23,0,4.05-.22,5.46-.65,1.41-.44,2.11-1.16,2.11-2.18s-.8-1.84-2.4-2.62-4.03-1.65-7.28-2.62c-2.62-.82-4.85-1.71-6.66-2.66-1.82-.95-3.35-2.32-4.59-4.12-1.24-1.8-1.86-4.13-1.86-6.99,0-4.61,1.77-8.1,5.32-10.45s8.18-3.53,13.91-3.53c3.79,0,7.79.56,12.02,1.68v10.78c-1.07-.53-2.34-1.03-3.83-1.49-1.48-.46-3.02-.86-4.62-1.2-.93-.2-1.85-.34-2.77-.44s-1.75-.15-2.48-.15c-2.14,0-3.86.29-5.17.87s-1.97,1.46-1.97,2.62.82,2.25,2.48,3.1c1.65.85,4.1,1.81,7.36,2.88,2.81.87,5.12,1.74,6.92,2.59s3.33,2.05,4.59,3.61c1.26,1.55,1.89,3.57,1.89,6.04,0,4.71-1.71,8.25-5.13,10.63-3.42,2.38-8.02,3.57-13.8,3.57-4.37,0-9.25-.61-14.64-1.82Z M41.04,11.61c-1.33-1.33-2-2.95-2-4.84s.67-3.43,2-4.77c1.33-1.33,2.95-2,4.84-2s3.44.67,4.77,2c1.33,1.34,2,2.93,2,4.77s-.67,3.51-2,4.84c-1.33,1.34-2.93,2-4.77,2s-3.51-.67-4.84-2ZM40.56,56.91V19.66h10.85v43.33h-10.85v-6.08Z M60.88,19.66h10.63v9.32h.73c.34-1.16.77-2.23,1.31-3.2.53-.97,1.14-1.84,1.82-2.62.87-1.02,1.86-1.84,2.95-2.48,1.09-.63,2.23-1.1,3.42-1.42s2.44-.48,3.75-.48c4.08,0,7.38,1.17,9.91,3.5.58.49,1.13,1.06,1.64,1.71s.96,1.35,1.35,2.08c.39.82.75,1.8,1.09,2.91h.87c.34-1.11.77-2.15,1.31-3.09s1.12-1.81,1.75-2.59c1.31-1.5,2.84-2.63,4.59-3.39,1.75-.75,3.62-1.13,5.61-1.13,4.27,0,7.73,1.38,10.38,4.15,2.65,2.77,3.97,6.63,3.97,11.58v28.48h-10.85v-25.12c0-2.86-.58-5.06-1.75-6.59-1.16-1.53-3.13-2.3-5.9-2.3s-4.88.8-6.77,2.4-2.84,4.52-2.84,8.74v22.87h-10.85v-25.12c0-2.86-.58-5.06-1.75-6.59-1.16-1.53-3.13-2.3-5.9-2.3-1.6,0-3.12.31-4.55.91s-2.63,1.74-3.6,3.39c-.97,1.65-1.46,3.93-1.46,6.85v22.87h-10.85V19.66Z M136.91,19.66h10.85v9.32h.51c1.26-3.25,3.29-5.76,6.08-7.54,2.79-1.77,5.89-2.66,9.29-2.66,3.2,0,6.12.74,8.74,2.22,2.62,1.48,4.73,3.86,6.34,7.14,1.6,3.28,2.4,7.49,2.4,12.64s-.84,9.46-2.51,12.93-3.91,6.03-6.7,7.68c-2.79,1.65-5.89,2.48-9.29,2.48-3.69,0-6.77-.95-9.25-2.84s-4.18-4.35-5.1-7.36h-.51v21.7h-10.85V19.66ZM167.28,50.1c1.99-2.38,2.99-5.46,2.99-9.25s-.96-6.59-2.88-8.7c-1.92-2.11-4.65-3.17-8.19-3.17-2.18,0-4.15.51-5.9,1.53-1.75,1.02-3.11,2.46-4.08,4.33s-1.46,4.02-1.46,6.44c0,3.69,1.03,6.68,3.1,8.96,2.06,2.28,4.77,3.42,8.12,3.42,3.55,0,6.31-1.19,8.3-3.57Z M187.67,55.13V4.73h10.85v58.26h-10.85v-7.87Z M208.46,11.61c-1.33-1.33-2-2.95-2-4.84s.67-3.43,2-4.77c1.33-1.33,2.95-2,4.84-2s3.44.67,4.77,2c1.33,1.34,2,2.93,2,4.77s-.67,3.51-2,4.84c-1.33,1.34-2.93,2-4.77,2s-3.51-.67-4.84-2ZM207.99,56.91V19.66h10.85v43.33h-10.85v-6.08Z M230.45,9.18c1.19-2.14,2.89-3.69,5.1-4.66,2.21-.97,4.86-1.46,7.97-1.46,2.62,0,5.19.27,7.72.8v9.54c-1.07-.2-2.16-.39-3.28-.59-.53-.05-1.06-.09-1.57-.14-.51-.05-1.01-.07-1.49-.07-1.75,0-3.08.36-4.01,1.09-.93.73-1.38,2.02-1.38,3.86v2.11h27.38v43.33h-10.85V28.55h-16.53v34.44h-10.85V17.4c0-3.35.59-6.09,1.78-8.23ZM256.52,11.61c-1.33-1.33-2-2.95-2-4.84s.67-3.43,2-4.77c1.33-1.33,2.95-2,4.84-2s3.44.67,4.77,2c1.33,1.34,2,2.93,2,4.77s-.67,3.51-2,4.84c-1.33,1.34-2.92,2-4.77,2s-3.51-.67-4.84-2Z M284.3,61.14c-3.4-1.82-6.06-4.44-7.97-7.87-1.92-3.42-2.88-7.44-2.88-12.05,0-4.37.9-8.25,2.69-11.65s4.27-6.04,7.43-7.94,6.7-2.84,10.63-2.84,7.45.89,10.27,2.66,4.95,4.19,6.41,7.25,2.19,6.51,2.19,10.34v6.63h-28.18c.48,1.8,1.3,3.29,2.44,4.48,1.14,1.19,2.51,2.08,4.12,2.66,1.6.58,3.4.87,5.39.87s4.03-.24,6.12-.73c2.09-.48,4.18-1.21,6.26-2.18v11.29c-4.37,1.21-8.79,1.82-13.25,1.82s-8.26-.91-11.65-2.73ZM293.41,38.23h8.74c-.14-3.11-.83-5.56-2.04-7.36-1.21-1.79-3.42-2.69-6.63-2.69-1.99,0-3.63.44-4.92,1.31-1.29.87-2.24,2.05-2.88,3.53-.63,1.48-1.04,3.22-1.24,5.21h8.95Z M325.23,61.57c-2.62-1.53-4.74-3.97-6.34-7.32-1.6-3.35-2.4-7.6-2.4-12.75s.81-9.42,2.44-12.82c1.62-3.4,3.79-5.9,6.48-7.5,2.69-1.6,5.62-2.4,8.78-2.4,3.35,0,6.43.91,9.25,2.73,2.82,1.82,4.78,4.31,5.9,7.46h.51V4.73h10.85v58.26h-10.85v-9.32h-.51c-.87,2.19-2.09,4.04-3.64,5.57s-3.34,2.68-5.35,3.46c-2.01.78-4.14,1.17-6.37,1.17-3.2,0-6.12-.76-8.74-2.29ZM344.31,52.14c1.75-1.02,3.11-2.46,4.08-4.33.97-1.87,1.46-4.01,1.46-6.44,0-3.69-1.03-6.67-3.1-8.96-2.06-2.28-4.77-3.42-8.12-3.42-2.38,0-4.42.55-6.12,1.64s-2.99,2.61-3.86,4.55c-.87,1.94-1.31,4.15-1.31,6.63,0,3.69.96,6.59,2.88,8.7,1.92,2.11,4.65,3.17,8.19,3.17,2.18,0,4.15-.51,5.9-1.53Z M187.74,107.04v-50.39h10.85v58.26h-10.85v-7.87Z M209.08,112.43c-2.38-2.23-3.57-5.29-3.57-9.18,0-4.22,1.39-7.41,4.19-9.58,2.79-2.16,6.66-3.24,11.62-3.24h10.78v-3.2c0-2.28-.74-3.91-2.22-4.88s-3.56-1.46-6.23-1.46c-1.75,0-3.89.25-6.41.73-2.82.64-5.51,1.43-8.08,2.4v-10.99c5.39-1.55,10.56-2.33,15.51-2.33,3.79,0,7.04.59,9.76,1.75s4.82,2.98,6.3,5.42c1.48,2.45,2.22,5.59,2.22,9.43v27.6h-10.56v-7.36h-.58c-1.65,3.06-3.63,5.2-5.93,6.41-2.31,1.21-4.87,1.82-7.68,1.82-3.69,0-6.73-1.12-9.1-3.35ZM226.56,106.97c1.36-.58,2.57-1.61,3.64-3.09,1.07-1.49,1.7-3.49,1.89-6.01h-8.81c-1.6,0-2.89.11-3.86.33-.97.22-1.72.68-2.26,1.38-.53.7-.8,1.74-.8,3.1,0,1.65.55,2.92,1.64,3.82,1.09.9,2.63,1.35,4.63,1.35,1.26,0,2.57-.29,3.93-.87Z M255.36,111.63c-2.65-2.77-3.97-6.63-3.97-11.58v-28.48h10.85v25.13c0,2.86.58,5.06,1.75,6.59,1.16,1.53,3.18,2.29,6.04,2.29,1.65,0,3.19-.3,4.62-.91,1.43-.61,2.65-1.74,3.64-3.39.99-1.65,1.49-3.93,1.49-6.85v-22.87h10.85v43.33h-10.63v-9.33h-.73c-.39,1.21-.89,2.33-1.49,3.35-.61,1.02-1.3,1.94-2.08,2.77-.83.87-1.75,1.61-2.77,2.22-1.02.6-2.12,1.06-3.31,1.38s-2.44.48-3.75.48c-4.37,0-7.88-1.38-10.52-4.15Z M300.11,71.58h10.63v9.32h.73c.39-1.21.87-2.3,1.46-3.27.58-.98,1.24-1.84,1.97-2.62,1.31-1.45,2.88-2.54,4.7-3.24s3.7-1.06,5.64-1.06c4.51,0,8.12,1.38,10.81,4.15,2.69,2.77,4.04,6.63,4.04,11.58v28.48h-10.85v-25.13c0-2.86-.61-5.06-1.82-6.59s-3.33-2.3-6.34-2.3c-1.65,0-3.23.31-4.73.91-1.51.61-2.78,1.74-3.82,3.39-1.04,1.66-1.57,3.93-1.57,6.85v22.87h-10.85v-43.33Z M357.2,113.12c-3.4-1.77-6.09-4.35-8.08-7.75-1.99-3.4-2.99-7.45-2.99-12.16s1.03-8.9,3.1-12.31c2.06-3.39,4.84-5.94,8.34-7.65,3.5-1.7,7.35-2.55,11.58-2.55,3.4,0,6.85.56,10.34,1.68v11.5c-.92-.48-1.85-.93-2.77-1.31-.92-.39-1.87-.7-2.84-.95-.78-.24-1.57-.41-2.37-.51-.8-.09-1.61-.14-2.44-.14-3.5,0-6.38,1.02-8.67,3.06-2.28,2.04-3.42,5.1-3.42,9.18s1.18,7.16,3.53,9.25,5.3,3.13,8.85,3.13c1.7,0,3.42-.25,5.17-.76s3.4-1.23,4.95-2.15v11.28c-3.64,1.21-7.24,1.82-10.78,1.82-4.27,0-8.11-.89-11.51-2.66Z M386.11,56.65h10.63v24.25h.73c.39-1.21.87-2.3,1.46-3.27.58-.98,1.24-1.84,1.97-2.62.87-.97,1.88-1.77,3.02-2.4,1.14-.63,2.33-1.1,3.57-1.42s2.49-.48,3.75-.48c2.96,0,5.56.61,7.79,1.82,2.23,1.21,3.97,3.01,5.21,5.39s1.86,5.22,1.86,8.52v28.48h-10.85v-25.13c0-2.86-.61-5.06-1.82-6.59s-3.33-2.3-6.34-2.3c-1.65,0-3.23.31-4.73.91-1.51.61-2.78,1.74-3.82,3.39-1.04,1.66-1.57,3.93-1.57,6.85v22.87h-10.85v-58.26Z M442.99,113.05c-3.4-1.82-6.06-4.44-7.97-7.87-1.92-3.42-2.88-7.44-2.88-12.05,0-4.37.9-8.26,2.69-11.65,1.8-3.4,4.27-6.04,7.43-7.94s6.7-2.84,10.63-2.84,7.45.89,10.27,2.66c2.82,1.77,4.95,4.18,6.41,7.24s2.19,6.51,2.19,10.34v6.63h-28.18c.48,1.79,1.3,3.28,2.44,4.47s2.51,2.08,4.12,2.66c1.6.58,3.4.87,5.39.87s4.03-.24,6.12-.72,4.18-1.21,6.26-2.18v11.28c-4.37,1.21-8.79,1.82-13.25,1.82s-8.25-.91-11.65-2.73ZM452.09,90.15h8.74c-.14-3.1-.83-5.56-2.04-7.36-1.21-1.79-3.42-2.69-6.63-2.69-1.99,0-3.63.44-4.92,1.31-1.29.87-2.25,2.06-2.88,3.54-.63,1.48-1.04,3.22-1.24,5.2h8.96Z M478.09,71.58h10.63v8.96h.73c.39-1.17.85-2.26,1.38-3.28s1.14-1.94,1.82-2.77c.63-.77,1.32-1.44,2.08-2,.75-.56,1.58-.99,2.48-1.31.9-.31,1.86-.48,2.88-.48,1.94,0,3.67.25,5.17.73v11.65c-1.36-.73-2.64-1.2-3.82-1.42s-2.49-.33-3.9-.33c-2.72,0-4.83.98-6.34,2.95-1.51,1.96-2.26,4.67-2.26,8.12v22.5h-10.85v-43.33Z</Geometry>
+
+        <!-- Chrome buttons: the glyph is the whole button. No fill until the
+             pointer is on it, so the top of the window stays empty until it is
+             being used.
+
+             The fill it then gets is white at a tenth rather than a solid
+             grey, so the gradient underneath carries on through it and the
+             pad reads as part of the window rather than a tile laid on it. -->
+        <!-- Like the others but with no pad behind the glyph: the hover is
+             the glyph itself going white. Where the chrome buttons sit in a
+             row and need a box to say which one the pointer is on, this one
+             stands alone in a corner and does not. -->
+        <Style x:Key="BareButton" TargetType="Button">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Foreground" Value="#A0A0A0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Setter Property="Opacity" Value="0.25"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Google's Material Symbols again: the filled settings gear. Its
+             coordinates start at 2.6 rather than 0, which the play glyph was
+             hand-moved to the origin for — this one is far too long to move
+             by hand, so the Path stretches instead. Stretch measures the
+             geometry's own bounds and ignores where they sit, which is the
+             general answer to that trap.
+
+             The hole in the middle comes from the fill rule: the mini
+             language defaults to even-odd, so the inner circle punches
+             through the gear rather than filling it in. -->
+        <!-- Material Symbols' filled close, for leaving settings. -->
+        <Geometry x:Key="Cross">M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41z</Geometry>
+
+        <Geometry x:Key="Gear">M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z</Geometry>
+
+        <Style x:Key="ChromeButton" TargetType="Button">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Foreground" Value="#BFBFBF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <!-- The pad is a sibling of the glyph, not its
+                             parent. Fading a parent fades everything inside
+                             it, so a pad wrapped round the content would
+                             take the glyph down with it. -->
+                        <Grid Background="Transparent">
+                            <Border x:Name="Hit"
+                                    Background="#FFFFFF"
+                                    Opacity="0"
+                                    CornerRadius="6"/>
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <!-- Pressed declared first and hover second, and
+                                 that order is the whole of what keeps this
+                                 tidy. Press, drag off the button, release:
+                                 both exit at once, and the one declared last
+                                 runs last. Hover last means it settles at
+                                 nothing, which is right. The other way round
+                                 it would settle on the hover value and leave
+                                 a pad sitting under no pointer. -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsPressed" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <MultiTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Hit"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.18" Duration="0:0:0.09">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </MultiTrigger.EnterActions>
+                                <MultiTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Hit"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.10" Duration="0:0:0.14">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </MultiTrigger.ExitActions>
+                            </MultiTrigger>
+
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Hit"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.10" Duration="0:0:0.32">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Hit"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.26">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+
+                            <!-- Without this a disabled button looks exactly
+                                 like a live one: the default greying comes
+                                 from the stock template, which this replaces.
+                                 Animated rather than set, so it dims and
+                                 lifts instead of blinking, and the hand goes
+                                 away with it. -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation 
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.25" Duration="0:0:0.28">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation 
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.28">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+         <Style x:Key="PlayButton" TargetType="Button" BasedOn="{StaticResource ChromeButton}">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+   </Window.Resources>
+
+    <!-- The window's whole surface, and the whole of its shape. -->
+    <Border x:Name="Surface"
+            Background="#0E0E0E"
+            CornerRadius="16"
+            MouseLeftButtonDown="Surface_MouseLeftButtonDown">
+    <Grid>
+
+        <!-- The gradient: five soft points rather than one ramp, which is
+             what gives it the blurred look. Each is a radial brush with a
+             gentle falloff — no BlurEffect, which on a transparent window
+             costs more than it is worth and reads much the same.
+
+             Three things are deliberate and none is obvious:
+
+               * every point fades out to its own colour at zero alpha, not to
+                 transparent black. Fading a colour to #00000000 drags the
+                 midtones grey and the whole thing turns muddy. The black point
+                 is the one case where the two are the same thing;
+               * each point is a full-bleed Border carrying the surface's own
+                 corner radius. A plain rectangle in here would paint over the
+                 rounded corners and square them off, and the clip that would
+                 otherwise be needed has to be told a size;
+               * the drift animates where each brush is centred, not where its
+                 Border sits. Moving the Borders would move the rounded corners
+                 with them and open gaps at the edge of the window; moving the
+                 light inside them leaves the shape alone.
+
+             Each point wanders near its own corner rather than travelling
+             far: enough that the window is never quite still, not enough to
+             change where anything is. The periods are unequal and no one of
+             them divides another, so they stay out of phase instead of
+             pulsing together. Thirty frames a second is plenty at this speed
+             and halves the painting.
+
+             The colour is deliberately thin. What makes a wash of light read
+             as glass rather than as a blob is the absence of a hot centre, so
+             none of these starts at full: the core is around three quarters
+             and falls away fast, and the spreads are wide enough that what is
+             left is spread over most of the window.
+
+             No BlurEffect. A radial falloff this soft has no edge for a blur
+             to find, and it would cost real work every frame on a window that
+             already carries per-pixel alpha.
+
+             Order is paint order, which is why both blacks come last: they
+             darken what is under them rather than being lit over. The azure
+             sits over the green, so the middle of the window takes a teal
+             where the two overlap rather than either colour winning.
+
+             The azure is at a third of the alpha the others carry. It is
+             there to tint the gap between the purple and the green, not to be
+             a colour of its own — at anything more it reads as a fourth blob
+             instead of the place where two of them meet.
+
+             The opacity is on the group, so the points blend with each other
+             at full strength and only the result is dimmed. One number for the
+             weight of the whole thing. -->
+        <Grid Opacity="0.15" IsHitTestVisible="False">
+            <Grid.Triggers>
+                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                    <BeginStoryboard>
+                        <Storyboard Timeline.DesiredFrameRate="30">
+
+
+
+                            <PointAnimation Storyboard.TargetName="Indigo"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.Center)"
+                                            From="0.22,0.18" To="0.36,0.27"
+                                            Duration="0:0:8"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="Indigo"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.GradientOrigin)"
+                                            From="0.22,0.18" To="0.36,0.27"
+                                            Duration="0:0:8"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="GreenLow"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.Center)"
+                                            From="0.86,0.91" To="0.70,0.82"
+                                            Duration="0:0:7"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="GreenLow"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.GradientOrigin)"
+                                            From="0.86,0.91" To="0.70,0.82"
+                                            Duration="0:0:7"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="Shade"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.Center)"
+                                            From="0.02,0.73" To="0.18,0.62"
+                                            Duration="0:0:11"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="Shade"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.GradientOrigin)"
+                                            From="0.02,0.73" To="0.18,0.62"
+                                            Duration="0:0:11"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+
+
+
+
+
+
+                            <PointAnimation Storyboard.TargetName="Azure"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.Center)"
+                                            From="0.54,0.55" To="0.64,0.47"
+                                            Duration="0:0:9"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="Azure"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.GradientOrigin)"
+                                            From="0.54,0.55" To="0.64,0.47"
+                                            Duration="0:0:9"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="ShadeTop"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.Center)"
+                                            From="0.92,0.10" To="0.80,0.20"
+                                            Duration="0:0:13"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                            <PointAnimation Storyboard.TargetName="ShadeTop"
+                                            Storyboard.TargetProperty="Background.(RadialGradientBrush.GradientOrigin)"
+                                            From="0.92,0.10" To="0.80,0.20"
+                                            Duration="0:0:13"
+                                            AutoReverse="True" RepeatBehavior="Forever">
+                                <PointAnimation.EasingFunction>
+                                    <SineEase EasingMode="EaseInOut"/>
+                                </PointAnimation.EasingFunction>
+                            </PointAnimation>
+
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Grid.Triggers>
+
+
+            <!-- purple, the top left, in off the edge -->
+            <Border x:Name="Indigo" CornerRadius="16">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.22,0.18" GradientOrigin="0.22,0.18"
+                                         RadiusX="1.44" RadiusY="0.74">
+                        <GradientStop Offset="0"    Color="#B8353ADF"/>
+                        <GradientStop Offset="0.45" Color="#60353ADF"/>
+                        <GradientStop Offset="0.72" Color="#28353ADF"/>
+                        <GradientStop Offset="1"    Color="#00353ADF"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- green again, the bottom right, and the quieter of the two: it
+                 keeps this slot's smaller spread so the corner does not shout,
+                 but takes the shared FF/8C rather than the alpha azure was held
+                 down to. That cut was for azure being the brightest thing in
+                 the gradient, and green is nowhere near it. -->
+            <Border x:Name="GreenLow" CornerRadius="16">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.86,0.91" GradientOrigin="0.86,0.91"
+                                         RadiusX="1.22" RadiusY="0.62">
+                        <GradientStop Offset="0"    Color="#B800AD2F"/>
+                        <GradientStop Offset="0.45" Color="#5E00AD2F"/>
+                        <GradientStop Offset="1"    Color="#0000AD2F"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- azure, between the purple and the green, barely there -->
+            <Border x:Name="Azure" CornerRadius="16">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.54,0.55" GradientOrigin="0.54,0.55"
+                                         RadiusX="1.02" RadiusY="0.54">
+                        <GradientStop Offset="0"    Color="#5006BAFE"/>
+                        <GradientStop Offset="0.45" Color="#2606BAFE"/>
+                        <GradientStop Offset="1" Color="#0006BAFE"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- black, the left, lower down -->
+            <Border x:Name="Shade" CornerRadius="16">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.02,0.73" GradientOrigin="0.02,0.73"
+                                         RadiusX="1.14" RadiusY="0.58">
+                        <GradientStop Offset="0"    Color="#C0000000"/>
+                        <GradientStop Offset="0.45" Color="#66000000"/>
+                        <GradientStop Offset="1"    Color="#00000000"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- black, the top right -->
+            <Border x:Name="ShadeTop" CornerRadius="16">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.92,0.10" GradientOrigin="0.92,0.10"
+                                         RadiusX="1.02" RadiusY="0.54">
+                        <GradientStop Offset="0"    Color="#C0000000"/>
+                        <GradientStop Offset="0.45" Color="#66000000"/>
+                        <GradientStop Offset="1" Color="#00000000"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+
+        </Grid>
+
+        <!-- The wordmark and its label, on both middles of the window: the
+             group is centred, and its lines are flush left against each other
+             inside it. So the mark, STATUS and CHOOSE all start where YOUR
+             MODS starts, and the block sits in the middle together — which is why there is no
+             margin on the group. A margin on one side of a centred element
+             moves it off centre by half of itself.
+             
+             Outfit Bold is installed on this machine, so the family is named
+             rather than carried. Worth knowing if this ever leaves here: a
+             machine without it falls back silently and the whole look goes
+             with it, and the fix is to put the .ttf in the project and
+             reference it as a pack URI instead.
+
+             LineHeight needs BlockLineHeight beside it or it is ignored. It is
+             kept at about 0.87 of the size, so the two lines sit much closer
+             than the font's own leading — which all-caps can take, because
+             there is nothing below the baseline to collide. Change the size
+             and this wants changing with it.
+
+             Ideal rather than the window's Display formatting: Display snaps
+             stems to whole pixels, which keeps small UI text crisp and makes
+             type this size sit unevenly. -->
+        <DockPanel Margin="0,62,0,0">
+
+        <StackPanel x:Name="Heading"
+                    DockPanel.Dock="Top"
+                    HorizontalAlignment="Center"
+                    IsHitTestVisible="False">
+            <!-- The whole heading travels together — mark, label and
+                 the stacked line — and a render transform is what
+                 moves it. Animating a margin instead would re-run the
+                 layout every frame.
+
+                 Vertical only. Sideways it is pinned, once, in code:
+                 see Anchor. -->
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="HeadingShift"/>
+            </StackPanel.RenderTransform>
+
+            <!-- The lockup, above and apart. Set by height rather than
+                 width, so it scales with the type beside it.
+
+                 34 where the old mark was 23: that one was a single word and
+                 this is two lines, so the same height would have halved
+                 each of them. At 34 it draws about 148 wide, which is near
+                 enough the old mark's 113 to sit in the same place without
+                 the block growing round it — matching cap height is what makes a mark sit level
+                 with type rather than merely near it.
+
+                 The 24 below it against the 6 under STATUS is the whole point
+                 of the spacing: a gap four times the other reads as a break,
+                 so STATUS and the two lines under it group into one thing and
+                 this stands apart from them. -->
+            <Viewbox Height="34"
+                     HorizontalAlignment="Left"
+                     Margin="0,0,0,24"
+                     Stretch="Uniform">
+                <Path Data="{StaticResource Wordmark}" Fill="#FFFFFF"/>
+            </Viewbox>
+
+            <!-- Display formatting here, against the wordmark's Ideal: at
+                 this size snapping the stems to whole pixels is what keeps a
+                 light grey from turning to mush, and the uneven spacing it
+                 causes is too small to see. The two settings are right for
+                 opposite reasons.
+
+                 The panel is as wide as its widest line, so left-aligning both
+                 children puts this flush with MILDTDESIGN. -->
+            <TextBlock Text="STATUS"
+                       Style="{StaticResource Label}"
+                       FontWeight="Light"
+                       HorizontalAlignment="Left"
+                       Margin="0,0,0,6"/>
+
+            <TextBlock x:Name="Headline"
+                       HorizontalAlignment="Left"
+                       FontFamily="Outfit"
+                       FontWeight="Bold"
+                       FontSize="32"
+                       LineHeight="28"
+                       LineStackingStrategy="BlockLineHeight"
+                       TextAlignment="Left"
+                       Foreground="#FFFFFF"
+                       TextOptions.TextFormattingMode="Ideal">
+CHOOSE<LineBreak/>YOUR MODS</TextBlock>
+
+        </StackPanel>
+
+        <!-- The list, filling whatever is left under the heading. Its side
+             margins are 22, the measure the buttons use, and the row template
+             pads another 10 inside that — so the marker blocks line up on 32
+             and the row's own hover tint has somewhere to show.
+
+             Multiple rather than Extended: Extended is the Explorer
+             behaviour, where a plain click clears everything else and you
+             need a modifier held down to keep it. Multiple makes each click a
+             toggle, which is what picking a set of mods is.
+
+             SelectedIndex starts at nothing: a list that chooses for you has
+             already answered the question it is asking.
+
+             More rows than fit, so the thing is actually scrollable rather
+             than merely able to be. The eight pixels of padding are inside
+             the ScrollViewer, so the first and last rows pass under them
+             instead of being pinned clear of the edge.
+
+             The 120 at the bottom is held open for whatever goes there next,
+             so the list ends well short of the window. -->
+        <!-- Both lists live here, one on top of the other. In a
+             DockPanel they would sit side by side instead: everything
+             docked takes its own strip and only the last child fills
+             what is left. -->
+        <Grid>
+
+        <ListBox x:Name="Mods"
+                 Style="{StaticResource List}"
+                 Margin="22,34,16,120"
+                 SelectionMode="Multiple"
+                 SelectionChanged="Mods_SelectionChanged"
+                 SelectedIndex="-1"/>
+
+        <!-- Settings, empty until there is something to put in it. The
+             rows will each hold their own control, so this one does not
+             select — see the Rows style.
+
+             Starts at nothing and takes no clicks: an empty list at
+             zero opacity is still a thing the pointer can land on. -->
+        <ItemsControl x:Name="Options"
+                      Style="{StaticResource Rows}"
+                      Margin="22,34,16,170"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+
+            <!-- The 10 down the left is the same padding a mod row
+                 gives itself, so these labels start where the markers
+                 do and the two pages share an edge. -->
+            <!-- Two up from the prose below it and bold, so the page
+                 opens by saying which launcher this is. -->
+            <TextBlock Text="v4.0.00"
+                       Style="{StaticResource Label}"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Foreground="#FFFFFF"
+                       Margin="10,0,10,10"/>
+
+            <!-- The group labels' font and size, in white and in
+                 sentence case. It reads as the same voice as PLATFORM
+                 and GPU rather than as a heading over them, which is
+                 what it is: the page explaining itself.
+
+                 Two points up from the labels, and the leading with it:
+                 20 on 14 holds the same ratio 17 on 12 did. The labels are
+                 one word each and never show their leading, where three
+                 lines of prose at the font's own would set too tight. -->
+            <TextBlock Style="{StaticResource Label}"
+                       FontWeight="Regular"
+                       FontSize="14"
+                       Foreground="#FFFFFF"
+                       LineHeight="20"
+                       LineStackingStrategy="BlockLineHeight"
+                       TextWrapping="Wrap"
+                       Margin="10,0,10,24"
+                       Text="These settings are used to install and launch the mods you want to use correctly. When you import a mod that mod will be optimized to work with your game."/>
+
+            <!-- The game folder. A label over it like the groups below,
+                 which was not asked for — but every other thing on this
+                 page names itself, and a bare box above PLATFORM would be
+                 the only one that did not. -->
+            <StackPanel Margin="10,0,10,20">
+                <TextBlock Text="GAME DIRECTORY"
+                           Style="{StaticResource Label}"
+                           FontWeight="Regular"/>
+                <Grid Margin="0,9,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="GameDir"
+                             Grid.Column="0"
+                             Style="{StaticResource Field}"/>
+
+                    <Button Grid.Column="1"
+                            Margin="7,0,0,0"
+                            Style="{StaticResource FieldButton}"
+                            Click="Browse_Click"
+                            ToolTip="Choose the game folder">
+                        <Path Data="{StaticResource Folder}"
+                              Stretch="Uniform"
+                              Width="17" Height="17"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- Platform -->
+            <StackPanel Margin="10,0,10,20">
+                <TextBlock Text="PLATFORM"
+                           Style="{StaticResource Label}"
+                           FontWeight="Regular"/>
+                <!-- Click rather than Checked, on both. Checked also fires when
+                     the code sets IsChecked — including the one below, during
+                     InitializeComponent — so a Checked handler could not tell a
+                     person's choice from the app's own. Click only comes from a
+                     mouse or the keyboard, which is exactly the difference that
+                     matters here. -->
+                <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
+                    <RadioButton x:Name="PlatformSteam"
+                                 Content="Steam"
+                                 Style="{StaticResource Chip}"
+                                 GroupName="Platform"
+                                 Click="Platform_Click"
+                                 IsChecked="True"/>
+                    <RadioButton x:Name="PlatformEa"
+                                 Content="EA App"
+                                 Style="{StaticResource Chip}"
+                                 GroupName="Platform"
+                                 Click="Platform_Click"
+                                 Margin="7,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Gpu -->
+            <StackPanel Margin="10,0,10,20">
+                <TextBlock Text="GPU"
+                           Style="{StaticResource Label}"
+                           FontWeight="Regular"/>
+                <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
+                    <RadioButton x:Name="GpuAmd"
+                                 Content="AMD"
+                                 Style="{StaticResource Chip}"
+                                 GroupName="Gpu"
+                                 Click="Gpu_Click"
+                                 IsChecked="True"/>
+                    <RadioButton x:Name="GpuOther"
+                                 Content="Other"
+                                 Style="{StaticResource Chip}"
+                                 GroupName="Gpu"
+                                 Click="Gpu_Click"
+                                 Margin="7,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
+
+        </ItemsControl>
+
+        </Grid>
+
+        </DockPanel>
+
+        <!-- Play, from Google's Material Symbols: the filled play_arrow,
+             whose whole geometry is "M 8,5 V 19 L 19,12 Z" on a 24 square.
+             Drawn rather than pulled from an icon font, so there is nothing
+             to install and nothing to fall back from.
+
+             Moved to start at the origin, which matters more than it looks.
+             A Path measures as the bounds of its geometry counted from 0,0,
+             so the 8 and the 5 Google's version starts at were measured as
+             part of the shape — the Viewbox scaled a 19 by 19 box with the
+             triangle in the corner of it, and the glyph sat low and right of
+             the middle of the button. Starting at 0,0 makes the Viewbox fit
+             the triangle and nothing else.
+
+             The height here is therefore the height of the shape on screen
+             and not of any padding around it.
+
+             Sitting in the room held open at the bottom of the list, on the
+             window's middle. The box stays 44 while the glyph came down to
+             18, so the hit area is unchanged and only the triangle shrank.
+
+             Same family as the close and minimise buttons, by BasedOn, so the
+             hover pad matches them without being described twice. White at
+             rest instead of grey, because this one is what the window is for
+             rather than a window control — which does mean the hover shows in
+             the pad alone, the glyph having nowhere brighter to go. -->
+        <!-- The team mark, sitting just over the button that closes
+             settings rather than anywhere in the page: it belongs to
+             the window, not to the list of options. Twenty-six pixels
+             above the button and thirty-two below the list — nearer the
+             button of the two, which is what keeps it reading as part of
+             the bottom rather than as the last row of the page.
+
+             It comes and goes with the settings page, so it fades
+             with everything else and takes no clicks while hidden. -->
+        <Viewbox x:Name="TeamSlot"
+                 Height="28"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Bottom"
+                 Margin="0,0,0,110"
+                 Stretch="Uniform"
+                 Opacity="0"
+                 IsHitTestVisible="False">
+            <Path Data="{StaticResource TeamMark}" Fill="#FFFFFF"/>
+        </Viewbox>
+
+        <!-- The bottom row, and what hides it. Being switched off and
+             being out of the picture both want to fade, and both would
+             want the same Opacity — so one of them has to belong to
+             something else, or the two animations fight over the property
+             and the last one to run wins. The buttons keep their own
+             opacity for being disabled; this row owns being gone.
+
+             Both buttons are 44 tall and sit on the row, so they share a
+             middle without either being told where it is. -->
+        <Grid x:Name="BottomBar"
+              VerticalAlignment="Bottom"
+              Margin="0,0,0,40">
+
+            <!-- Left edge of the glyph on the marker bars, not on the list
+                 box: the markers are what you actually see down that side.
+                 They sit at 32, the list's own 22 plus the 10 a row pads
+                 itself by, and 13 of that comes off again because the glyph
+                 is 18 inside a 44 box. -->
+            <!-- Each of the three has a holder, and for the reason the
+                 row itself has one: a button's own Opacity belongs to
+                 whether it is switched off. Fading one in or out of the
+                 picture has to happen somewhere else or the two
+                 animations fight over the property. -->
+            <Grid x:Name="SettingsSlot" HorizontalAlignment="Left" Margin="19,0,0,0">
+                <Button x:Name="Settings"
+                        Style="{StaticResource BareButton}"
+                        Click="Settings_Click"
+                        ToolTip="Settings">
+                    <Path Data="{StaticResource Gear}"
+                          Stretch="Uniform"
+                          Width="18" Height="18"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+            </Grid>
+            <Grid x:Name="PlaySlot" HorizontalAlignment="Center">
+            <Button x:Name="Play"
+                    Style="{StaticResource PlayButton}"
+                    Click="Play_Click"
+                    ToolTip="Launch">
+            <Viewbox Height="18" Stretch="Uniform">
+                <!-- A hair to the right, and it is not a fudge. A triangle
+                     pointing right carries its weight against the flat edge:
+                     its centroid is a third of the way across while the box
+                     it sits in has its middle at a half, so a play glyph
+                     centred by its bounds always reads as sitting left. Every
+                     icon set nudges it. Set X to 0 for true bounds centring. -->
+                <Viewbox.RenderTransform>
+                    <TranslateTransform X="1.5"/>
+                </Viewbox.RenderTransform>
+                <Path Data="M 0,0 V 14 L 11,7 Z"
+                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            </Viewbox>
+            </Button>
+            </Grid>
+
+            <!-- Where play was, for coming back out. Starts at nothing, and
+                 out of the way of the pointer as well: it is drawn after the
+                 play button and in the same place, so left hit-testable it
+                 would catch every click meant for play while being invisible
+                 about it. Disabling the button is not enough — a disabled
+                 control still takes the hit and simply does nothing with it,
+                 which stops it reaching what is underneath. -->
+            <Grid x:Name="BackSlot"
+                  HorizontalAlignment="Center"
+                  Opacity="0"
+                  IsHitTestVisible="False">
+                <Button x:Name="Back"
+                        Style="{StaticResource PlayButton}"
+                        Click="Back_Click"
+                        ToolTip="Back">
+                    <Path Data="{StaticResource Cross}"
+                          Stretch="Uniform"
+                          Width="17" Height="17"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+            </Grid>
+        </Grid>
+
+        <!-- Ample, and the same measure twice: the buttons sit 22 in from the
+             top and 22 in from the right. -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,22,22,0">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Opacity" Value="0"/>
+                    <Style.Triggers>
+                        <!-- The window, not the buttons. Revealing them only
+                             when the pointer is on one of them would mean
+                             finding them blind first.
+
+                             Still quicker in than out, but not by as much as
+                             it was: arriving too fast reads as a flicker
+                             rather than a fade, and the thing you notice is
+                             that something appeared rather than that it
+                             arrived. They
+                             stay clickable while invisible, which costs
+                             nothing — the pointer has to be in the window to
+                             click at all, and that is what brings them back. -->
+                        <DataTrigger Value="True"
+                                     Binding="{Binding IsMouseOver,
+                                               RelativeSource={RelativeSource AncestorType=Window}}">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.30">
+                                            <DoubleAnimation.EasingFunction>
+                                                <SineEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.35">
+                                            <DoubleAnimation.EasingFunction>
+                                                <SineEase EasingMode="EaseIn"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+
+
+            <Button Style="{StaticResource ChromeButton}"
+                    Click="Minimise_Click"
+                    ToolTip="Minimise">
+                <Path Data="M 0,0 H 13"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="1"
+                      SnapsToDevicePixels="True"/>
+            </Button>
+
+            <Button x:Name="CloseButton"
+                    Style="{StaticResource ChromeButton}"
+                    Click="Close_Click"
+                    Margin="4,0,0,0"
+                    ToolTip="Close">
+                <Path Data="M 0,0 L 12,12 M 12,0 L 0,12"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="1"
+                      SnapsToDevicePixels="True"/>
+            </Button>
+
+        </StackPanel>
+
+    </Grid>
+    </Border>
+</Window>

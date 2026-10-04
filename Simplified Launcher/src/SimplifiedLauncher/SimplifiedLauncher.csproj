@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Simplified Launcher. Picks mods, installs them, and starts the game.
+       Generation two: what ships today is a Python and WebView2 app at v3.2,
+       kept at F:\Claude Code\Simplified Launcher, and this replaces it.
+
+       In the suite, deliberately not of it. What it takes from the repository:
+       the build settings in Directory.Build.props, and Shared/GameDirDetector,
+       because finding the game install is the same problem here as it is in
+       every editor and there is no second way worth having. What it does not
+       take: SimplifiedUi, the shared chrome, the palette, the rest of Shared/,
+       and a Core project. Every colour and every control it draws is in its own
+       XAML, which is the point — it is a launcher rather than another editor,
+       and the one app here that is meant to look like itself. Anyone tidying it
+       toward the house style should read that sentence twice.
+
+       What a suite app normally carries and this does not: app.manifest, an
+       ApplicationIcon, x64 only, the _IsPublishing single-file block, and a
+       line in tools/release.ps1's Ships list. Nothing packages it yet, so none
+       of them have come up.
+
+       Portable, like the rest: when it starts keeping settings they go in a
+       config.json beside the exe, and it writes nothing outside its own
+       folder. -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Simplified Launcher</AssemblyName>
+    <RootNamespace>SimplifiedLauncher</RootNamespace>
+  </PropertyGroup>
+
+  <!-- The game install search every app here uses: Steam's libraries from the
+       registry and libraryfolders.vdf, then the usual EA and Origin roots, and
+       only ever F1 25 back. Linked rather than copied, so the launcher looks in
+       exactly the places the editors look and there is one file to fix when the
+       next game moves the goalposts. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+  </ItemGroup>
+
+  <!-- Reads a dropped mod archive whatever shape it is in: zip, 7z, rar, tar and
+       the older ones. Managed, so there is no 7za.exe or UnRAR.exe to ship, no
+       process to spawn and no console window to hide. The version is pinned in
+       Directory.Packages.props, where the reason for the floor is written down. -->
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" />
+  </ItemGroup>
+
+</Project>

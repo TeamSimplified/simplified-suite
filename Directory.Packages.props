@@ -10,6 +10,14 @@
     <PackageVersion Include="System.IO.Packaging" Version="9.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
 
+    <!-- The launcher's, for reading a mod archive of any shape. 0.48.0 is a
+         floor rather than a preference: every version before it carries
+         CVE-2026-44788, a path traversal in WriteToDirectory, and this reads
+         archives people downloaded from the internet. The launcher writes its
+         own entries rather than calling that method, so the two together are
+         belt and braces. -->
+    <PackageVersion Include="SharpCompress" Version="0.48.0" />
+
     <!-- NefsLib's own, at the versions it pins. It reads the NeFS archive
          inside the game exe, which is where the language files live. -->
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />
