@@ -1,0 +1,4 @@
+﻿<Solution>
+  <Project Path="src/SimplifiedLanguageEditor/SimplifiedLanguageEditor.csproj" />
+  <Project Path="src/SimplifiedLanguageEditor.Core/SimplifiedLanguageEditor.Core.csproj" />
+</Solution>

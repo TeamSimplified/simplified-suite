@@ -490,3 +490,74 @@ means first run, a different build means the game has been patched, and either
 way it is half a minute behind a progress window at startup rather than a wait
 in the middle of someone's work. A bundled copy would only be correct on the
 day it was taken.
+
+---
+
+## 11. What the Language Editor needed, in order
+
+The third shape: nothing wrong with the app, everything wrong with where its
+code came from. `SimplifiedLanguageEditor.Core` was not a Core at all — it was
+`EgoEngineLibrary`'s `Language/`, `IO/` and `Conversion/` folders, nineteen
+files, copied in whole. Diffed before deleting, as §8 says to: every one of
+them identical to the library's, down to the line count, and already under the
+`EgoEngineLibrary.*` namespaces. The app layer did not change a line when they
+went.
+
+1. **Copy it in** from `Simplified Apps\Simplified Language Editor\Simplified
+   Language Editor - Source`. The original stays there as a backup. `.git`,
+   `bin`, `obj` and its `.gitignore` stay behind.
+
+2. **Delete the forked format code and reference the library.** What is left of
+   the Core is what a Core is for: `AppPaths` and `UserConfig`. The app keeps
+   `Model/` — `LngEntryVm` is a row in a table and `LngTemplates` is the
+   knowledge that a new file needs the game's own DJB2 header, neither of which
+   is the library's business.
+
+3. **Chain `Directory.Build.props`** (§2), and drop `LangVersion`, `Nullable`,
+   `ImplicitUsings` and `Deterministic`, which the root sets. `Copyright` stays
+   overridden: this app really does carry ported format code, through the
+   library.
+
+4. **The publish properties** (§2): `Platforms`, `PlatformTarget`,
+   `ApplicationIcon`, `RuntimeIdentifier`, the natives target, and the linked
+   `Shared/NativeLibraryFolder.cs`.
+
+5. **The look** (§3). `App.xaml` was empty and every colour in the window was a
+   literal — `#F4F4F4` toolbars, a `#CCE4F7` selected cell, `White` rows. The
+   palette and theme are merged now and the window is frameless with the 56px
+   title bar, the wordmark, the version pill and the three caption buttons.
+
+6. **The table themes itself.** `DataGrid`, `DataGridColumnHeader`,
+   `DataGridRow` and `DataGridCell` were retemplated in the shared theme when
+   the Driver Swapper became the first app in the suite with a table (§9.6), so
+   the editor's own four styles — forty lines of light-mode greys — simply went.
+
+7. **`MessageBox.Show` out, `MessageDialog` in** (§3). Three of the four were
+   questions with a Yes/No/Cancel gloss in the body explaining what each button
+   meant; they are `Choose` dialogs now, with buttons that say Save, Discard and
+   Cancel, and Cancel last so Esc answers the choice that changes nothing.
+
+8. **The add-row dialog, built in code** and wrapped in `DialogChrome` (§3). It
+   was a XAML `Window`, which would have worn Windows' own title bar: the one
+   thing on screen that stays light when the palette is dark.
+
+9. **Portable config** (§4): `config.json` beside the exe, with the theme and
+   the folder the last file came from, so the picker opens where the work is.
+
+10. **Save as, not Save** (§4). The icon is Save as and `Ctrl+S` is what
+    overwrites, because what is open is almost always the game's own file — the
+    rule the Sponsor Editor states from the other side, where a project has a
+    file of its own and the icon writes to it.
+
+11. **Register it in `tools\release.ps1`** (§5) as `LanguageEditor`, tag
+    `languageeditor-v`.
+
+Measured rather than assumed: a real `language_eng.lng`, 56,134 entries, opened
+in the window and saved back out through the same path a person's edit takes.
+Nothing missing, nothing extra, nothing changed, the header constants identical
+and the file the same 6,533,209 bytes.
+
+One thing worth knowing about the format, which is why saving rewrites the whole
+file: a `.lng` is a hash table, not a list. Where a key lands is decided by the
+seed and multiplier in its header, so editing a key is not an edit at all — it is
+a removal and an insertion, and the buckets have to be rebuilt either way.

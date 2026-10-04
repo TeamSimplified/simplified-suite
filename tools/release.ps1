@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, Launcher, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'Launcher', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -176,6 +176,13 @@ $Apps = @(
         # get refreshed after a game update, which is our job rather than a mod
         # maker's. -App Language still packages it.
         InAll = $false
+    }
+    [pscustomobject]@{
+        Short = 'LanguageEditor'; Folder = 'Simplified Language Editor'
+        Project = 'src\SimplifiedLanguageEditor\SimplifiedLanguageEditor.csproj'
+        Exe = 'Simplified Language Editor'; Package = 'Simplified Language Editor'
+        Tag = 'languageeditor-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Sponsor'; Folder = 'Simplified Sponsor Editor'

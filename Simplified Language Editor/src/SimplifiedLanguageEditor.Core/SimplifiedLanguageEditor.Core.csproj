@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedLanguageEditor.Core</RootNamespace>
+    <AssemblyName>SimplifiedLanguageEditor.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!-- The .lng format belongs to the shared library and not to this app. What
+       came in from outside the suite carried its own copy of EgoEngineLibrary's
+       Language, IO and Conversion folders - byte for byte the same files, under
+       the same namespaces, which is why the app layer did not have to change a
+       line when they went. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+</Project>
