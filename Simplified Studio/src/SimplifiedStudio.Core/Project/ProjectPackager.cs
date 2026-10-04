@@ -224,8 +224,10 @@ public static class ProjectPackager
             // Final delivery — zip or copy
             var baseName = SanitizeName(string.IsNullOrWhiteSpace(project.Info.Name)
                 ? "mod" : project.Info.Name);
-            // Append the user's version verbatim — they get to choose whether to prefix it with "v".
-            if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " " + modVersion.Trim();
+            // Append the user's version after a dash, verbatim — they get to choose
+            // whether to prefix it with "v". The dash is what tells a reader where the
+            // name stops: a mod with a number in its title gives no other clue.
+            if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " - " + modVersion.Trim();
 
             say?.Report("Writing your mod file…");
             if (zip)
@@ -289,7 +291,7 @@ public static class ProjectPackager
 
         var baseName = SanitizeName(string.IsNullOrWhiteSpace(project.Info.Name)
             ? "template" : project.Info.Name);
-        if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " " + modVersion.Trim();
+        if (!string.IsNullOrWhiteSpace(modVersion)) baseName += " - " + modVersion.Trim();
         var outPath = Path.Combine(saveLocation, baseName + ".serps");
 
         if (File.Exists(outPath)) File.Delete(outPath);

@@ -202,14 +202,18 @@ public static class PackageDialog
     }
 
     /// <summary>
-    /// What the package is called: the mod name, then its version, the way
-    /// Studio names its own. The version goes on verbatim — whether it reads
-    /// "1.2" or "v1.2" is the author's choice, not ours to correct.
+    /// What the package is called: the mod name, then " - ", then its version,
+    /// the way Studio names its own. The version goes on verbatim — whether it
+    /// reads "1.2" or "v1.2" is the author's choice, not ours to correct.
+    ///
+    /// The dash is what tells a reader where the name stops. Plenty of mods have
+    /// a version-looking word in their title, and "Formula Fantasy 25 Season 2
+    /// 2.0" does not say which part is which.
     /// </summary>
     private static string PackageFileName(string modName, string version)
     {
         var name = SafeFileName(modName);
-        return version.Length == 0 ? name : $"{name} {SafeFileName(version)}";
+        return version.Length == 0 ? name : $"{name} - {SafeFileName(version)}";
     }
 
     /// <summary>A name as a file name, with what the filesystem refuses taken out.</summary>
