@@ -169,6 +169,7 @@
                                 </ContextMenu>
                             </Border.ContextMenu>
 
+                            <Grid>
                             <StackPanel Orientation="Horizontal">
                                 <Border x:Name="Marker" Style="{StaticResource Marker}"/>
                                 <TextBlock x:Name="Label"
@@ -208,6 +209,28 @@
                                            FontSize="12"
                                            Foreground="#6B6B6B"/>
                             </StackPanel>
+
+                            <!-- Which number this one was ticked, out on the
+                                 right where it has the row to itself. Zero
+                                 means unticked, and an unticked row shows
+                                 nothing — hidden by opacity rather than by
+                                 collapsing, so a row does not change shape
+                                 under the pointer that is about to click it.
+
+                                 Tabular figures, so 1 and 2 occupy the same
+                                 width as 11 does and the column does not
+                                 shuffle as the numbers go up. -->
+                            <TextBlock x:Name="Order"
+                                       Text="{Binding Order}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="0,1,0,0"
+                                       FontFamily="pack://application:,,,/Fonts/#Outfit"
+                                       FontWeight="Medium"
+                                       FontSize="13"
+                                       Foreground="#9B9B9B"
+                                       TextOptions.TextFormattingMode="Ideal"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -220,6 +243,16 @@
                                 <Setter TargetName="Marker" Property="Background" Value="#FFFFFF"/>
                                 <Setter TargetName="Label" Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
+
+                            <!-- On the number rather than on IsSelected, and
+                                 they are not the same thing: the row is ticked
+                                 before the window has worked out where in the
+                                 order it goes, and a number that appeared on
+                                 the tick would show the one it had last time
+                                 for the length of that gap. -->
+                            <DataTrigger Binding="{Binding Order}" Value="0">
+                                <Setter TargetName="Order" Property="Opacity" Value="0"/>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>

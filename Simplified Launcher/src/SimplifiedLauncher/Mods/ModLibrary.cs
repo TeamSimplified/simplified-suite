@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 
 namespace SimplifiedLauncher.Mods;
@@ -11,7 +12,58 @@ namespace SimplifiedLauncher.Mods;
 /// ours to correct, which is the same rule the suite packages under.
 /// </param>
 /// <param name="Folder">Absolute path of the mod's own folder.</param>
-public sealed record InstalledMod(string Name, string Author, string Version, string Folder);
+public sealed record InstalledMod(string Name, string Author, string Version, string Folder)
+    : INotifyPropertyChanged
+{
+    private int _order;
+
+    /// <summary>
+    /// Where this one came in the ticking: 1 for the first, 2 for the next,
+    /// and 0 for one that is not ticked at all.
+    ///
+    /// It lives on the mod rather than beside the list because the row has to
+    /// hear about it changing. A number held in a table somewhere else would
+    /// be read once, when the row was built, and then quietly go stale — and
+    /// the one place it would go stale is a list long enough to scroll, where
+    /// rows are built as they arrive.
+    ///
+    /// The order itself is the window's to keep. This is only where the answer
+    /// is put so that a row can see it.
+    /// </summary>
+    public int Order
+    {
+        get => _order;
+        set
+        {
+            if (_order == value) return;
+
+            _order = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Order)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
+    /// What this mod is, for equality, is the four things above — never the
+    /// order, which is only where it sits in somebody's choosing.
+    ///
+    /// A record hashes every field it has, mutable ones included, and WPF keeps
+    /// the selection in a hashed set. Change a selected item's hash and the
+    /// selection can no longer find it to take it out again: unticking a row
+    /// stops working, UnselectAll stops working, and nothing anywhere throws.
+    /// Measured on the real window before this was written, which is the only
+    /// reason it is known.
+    /// </summary>
+    public bool Equals(InstalledMod? other) =>
+        other is not null
+        && Name == other.Name
+        && Author == other.Author
+        && Version == other.Version
+        && Folder == other.Folder;
+
+    public override int GetHashCode() => HashCode.Combine(Name, Author, Version, Folder);
+}
 
 /// <summary>
 /// The <c>mods</c> folder beside the exe: one folder per mod, named the way the

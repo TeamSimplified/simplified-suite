@@ -305,6 +305,12 @@ public partial class MainWindow : Window
             .Select(m => m.Folder)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Held while the list is swapped: setting the source drops every tick
+        // on the way past, and that is the list being rebuilt rather than
+        // anybody changing their mind. Taken at face value it would empty the
+        // order a moment before putting the same mods back at the end of it.
+        _restoring = true;
+
         Mods.ItemsSource = mods;
 
         // Put the ticks back on the same mods, by folder rather than by position:
@@ -313,6 +319,15 @@ public partial class MainWindow : Window
         foreach (var mod in Mods.Items.OfType<InstalledMod>())
             if (chosen.Contains(mod.Folder)) Mods.SelectedItems.Add(mod);
 
+        _restoring = false;
+
+        // A mod that has been deleted leaves the order with it, and the ones
+        // behind it close up: delete the first of three and the third is second.
+        _picked.RemoveAll(folder => !chosen.Contains(folder)
+                                    || Mods.Items.OfType<InstalledMod>()
+                                           .All(m => !m.Folder.Equals(folder, StringComparison.OrdinalIgnoreCase)));
+
+        Number();
         Ready();
     }
 
@@ -590,7 +605,48 @@ public partial class MainWindow : Window
         Ready();
     }
 
-    private void Mods_SelectionChanged(object sender, SelectionChangedEventArgs e) => Ready();
+    /// <summary>
+    /// Keep the order the mods were ticked in, and put the numbers on them.
+    ///
+    /// By folder rather than by the mod itself, because the list is rebuilt from
+    /// disk after every import and delete: the mod ticked first comes back as a
+    /// different object with the same folder, and it is still the one that was
+    /// ticked first.
+    ///
+    /// Untick and tick again and it goes to the back, which is the only answer
+    /// that is not a guess at what somebody meant.
+    /// </summary>
+    private void Mods_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // Rebuilding the list clears the selection and puts it back, and neither
+        // half of that is somebody choosing anything.
+        if (_restoring) return;
+
+        foreach (var mod in e.RemovedItems.OfType<InstalledMod>())
+            _picked.Remove(mod.Folder);
+
+        foreach (var mod in e.AddedItems.OfType<InstalledMod>())
+            if (!_picked.Contains(mod.Folder)) _picked.Add(mod.Folder);
+
+        Number();
+        Ready();
+    }
+
+    /// <summary>The order itself: folders, in the order they were ticked.</summary>
+    private readonly List<string> _picked = [];
+
+    private bool _restoring;
+
+    /// <summary>
+    /// Tell every row where it came. One pass over the list rather than only the
+    /// rows that changed: taking the second of three off moves the third, and
+    /// the row that moved is not the row that was clicked.
+    /// </summary>
+    private void Number()
+    {
+        foreach (var mod in Mods.Items.OfType<InstalledMod>())
+            mod.Order = _picked.IndexOf(mod.Folder) + 1;
+    }
 
     /// <summary>
     /// Into settings: the list and both of the things you do with it go, and
