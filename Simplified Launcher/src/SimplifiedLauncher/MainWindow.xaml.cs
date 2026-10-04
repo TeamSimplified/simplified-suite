@@ -66,6 +66,8 @@ public partial class MainWindow : Window
         // draws its own chrome without any of that library, so it asks directly.
         MinimiseAnimation.Enable(this);
 
+        FindGraphics();
+
         // A path typed and then closed over with the window button would
         // otherwise never reach the file: the box loses focus on the way out, but
         // nothing guarantees the order.
@@ -91,10 +93,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Nothing detects a graphics card, so this one is only ever what was
-    /// chosen — no flag to keep, just a write.
+    /// The same for the card. Both chips start checked in the XAML, so a flag
+    /// is the only way to tell a person's answer from the page's own.
     /// </summary>
-    private void Gpu_Click(object sender, RoutedEventArgs e) => SaveSettings();
+    private bool _gpuPicked;
+
+    private void Gpu_Click(object sender, RoutedEventArgs e)
+    {
+        _gpuPicked = true;
+        SaveSettings();
+    }
 
     /// <summary>
     /// Put back what was saved last time.
@@ -123,7 +131,9 @@ public partial class MainWindow : Window
                 _platformPicked = true;
         }
 
-        Pick(config.Gpu, GpuAmd, "AMD", GpuOther, "Other");
+        // Not inside the folder check above: a graphics card is a fact about the
+        // machine, so it survives the game moving or going away entirely.
+        if (Pick(config.Gpu, GpuAmd, "AMD", GpuOther, "Other")) _gpuPicked = true;
     }
 
     /// <summary>
@@ -204,6 +214,29 @@ public partial class MainWindow : Window
             try { return GameDirDetector.Detect(); }
             catch { return null; }   // a search that fails is not a reason not to start
         }
+    }
+
+    /// <summary>
+    /// Fill in which card the mods will be installed for.
+    ///
+    /// Separate from the game search because it is a separate question: this
+    /// one is about the machine and holds whether or not F1 25 is anywhere.
+    /// Off the UI thread for the same reason as the other, though a registry
+    /// walk is quicker than a disk one.
+    ///
+    /// Same rule as everywhere else here: a card the user chose is never
+    /// second-guessed, and an answer of Unknown leaves the chips alone rather
+    /// than guessing at them.
+    /// </summary>
+    private async void FindGraphics()
+    {
+        if (_gpuPicked) return;
+
+        var card = await Task.Run(GpuDetector.Detect);
+        if (_gpuPicked || !IsLoaded) return;
+
+        if (card == GpuDetector.Card.Amd) GpuAmd.IsChecked = true;
+        else if (card == GpuDetector.Card.Other) GpuOther.IsChecked = true;
     }
 
     /// <summary>
