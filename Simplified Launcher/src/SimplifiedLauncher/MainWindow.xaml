@@ -1376,10 +1376,31 @@ CHOOSE<LineBreak/>YOUR MODS</TextBlock>
                         Style="{StaticResource BareButton}"
                         Click="Settings_Click"
                         ToolTip="Settings">
+                    <!-- Three pixels down, and like the play glyph's nudge
+                         it is not a fudge. Both icons are eighteen pixels in a
+                         forty-four pixel button and both sit on the same rows
+                         to the pixel — measured, 689 to 706 for each, with a
+                         mod in the list and without. Nothing here moves.
+
+                         Two things make the gear read high at true centre.
+                         Its mass: the triangle reaches the corners of its box
+                         and the gear's rounded teeth never do. And the
+                         brightness it is judged against: play is dimmed until
+                         a mod is ticked, and a lit triangle reads heavier
+                         still, which is why a nudge that looked right against
+                         an empty list stopped looking right the moment a mod
+                         went in. Three is for the lit one, because that is
+                         the pairing anyone actually looks at.
+
+                         Set Y to 0 for true bounds centring. -->
                     <Path Data="{StaticResource Gear}"
                           Stretch="Uniform"
                           Width="18" Height="18"
-                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}">
+                        <Path.RenderTransform>
+                            <TranslateTransform Y="3"/>
+                        </Path.RenderTransform>
+                    </Path>
                 </Button>
             </Grid>
             <Grid x:Name="PlaySlot" HorizontalAlignment="Center">
