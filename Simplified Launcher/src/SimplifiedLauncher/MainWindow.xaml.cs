@@ -30,7 +30,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         RefreshMods();
-        Caption(false, Resting);
         _ticker.Tick += (_, _) => Dots((_shown + 1) % 3);
         Ready();
 
@@ -38,7 +37,21 @@ public partial class MainWindow : Window
         {
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
             {
+                // Anchor first, and only then say anything. It pins the block
+                // sideways at whatever width the caption has when it runs, and
+                // the two captions are not the same width — DROP YOUR MODS HERE
+                // is wider than CHOOSE YOUR MODS, so centred it starts further
+                // left. Pinned there, the words that replace it sit left of
+                // where they belong for the rest of the session, and only on a
+                // first launch with an empty library, which is a good way to
+                // never find it.
+                //
+                // The XAML's own content is the canonical one, so anchoring
+                // before the first Caption call pins the same place every time.
+                // Both happen in this one callback, so nothing is drawn in
+                // between.
                 Anchor();
+                Caption(false, Resting);
 
                 // Set rather than slid: a window that opens empty should already
                 // have the words in the middle, not drift there while you watch.
