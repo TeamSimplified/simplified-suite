@@ -115,6 +115,7 @@ public static class ModImport
     private static ImportResult Bring(string source, Func<string, string, int> into, string fallback)
     {
         Directory.CreateDirectory(ModLibrary.FolderPath);
+        Sweep();
 
         // Dot-prefixed so a half-finished import is skipped by the library
         // listing rather than appearing as a mod called .import-something.
@@ -144,12 +145,40 @@ public static class ModImport
 
             var target = Path.Combine(ModLibrary.FolderPath, ModLibrary.FolderNameFor(manifest, fallback));
 
-            // Only now, with a complete extraction in hand, is the installed
-            // copy worth disturbing. Re-importing is how a mod gets updated, so
-            // the same name and version replacing itself is the expected case
+            // Only now, with the whole thing in hand, is the installed copy
+            // worth disturbing. Re-importing is how a mod gets updated, so the
+            // same name and version replacing itself is the expected case
             // rather than a collision to avoid.
-            if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
-            Directory.Move(content, target);
+            //
+            // Aside, then in, then gone. Deleting the installed copy first is
+            // the one step here that can lose a mod: a recursive delete that
+            // meets a file somebody has open — a texture in a tool, Explorer
+            // sitting in the folder — stops partway and leaves everything it
+            // has already removed removed, with nothing installed in its place.
+            // A rename is one operation that either happens or does not, and
+            // Windows allows one on a folder with open files inside it.
+            var displaced = Directory.Exists(target)
+                ? Path.Combine(ModLibrary.FolderPath, "." + ReplacedFolderPrefix + Guid.NewGuid().ToString("n"))
+                : null;
+
+            if (displaced is not null) Directory.Move(target, displaced);
+
+            try
+            {
+                Directory.Move(content, target);
+            }
+            catch
+            {
+                // Nothing was installed, so nothing should have been lost.
+                if (displaced is not null) Directory.Move(displaced, target);
+                throw;
+            }
+
+            // The old copy is no longer anybody's mod, so failing to delete it
+            // is not worth failing the import over. It is dot-prefixed, which
+            // keeps it out of the list, and the next import sweeps it up.
+            if (displaced is not null)
+                try { Directory.Delete(displaced, recursive: true); } catch { /* next time */ }
 
             var name = ModManifest.Text(manifest?.Title) ?? Path.GetFileName(target);
 
@@ -177,6 +206,33 @@ public static class ModImport
 
     /// <summary>Marks a staging folder, so one left by a crash can be recognised.</summary>
     public const string ImportFolderPrefix = "import-";
+
+    /// <summary>Marks a replaced copy waiting to be deleted.</summary>
+    public const string ReplacedFolderPrefix = "replaced-";
+
+    /// <summary>
+    /// Delete what earlier imports left behind: staging folders from a crash,
+    /// and replaced copies that were still being held open at the time.
+    ///
+    /// At the start of an import rather than at startup, because the reason one
+    /// of these survives is usually that something still had the files open, and
+    /// a minute later it probably does not. Failures are ignored for the same
+    /// reason — whatever is still holding on will have let go by some later
+    /// import, and until then an invisible folder costs disk and nothing else.
+    /// </summary>
+    private static void Sweep()
+    {
+        foreach (var folder in Directory.EnumerateDirectories(ModLibrary.FolderPath))
+        {
+            var name = Path.GetFileName(folder);
+
+            if (!name.StartsWith('.')) continue;
+            if (!name.StartsWith("." + ImportFolderPrefix, StringComparison.Ordinal)
+                && !name.StartsWith("." + ReplacedFolderPrefix, StringComparison.Ordinal)) continue;
+
+            try { Directory.Delete(folder, recursive: true); } catch { /* another time */ }
+        }
+    }
 
     /// <summary>
     /// Copy a dropped folder's contents into staging, and return how many files
