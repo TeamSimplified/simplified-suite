@@ -56,13 +56,26 @@ public sealed class ModManifest
     {
         try
         {
-            return JsonSerializer.Deserialize<ModManifest>(utf8, Json);
+            return JsonSerializer.Deserialize<ModManifest>(WithoutMark(utf8), Json);
         }
         catch
         {
             return null;
         }
     }
+
+    /// <summary>
+    /// The bytes without a byte order mark on the front, if there was one.
+    ///
+    /// System.Text.Json refuses a mark outright rather than skipping it, and
+    /// several editors put one on a file saved as UTF-8. A manifest written by
+    /// one of ours never has it, but these get opened and edited by hand, and
+    /// the failure is a quiet one: the parse throws, the mod is treated as
+    /// having no manifest at all, and it appears in the list under its folder
+    /// name with no author and no version. Nothing says why.
+    /// </summary>
+    private static ReadOnlySpan<byte> WithoutMark(byte[] utf8) =>
+        utf8 is [0xEF, 0xBB, 0xBF, ..] ? utf8.AsSpan(3) : utf8;
 
     /// <summary>A field worth having, or null. Blank and whitespace are both nothing.</summary>
     public static string? Text(string? value) =>
