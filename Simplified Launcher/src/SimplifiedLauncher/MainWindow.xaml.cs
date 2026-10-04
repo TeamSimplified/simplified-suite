@@ -47,6 +47,10 @@ public partial class MainWindow : Window
         LoadSettings();
         FindGameInstall();
 
+        // The suite's windows get this from FramelessWindow.Attach; this one
+        // draws its own chrome without any of that library, so it asks directly.
+        MinimiseAnimation.Enable(this);
+
         // A path typed and then closed over with the window button would
         // otherwise never reach the file: the box loses focus on the way out, but
         // nothing guarantees the order.
@@ -644,7 +648,6 @@ public partial class MainWindow : Window
             BeginTime = TimeSpan.FromSeconds(delay),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
         };
-
 
     // ── Shaking it off ──────────────────────────────────────────────────
 

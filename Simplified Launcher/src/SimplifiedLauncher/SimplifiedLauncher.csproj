@@ -40,6 +40,13 @@
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
   </ItemGroup>
 
+  <!-- The minimise animation, which every window here needs for the same reason
+       and gets from the same file. The suite's apps reach it through
+       SimplifiedUi; this one has no SimplifiedUi, so it links it directly. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\MinimiseAnimation.cs" Link="MinimiseAnimation.cs" />
+  </ItemGroup>
+
   <!-- Reads a dropped mod archive whatever shape it is in: zip, 7z, rar, tar and
        the older ones. Managed, so there is no 7za.exe or UnRAR.exe to ship, no
        process to spawn and no console window to hide. The version is pinned in

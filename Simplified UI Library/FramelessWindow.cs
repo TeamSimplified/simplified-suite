@@ -19,6 +19,9 @@ namespace SimplifiedUi;
 ///     answered with the monitor's work area
 ///   * the maximise glyph has to follow the window state rather than the click,
 ///     because double-clicking the bar maximises too
+///   * WindowStyle None also drops WS_CAPTION, and the shell reads that bit to
+///     decide what it animates into the taskbar — so without it the window
+///     vanishes on the spot. See <see cref="Simplified.Shared.MinimiseAnimation"/>
 ///
 /// Studio and ERP carry this inline, from before there was anywhere shared to
 /// put it. The swappers use this.
@@ -38,6 +41,7 @@ public static class FramelessWindow
         window.SourceInitialized += (_, _) =>
         {
             DialogChrome.RoundCorners(window);
+            Simplified.Shared.MinimiseAnimation.Enable(window);
             if (PresentationSource.FromVisual(window) is HwndSource source) source.AddHook(WindowProc);
         };
 

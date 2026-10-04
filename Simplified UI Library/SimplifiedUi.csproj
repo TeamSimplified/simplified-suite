@@ -21,4 +21,12 @@
     <Version>1.0</Version>
   </PropertyGroup>
 
+  <!-- The minimise animation, linked rather than copied: the launcher draws its
+       own chrome without any of this library and needs the same fix, so there is
+       one file and two consumers instead of two files that agree until they
+       don't. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\MinimiseAnimation.cs" Link="MinimiseAnimation.cs" />
+  </ItemGroup>
+
 </Project>
