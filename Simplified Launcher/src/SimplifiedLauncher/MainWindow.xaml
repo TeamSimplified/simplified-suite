@@ -308,8 +308,12 @@
              two pages sit identically. -->
         <!-- The small label: STATUS over the heading, and the name over each
              group of settings. One style so the size and the colour cannot
-             drift apart; the weight is set where it is used, because STATUS
-             is Light and the settings labels are Regular.
+             drift apart.
+
+             All of them Regular now. STATUS was Light, which at twelve pixels
+             in a grey this far down was thinner than it could carry — the
+             stems were landing under a pixel and the anti-aliasing was doing
+             the rest. One step up and the word is there without being louder.
 
              Display formatting, against the headline's Ideal: at twelve
              pixels snapping the stems to whole pixels is what keeps a light
@@ -1099,7 +1103,7 @@
                  or as wide as DROP YOUR MODS HERE. -->
             <TextBlock Text="STATUS"
                        Style="{StaticResource Label}"
-                       FontWeight="Light"
+                       FontWeight="Regular"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 

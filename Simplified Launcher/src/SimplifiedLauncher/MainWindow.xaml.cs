@@ -504,8 +504,17 @@ public partial class MainWindow : Window
     ///
     /// Nothing is installed and nothing is started: this is the shape of the
     /// thing, so the timings and the movement can be looked at before there
-    /// is anything behind them. The three captions and their waits are the
-    /// only part that will not survive contact with real work.
+    /// is anything behind them. The captions and their waits are the only part
+    /// that will not survive contact with real work.
+    ///
+    /// Six steps, in the order the real thing will have to do them: read what
+    /// was chosen, take a copy of what is about to be overwritten, write the
+    /// mods in, start the game, wait it out, and put the game back. Backing up
+    /// gets the longest wait of the three before launch because it is the one
+    /// that will actually be slow — copying the game's own shader packages
+    /// somewhere safe is what makes restoring possible at all. The numbers are
+    /// guesses either way and are there to be replaced by however long the work
+    /// takes.
     /// </summary>
     private async void Play_Click(object sender, RoutedEventArgs e)
     {
@@ -521,6 +530,12 @@ public partial class MainWindow : Window
         Fade(BottomBar, 0, seconds: ClearSeconds, delay: TrailSeconds);
         Mods.IsHitTestVisible = false;
         Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
+
+        if (!await Say("PREPARING", "YOUR MODS")) return;
+        if (!await Wait(4)) return;
+
+        if (!await Say("BACKING UP", "YOUR GAME")) return;
+        if (!await Wait(7)) return;
 
         if (!await Say("INSTALLING", "YOUR MODS")) return;
         if (!await Wait(6)) return;
