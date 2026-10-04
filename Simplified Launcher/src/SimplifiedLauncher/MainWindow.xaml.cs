@@ -320,12 +320,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Filling. The rows are put in place already invisible, so none of them
-        // shows for a frame before the heading has got out of the way.
-        Fade(Mods, 0, seconds: 0);
+        // Filling. The rows go in while nothing can see them, the heading goes
+        // up, and only then do they arrive in the space it left.
         Show(mods);
         Slide(RestingShift);
-        Fade(Mods, 1, seconds: ClearSeconds, delay: SlideSeconds);
+        FadeInAfter(Mods, SlideSeconds, ClearSeconds);
     }
 
     /// <summary>
@@ -490,8 +489,8 @@ public partial class MainWindow : Window
         if (!await Wait(5)) return;
 
         Slide(RestingShift);
-        Fade(Mods, 1, seconds: ClearSeconds, delay: SlideSeconds);
-        Fade(BottomBar, 1, seconds: ClearSeconds, delay: SlideSeconds + TrailSeconds);
+        FadeInAfter(Mods, SlideSeconds, ClearSeconds);
+        FadeInAfter(BottomBar, SlideSeconds + TrailSeconds, ClearSeconds);
         if (!await Say(false, Resting)) return;
         Mods.IsHitTestVisible = true;
 
@@ -537,9 +536,9 @@ public partial class MainWindow : Window
 
         if (travelling) Slide(0, delay: ClearSeconds + TrailSeconds);
 
-        Fade(Options, 1, seconds: ClearSeconds, delay: ready);
-        Fade(TeamSlot, 1, seconds: ClearSeconds, delay: ready);
-        Fade(BackSlot, 1, seconds: ClearSeconds, delay: ready);
+        FadeInAfter(Options, ready, ClearSeconds);
+        FadeInAfter(TeamSlot, ready, ClearSeconds);
+        FadeInAfter(BackSlot, ready, ClearSeconds);
         Mods.IsHitTestVisible = false;
         Options.IsHitTestVisible = true;
         PlaySlot.IsHitTestVisible = false;
@@ -587,9 +586,9 @@ public partial class MainWindow : Window
 
         if (travelling) Slide(RestingShift, delay: ClearSeconds);
 
-        Fade(Mods, 1, seconds: ClearSeconds, delay: ready);
-        Fade(SettingsSlot, 1, seconds: ClearSeconds, delay: ready + TrailSeconds);
-        Fade(PlaySlot, 1, seconds: ClearSeconds, delay: ready + TrailSeconds);
+        FadeInAfter(Mods, ready, ClearSeconds);
+        FadeInAfter(SettingsSlot, ready + TrailSeconds, ClearSeconds);
+        FadeInAfter(PlaySlot, ready + TrailSeconds, ClearSeconds);
         Mods.IsHitTestVisible = true;
         Options.IsHitTestVisible = false;
         PlaySlot.IsHitTestVisible = true;
@@ -780,6 +779,29 @@ public partial class MainWindow : Window
 
     private static void Fade(UIElement element, double to, double delay = 0, double seconds = 0.35) =>
         element.BeginAnimation(OpacityProperty, Glide(to, seconds, delay));
+
+    /// <summary>
+    /// Bring something back, but not yet — and keep it out of sight until then.
+    ///
+    /// Fade with a delay cannot do this, and the reason is worth knowing. A
+    /// delayed animation does not hold its property while it waits: the clock
+    /// has not started, so what shows is the element's own base value. For
+    /// anything that was never given one that is fully opaque, so scheduling a
+    /// fade-in half a second out puts the thing on screen immediately and then
+    /// fades it from visible to visible. Measured: the mod list read 1.00
+    /// throughout, rows and all, while the heading was still travelling.
+    ///
+    /// Whatever animation is holding it is dropped first and the base value set
+    /// to hidden, so the wait has something invisible to wait on. Anything
+    /// scheduled to arrive after something else moves wants this rather than
+    /// Fade.
+    /// </summary>
+    private static void FadeInAfter(UIElement element, double delay, double seconds = 0.3)
+    {
+        element.BeginAnimation(OpacityProperty, null);
+        element.Opacity = 0;
+        element.BeginAnimation(OpacityProperty, Glide(1, seconds, delay));
+    }
 
     /// <summary>
     /// Every movement in the window goes through here, so they all ease the
