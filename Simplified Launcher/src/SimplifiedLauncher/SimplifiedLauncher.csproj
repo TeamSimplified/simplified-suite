@@ -29,6 +29,16 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>Simplified Launcher</AssemblyName>
     <RootNamespace>SimplifiedLauncher</RootNamespace>
+
+    <!-- The same icon Simplified ERP wears, and five other apps with it. A copy
+         in this app's own folder rather than a path into ERP's, because that is
+         how every app here holds its icon and an app reaching into another one
+         for its identity is a dependency nobody expects.
+
+         There is no window icon to go with it: this window has no title bar to
+         put one in. What this sets is the exe's, which is what the taskbar and
+         Alt-Tab read. -->
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- The game install search every app here uses: Steam's libraries from the
