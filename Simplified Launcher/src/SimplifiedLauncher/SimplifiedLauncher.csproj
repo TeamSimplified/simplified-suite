@@ -39,7 +39,34 @@
          put one in. What this sets is the exe's, which is what the taskbar and
          Alt-Tab read. -->
     <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+
+    <!-- Per-monitor DPI, which a window drawing its own corners wants. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- Off, as everywhere else: embedding the natives makes the host unpack
+         them to the user's temp folder at startup, outside the app folder and
+         never cleaned up. The app is portable and that would be the one thing
+         it wrote somewhere else. MoveNativesIntoRuntimeFolder tidies them
+         instead, and NativeLibraryFolder teaches the app to look there. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+  </Target>
 
   <!-- The game install search every app here uses: Steam's libraries from the
        registry and libraryfolders.vdf, then the usual EA and Origin roots, and
@@ -48,6 +75,7 @@
        next game moves the goalposts. -->
   <ItemGroup>
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+    <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
   </ItemGroup>
 
   <!-- The minimise animation, which every window here needs for the same reason

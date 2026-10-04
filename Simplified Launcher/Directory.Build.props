@@ -1,0 +1,33 @@
+﻿<Project>
+
+  <!-- MSBuild stops at the first Directory.Build.props it finds on the way up,
+       so this file would replace the suite-wide one rather than adding to it.
+       Every setting in the root would then be reaching nothing, and each
+       project would quietly repeat whatever it needed — until one didn't, and
+       shipped a loose .pdb. Importing it explicitly is the way to have both. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- What the app reports for its version, alongside the commit it was
+         built from, so a release tag can be checked against the binary.
+
+         4.0 because the launcher that is out there is the Python one at v3.2,
+         and this replaces it. Nothing has published a 4.0, so this number is
+         still a claim about the next release rather than one anybody has read.
+
+         The settings page says v4.0.00 in so many words. That string is typed
+         into the XAML and does not come from here. -->
+    <Version>4.0</Version>
+
+    <!-- The two the root sets differently. Declared after the import, so these
+         win.
+
+         The copyright is not the suite's usual one: every other app carries a
+         note about EgoEngineLibrary because it has that code in it, and this
+         app has none — no EGO reference, no ERP handling. Claiming the port
+         here would be claiming something that is not in the binary. -->
+    <Company>Simplified Studio</Company>
+    <Copyright>© Team Simplified</Copyright>
+  </PropertyGroup>
+
+</Project>

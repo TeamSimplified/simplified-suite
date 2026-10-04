@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, Launcher, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'Launcher', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -183,6 +183,16 @@ $Apps = @(
         Exe = 'Simplified Sponsor Editor'; Package = 'Simplified Sponsor Editor'
         Tag = 'sponsor-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'Launcher'; Folder = 'Simplified Launcher'
+        Project = 'src\SimplifiedLauncher\SimplifiedLauncher.csproj'
+        Exe = 'Simplified Launcher'; Package = 'Simplified Launcher'
+        Tag = 'launcher-v'; Kind = 'window'
+        # Fonts\ carries Outfit's licence. The font itself is inside the exe,
+        # but a font being distributed is a font whose licence travels with it,
+        # so the OFL goes in the package as a file.
+        Ships = @('*.exe', 'runtime\*', 'Fonts\*')
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'
