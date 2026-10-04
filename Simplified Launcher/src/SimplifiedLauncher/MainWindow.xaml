@@ -839,10 +839,16 @@
              The opacity is on the group, so the points blend with each other
              at full strength and only the result is dimmed. One number for the
              weight of the whole thing. -->
-        <Grid Opacity="0.15" IsHitTestVisible="False">
+        <Grid x:Name="Gradient" Opacity="0.15" IsHitTestVisible="False">
             <Grid.Triggers>
                 <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                    <BeginStoryboard>
+                    <!-- Named, which is what makes the storyboard controllable:
+                         an unnamed one cannot be paused at all. It is paused
+                         while the game has the screen, and the grid below is
+                         the object it has to be paused on — the element whose
+                         triggers started it. Pausing it on anything else, the
+                         window included, throws nothing and does nothing. -->
+                    <BeginStoryboard x:Name="Drift">
                         <Storyboard Timeline.DesiredFrameRate="30">
 
 

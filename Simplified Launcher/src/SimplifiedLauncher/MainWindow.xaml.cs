@@ -495,6 +495,30 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// The gradient's drift, running or held.
+    ///
+    /// Held while the game is up. Nothing is looking at this window then, and
+    /// what it costs is five brushes with two animated points each, re-rendered
+    /// thirty times a second, against a game that wants every bit of the
+    /// machine it can get.
+    ///
+    /// Paused rather than stopped. Stopping puts every brush back where it
+    /// started, and the window would jump at the moment it is handed back.
+    /// A paused clock simply stops ticking: the light stays exactly where it
+    /// had got to, and carries on from there.
+    ///
+    /// On the grid, which is the element whose triggers began it. Pausing a
+    /// storyboard on anything else is not an error and not a pause — it is
+    /// silently nothing, which is a quiet way to ship an animation that never
+    /// stopped.
+    /// </summary>
+    private void Drifting(bool running)
+    {
+        if (running) Drift.Storyboard.Resume(Gradient);
+        else Drift.Storyboard.Pause(Gradient);
+    }
+
+    /// <summary>
     /// A window with no caption has nothing to drag it by, so its surface is
     /// the handle. The buttons mark their own clicks as handled, which is why
     /// pressing one does not also start a drag.
@@ -549,8 +573,10 @@ public partial class MainWindow : Window
         if (!await Wait(5)) return;
 
         if (!await Say("GAME", "LAUNCHED.", working: false)) return;
+        Drifting(false);
         if (!await Wait(10)) return;
 
+        Drifting(true);
         if (!await Say("RESTORING", "YOUR GAME")) return;
         if (!await Wait(5)) return;
 
