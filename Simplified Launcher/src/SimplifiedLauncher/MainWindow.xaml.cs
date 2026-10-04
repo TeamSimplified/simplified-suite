@@ -361,10 +361,18 @@ public partial class MainWindow : Window
         var gone = await Task.Run(() => ModLibrary.Remove(mod));
         if (!IsLoaded) return;
 
+        // Read before the list changes, so it can be compared with after.
+        var said = Resting;
+
         await Resettle();
 
-        if (gone) await Say(false, Resting);
-        else await Say(false, "THAT MOD", "WOULDN'T GO");
+        // Only speak when there is something different to say. Taking one mod
+        // out of several leaves the heading saying exactly what it said a moment
+        // ago, and fading the same two words out and back in is a stutter rather
+        // than an answer. Removing the last one does change the words, and that
+        // still gets said.
+        if (!gone) await Say(false, "THAT MOD", "WOULDN'T GO");
+        else if (!said.SequenceEqual(Resting)) await Say(false, Resting);
 
         _running = false;
         Ready();
