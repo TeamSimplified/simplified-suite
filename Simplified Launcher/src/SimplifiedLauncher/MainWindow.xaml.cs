@@ -37,20 +37,12 @@ public partial class MainWindow : Window
         {
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
             {
-                // Anchor first, and only then say anything. It pins the block
-                // sideways at whatever width the caption has when it runs, and
-                // the two captions are not the same width — DROP YOUR MODS HERE
-                // is wider than CHOOSE YOUR MODS, so centred it starts further
-                // left. Pinned there, the words that replace it sit left of
-                // where they belong for the rest of the session, and only on a
-                // first launch with an empty library, which is a good way to
-                // never find it.
-                //
-                // The XAML's own content is the canonical one, so anchoring
-                // before the first Caption call pins the same place every time.
-                // Both happen in this one callback, so nothing is drawn in
-                // between.
-                Anchor();
+                // Not anchored any more. Anchor pinned the block sideways
+                // because its children were flush left inside a panel whose
+                // width followed the caption, which slid the mark and the
+                // label about whenever the words changed. They are centred
+                // now, so the panel can be any width it likes and all three
+                // stay on the middle of the window.
                 Caption(false, Resting);
 
                 // Set rather than slid: a window that opens empty should already
@@ -672,6 +664,19 @@ public partial class MainWindow : Window
         for (var i = 0; i < lines.Length; i++)
         {
             if (i > 0) Headline.Inlines.Add(new LineBreak());
+
+            // A pair of dots in front of the line the real ones will follow,
+            // never painted, there only to take up the same room.
+            //
+            // The lines are centred one by one, and a line is laid out whole ~
+            // the dots on the end are part of its width whether or not anything
+            // is drawn for them. A pair on one end alone therefore pushes the
+            // words left by half of it, which is why the bottom line sat left
+            // of the top one, and only while something was working.
+            if (working && i == lines.Length - 1)
+                for (var d = 0; d < 2; d++)
+                    Headline.Inlines.Add(new Run(".") { Foreground = Brushes.Transparent });
+
             Headline.Inlines.Add(new Run(lines[i]));
         }
 
@@ -681,10 +686,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Both dots are in the line the whole time; what cycles is whether
-        // each is painted. Adding and removing them would change the width of
-        // the longest line, and the block is centred on that — so the heading
-        // would hop sideways twice a second.
+        // Both dots are in the line the whole time; what cycles is whether each
+        // is painted. Adding and removing them would change the line's width,
+        // and a centred line would shuffle under them twice a second.
         for (var i = 0; i < 2; i++)
         {
             var dot = new Run(".");

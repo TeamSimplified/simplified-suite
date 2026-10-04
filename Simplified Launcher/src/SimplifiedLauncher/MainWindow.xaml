@@ -1055,8 +1055,13 @@
                  moves it. Animating a margin instead would re-run the
                  layout every frame.
 
-                 Vertical only. Sideways it is pinned, once, in code:
-                 see Anchor. -->
+                 Vertical only, and now that is all there is. Sideways it
+                 used to be pinned in code because the mark and the label
+                 were flush left inside a panel whose width changed with the
+                 caption, so they slid about under it. Centred, they do not:
+                 the block grows and shrinks around its own middle and all
+                 three stay where they are. See Anchor, which no longer has
+                 anything to do. -->
             <StackPanel.RenderTransform>
                 <TranslateTransform x:Name="HeadingShift"/>
             </StackPanel.RenderTransform>
@@ -1076,7 +1081,7 @@
                  so STATUS and the two lines under it group into one thing and
                  this stands apart from them. -->
             <Viewbox Height="34"
-                     HorizontalAlignment="Left"
+                     HorizontalAlignment="Center"
                      Margin="0,0,0,24"
                      Stretch="Uniform">
                 <Path Data="{StaticResource Wordmark}" Fill="#FFFFFF"/>
@@ -1088,22 +1093,24 @@
                  causes is too small to see. The two settings are right for
                  opposite reasons.
 
-                 The panel is as wide as its widest line, so left-aligning both
-                 children puts this flush with MILDTDESIGN. -->
+                 Everything in this block is centred on the window now, so
+                 the panel's width stops mattering: a centred child is in the
+                 same place whether the panel is as wide as CHOOSE YOUR MODS
+                 or as wide as DROP YOUR MODS HERE. -->
             <TextBlock Text="STATUS"
                        Style="{StaticResource Label}"
                        FontWeight="Light"
-                       HorizontalAlignment="Left"
+                       HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 
             <TextBlock x:Name="Headline"
-                       HorizontalAlignment="Left"
+                       HorizontalAlignment="Center"
                        FontFamily="pack://application:,,,/Fonts/#Outfit"
                        FontWeight="Bold"
                        FontSize="32"
                        LineHeight="28"
                        LineStackingStrategy="BlockLineHeight"
-                       TextAlignment="Left"
+                       TextAlignment="Center"
                        Foreground="#FFFFFF"
                        TextOptions.TextFormattingMode="Ideal">
 CHOOSE<LineBreak/>YOUR MODS</TextBlock>
