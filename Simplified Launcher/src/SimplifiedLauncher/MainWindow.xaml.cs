@@ -575,8 +575,23 @@ public partial class MainWindow : Window
         Mods.IsHitTestVisible = false;
         Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
 
-        if (!await Say("PREPARING", "YOUR MODS")) return;
-        if (!await Wait(4)) return;
+        if (!await Say("STAGING", "YOUR MODS")) return;
+
+        // The one step that is no longer mimed. Off the window's thread,
+        // because it is file copying and the dots are the only thing on screen
+        // saying the app has not hung.
+        var chosen = Chosen();
+        var began = DateTime.UtcNow;
+        var staged = await Task.Run(() => ModStack.Build(chosen));
+        if (!IsLoaded) return;
+
+        if (staged.Problem is not null)
+        {
+            await Settle("COULDN'T STAGE", "YOUR MODS");
+            return;
+        }
+
+        if (!await Rest(began)) return;
 
         if (!await Say("BACKING UP", "YOUR GAME")) return;
         if (!await Wait(7)) return;
@@ -595,15 +610,56 @@ public partial class MainWindow : Window
         if (!await Say("RESTORING", "YOUR GAME")) return;
         if (!await Wait(5)) return;
 
+        await Settle(Resting);
+    }
+
+    /// <summary>
+    /// Put the room back and hand it over: the heading returns to where it
+    /// lives, the list and the buttons follow it in, and the window is somebody
+    /// else's again.
+    ///
+    /// One place rather than at the end of every way out of a launch. A path
+    /// that stops early and forgets one line of this leaves a window with no
+    /// list in it and nothing to press.
+    /// </summary>
+    private async Task Settle(params string[] lines)
+    {
         Slide(RestingShift);
         FadeInAfter(Mods, SlideSeconds, ClearSeconds);
         FadeInAfter(BottomBar, SlideSeconds + TrailSeconds, ClearSeconds);
-        if (!await Say(false, Resting)) return;
-        Mods.IsHitTestVisible = true;
 
+        await Say(false, lines);
+
+        Mods.IsHitTestVisible = true;
         _running = false;
         Ready();
     }
+
+    /// <summary>
+    /// The mods that were ticked, in the order they were ticked.
+    ///
+    /// By the number on the row rather than by the list's own order, which is
+    /// alphabetical and has nothing to do with what anybody asked for.
+    /// </summary>
+    private IReadOnlyList<InstalledMod> Chosen() =>
+        Mods.SelectedItems.OfType<InstalledMod>().OrderBy(mod => mod.Order).ToList();
+
+    /// <summary>
+    /// Hold a step on screen for as long as it is worth reading, given it began
+    /// at <paramref name="began"/>. False if the window has gone.
+    ///
+    /// Real work takes whatever it takes, and three mods of a few files each
+    /// take no time at all. A caption that appears and vanishes inside a frame
+    /// reads as a step that was skipped rather than one that was quick.
+    /// </summary>
+    private async Task<bool> Rest(DateTime began)
+    {
+        var left = ShortestStep - (DateTime.UtcNow - began).TotalSeconds;
+        return left <= 0 ? IsLoaded : await Wait(left);
+    }
+
+    /// <summary>How long a step stays up however fast it was.</summary>
+    private const double ShortestStep = 1.6;
 
     /// <summary>
     /// Keep the order the mods were ticked in, and put the numbers on them.
