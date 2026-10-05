@@ -320,7 +320,7 @@ public partial class TeamsPanel : UserControl
     private void EditColour(TeamRow row, ColourField field)
     {
         var current = row.Colours.GetValueOrDefault(field, "#000000");
-        var entered = ColourDialog.Show(Window.GetWindow(this)!, $"{row.Team.Label} — {TeamColours.FieldLabel(field)}", current);
+        var entered = Simplified.Shared.ColourDialog.Show(Window.GetWindow(this)!, $"{row.Team.Label} — {TeamColours.FieldLabel(field)}", current);
         if (entered is null || entered == current) return;
 
         row.Colours[field] = entered;

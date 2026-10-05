@@ -38,6 +38,9 @@
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+    <Compile Include="..\..\..\Shared\ColourDialog.cs" Link="ColourDialog.cs" />
+    <Compile Include="..\..\..\Shared\ScreenColourPicker.cs" Link="ScreenColourPicker.cs" />
+    <Compile Include="..\..\..\Shared\FlatButton.cs" Link="FlatButton.cs" />
 
     <!-- Rasterising an SVG somebody imports. Linked rather than put in the UI
          library, because that one is referenced by every app in the suite and

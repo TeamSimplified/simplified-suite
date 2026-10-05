@@ -1,16 +1,20 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using SimplifiedGridEditor.Util;
 using SimplifiedUi;
 
-namespace SimplifiedGridEditor;
+namespace Simplified.Shared;
 
 /// <summary>
 /// Asking for one colour.
+///
+/// Shared rather than copied: the Grid Editor and the Team Editor each had one
+/// of these, identical but for the namespace, and the Sponsor Editor wanted a
+/// third. One of them getting a fix the others did not is the whole reason the
+/// suite keeps its common parts in one place.
 ///
 /// A saturation/value square with a hue strip under it, and the hex beside
 /// them. The square is for choosing — a team colour is usually judged by eye —

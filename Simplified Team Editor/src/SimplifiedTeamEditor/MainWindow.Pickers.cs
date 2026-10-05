@@ -98,7 +98,7 @@ public partial class MainWindow
                 Width = 56,
                 Height = 56,
                 Padding = new Thickness(0),
-                Template = FlatButtonTemplate(),
+                Template = Simplified.Shared.FlatButton.Template(),
                 Background = Brush(hex),
                 BorderThickness = new Thickness(1),
                 Cursor = System.Windows.Input.Cursors.Hand,
@@ -107,7 +107,7 @@ public partial class MainWindow
             swatch.SetResourceReference(Control.BorderBrushProperty, "BorderStrong");
             swatch.Click += (_, _) =>
             {
-                var chosen = ColourDialog.Show(this, $"{row.Team.Label} — {TeamColours.FieldLabel(field)}", hex);
+                var chosen = Simplified.Shared.ColourDialog.Show(this, $"{row.Team.Label} — {TeamColours.FieldLabel(field)}", hex);
                 if (chosen is null || chosen == hex) return;
                 row.Colours[field] = chosen;
                 BuildColourPicker(row);

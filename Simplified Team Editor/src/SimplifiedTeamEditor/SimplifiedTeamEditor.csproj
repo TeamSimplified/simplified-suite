@@ -40,6 +40,9 @@
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+    <Compile Include="..\..\..\Shared\ColourDialog.cs" Link="ColourDialog.cs" />
+    <Compile Include="..\..\..\Shared\ScreenColourPicker.cs" Link="ScreenColourPicker.cs" />
+    <Compile Include="..\..\..\Shared\FlatButton.cs" Link="FlatButton.cs" />
   </ItemGroup>
 
   <!-- Ship icon.ico loose next to the published EXE. Content items survive

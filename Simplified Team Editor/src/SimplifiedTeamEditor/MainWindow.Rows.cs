@@ -62,7 +62,7 @@ public partial class MainWindow
             Padding = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Left,
             ToolTip = "Edit this team's logos",
-            Template = FlatButtonTemplate(),
+            Template = Simplified.Shared.FlatButton.Template(),
         };
         // A dark ground of its own, and a border to bound it. These logos are
         // drawn light for a dark game UI, so several of them - Aston Martin,
@@ -110,7 +110,7 @@ public partial class MainWindow
             Cursor = row.DatabaseIndex is not null
                 ? System.Windows.Input.Cursors.Hand
                 : System.Windows.Input.Cursors.Arrow,
-            Template = FlatButtonTemplate(cornerRadius: 3),
+            Template = Simplified.Shared.FlatButton.Template(cornerRadius: 3),
             Background = Brush(accent),
             BorderThickness = new Thickness(row.ColoursModified ? 2 : 1),
         };
@@ -323,39 +323,4 @@ public partial class MainWindow
     /// point, as with a colour swatch or a logo, and the themed button chrome
     /// would sit on top of it.
     /// </summary>
-    private static ControlTemplate FlatButtonTemplate(double cornerRadius = 4)
-    {
-        var border = new FrameworkElementFactory(typeof(Border), "Chrome");
-        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(cornerRadius));
-        border.SetValue(Border.SnapsToDevicePixelsProperty, true);
-        border.SetValue(Border.ClipToBoundsProperty, true);
-        foreach (var property in new DependencyProperty[]
-                 { Border.BackgroundProperty, Border.BorderBrushProperty, Border.BorderThicknessProperty })
-            border.SetBinding(property, new System.Windows.Data.Binding(property.Name)
-            {
-                RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent,
-            });
-
-        var content = new FrameworkElementFactory(typeof(ContentPresenter));
-        content.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Stretch);
-        content.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Stretch);
-        border.AppendChild(content);
-
-        var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
-
-        // The background is the point of these buttons - a team colour, or a
-        // logo - so hover brightens the outline rather than the fill, which
-        // would misreport the colour underneath the pointer.
-        var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        hover.Setters.Add(new Setter(Border.BorderBrushProperty,
-            new DynamicResourceExtension("TextMuted"), "Chrome"));
-        template.Triggers.Add(hover);
-
-        var pressed = new Trigger { Property = ButtonBase.IsPressedProperty, Value = true };
-        pressed.Setters.Add(new Setter(Border.BorderBrushProperty,
-            new DynamicResourceExtension("TextPrimary"), "Chrome"));
-        template.Triggers.Add(pressed);
-
-        return template;
-    }
 }
