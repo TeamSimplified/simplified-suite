@@ -320,14 +320,33 @@
                      and Studio's bars are collapsed in that state too. -->
                 <Border DockPanel.Dock="Bottom" Name="BackdropBar" Style="{StaticResource Panel}"
                         Margin="0,6,0,0" Padding="8,4" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock Text="Background" VerticalAlignment="Center" Margin="0,0,10,0"
-                                   Foreground="{DynamicResource TextMuted}"/>
-                        <Slider Name="BackdropSlider" Style="{StaticResource BackdropSlider}"
-                                Width="130" VerticalAlignment="Center"
-                                ValueChanged="Backdrop_Changed"
-                                ToolTip="Slide from a light background to a dark one — a light logo reads against dark, a dark one against light"/>
-                    </StackPanel>
+                    <DockPanel LastChildFill="False">
+                        <!-- Which view. The house chips, as the Language Editor
+                             uses for its log, on the bar that comes and goes
+                             with the selection rather than with the picture ~ it
+                             carries the only way out of a view that shows none. -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <RadioButton Name="FramesViewChip" Style="{StaticResource ChannelChip}"
+                                         GroupName="DecalView" Content="Frames" IsChecked="True"
+                                         Checked="DecalView_Changed"
+                                         ToolTip="Both textures the decal goes into, at their own proportions"/>
+                            <RadioButton Name="CarViewChip" Style="{StaticResource ChannelChip}"
+                                         GroupName="DecalView" Content="On car"
+                                         Checked="DecalView_Changed"
+                                         ToolTip="The decal where it lands on the car"/>
+                        </StackPanel>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="Background" VerticalAlignment="Center" Margin="0,0,10,0"
+                                       Foreground="{DynamicResource TextMuted}"/>
+                            <Slider Name="BackdropSlider" Style="{StaticResource BackdropSlider}"
+                                    Width="130" VerticalAlignment="Center"
+                                    ValueChanged="Backdrop_Changed"
+                                    ToolTip="Slide from a light background to a dark one — a light logo reads against dark, a dark one against light"/>
+                        </StackPanel>
+                    </DockPanel>
                 </Border>
 
                 <!-- The same panel Studio's preview sits in, named as Studio
@@ -343,6 +362,85 @@
                         <TextBlock Name="PreviewPlaceholder" Style="{StaticResource Hint}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Text="Select a decal"/>
+
+                        <!-- The two frames. In the same surface as the single
+                             preview, so the backdrop slider judges these as
+                             well, and each one sized in code to its texture's
+                             own proportions. -->
+                        <!-- The two textures a sponsor goes into, side by
+                             side at their own proportions, with each one's size
+                             under it. One row, centred as a whole rather than one
+                             frame per half: the car's texture is three times the
+                             menu's across, so halves put the big frame against
+                             the outer edge and left the small one adrift.
+
+                             The sizes are docked at the bottom of both columns,
+                             so the two lines of text meet. The car's texture is
+                             the tall one and sets the row's height; the menu's is
+                             centred in that height rather than dropped to sit on
+                             its own text, so the two pictures share a middle.
+
+                             This grid fills the pane, which is what keeps its
+                             width independent of the frames inside it ~ they are
+                             sized from that width, and a container sized to its
+                             frame would be answering with the number it was just
+                             given. A window made narrower left both frames at
+                             the size they had and ran them off the edge, which
+                             is what that mistake looks like.
+
+                             The judging colour goes inside the frames rather than
+                             behind everything: what it is there to do is show a
+                             logo against light or dark, and the texture is the
+                             only part of this that is a logo. The text keeps the
+                             theme's own colours, because it is back on the
+                             theme's own surface. -->
+                        <Grid Name="FramesView" Margin="12" Visibility="Collapsed"
+                              SizeChanged="Frames_SizeChanged">
+                          <StackPanel Orientation="Horizontal"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                            <DockPanel VerticalAlignment="Bottom">
+                                <StackPanel Name="CarCaption" DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                                    <TextBlock Text="On the car" HorizontalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextMuted}"/>
+                                    <TextBlock Name="CarSizeLabel" HorizontalAlignment="Center"
+                                               Margin="0,2,0,0" FontSize="12"
+                                               Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Name="CarSourceLabel" HorizontalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextDisabled}"/>
+                                </StackPanel>
+                                <Border Name="CarFrame" BorderThickness="1"
+                                        BorderBrush="{DynamicResource BorderSoft}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                                    <Image Name="CarImage" Stretch="Fill"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+                            </DockPanel>
+
+                            <DockPanel VerticalAlignment="Stretch" Margin="24,0,0,0">
+                                <StackPanel Name="MenuCaption" DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                                    <TextBlock Text="In the menu" HorizontalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextMuted}"/>
+                                    <TextBlock Name="MenuSizeLabel" HorizontalAlignment="Center"
+                                               Margin="0,2,0,0" FontSize="12"
+                                               Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Name="MenuSourceLabel" HorizontalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextDisabled}"/>
+                                </StackPanel>
+                                <Border Name="MenuFrame" BorderThickness="1"
+                                        BorderBrush="{DynamicResource BorderSoft}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image Name="MenuImage" Stretch="Fill"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+                            </DockPanel>
+
+                          </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </DockPanel>

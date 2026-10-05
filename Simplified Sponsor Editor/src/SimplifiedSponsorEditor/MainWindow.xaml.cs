@@ -48,6 +48,14 @@ public partial class MainWindow : Window
         VersionLabel.Text = Util.AppVersion.Display;
         ApplyWindowIcon();
         ApplyThemeToBackdrop();
+
+        // Before the first ShowSelectedDecal, so the pane opens on the view it
+        // was left on. Frames is checked in the markup, so only the others need
+        // saying — and the artwork view has no chip, so the bar is left claiming
+        // nothing rather than claiming the frames it is not showing.
+        if (_config.DecalView == "Car") CarViewChip.IsChecked = true;
+        else if (_config.DecalView == "Artwork") FramesViewChip.IsChecked = false;
+
         ApplyBackdrop();
 
         LoadCatalogue();
@@ -488,5 +496,6 @@ public partial class MainWindow : Window
 
         CloseProject();
         _preview?.Dispose();
+        _menuPreview?.Dispose();
     }
 }

@@ -89,7 +89,7 @@ public static class SponsorPackager
     /// 1024 decal it is 61 pixels, which is the room the most generous of the
     /// game's own leaves.
     /// </summary>
-    private const double DecalMargin = 0.06;
+    public const double DecalMargin = 0.06;
 
     public static PackageResult Build(PackageRequest request, Action<string>? log = null,
                                       IProgress<string>? say = null,

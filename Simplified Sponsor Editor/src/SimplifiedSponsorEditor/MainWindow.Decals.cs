@@ -209,6 +209,19 @@ public partial class MainWindow
 
         // The project's artwork when there is some, the game's own otherwise —
         // so the pane always shows what this decal would look like in game.
+        switch (View)
+        {
+            // The frames read the same two sources as the single preview and
+            // say more about them, so there is nothing to do here first.
+            case DecalViewKind.Frames:
+                ShowFrames(decal, replaced);
+                return;
+
+            case DecalViewKind.Car:
+                ShowCarView();
+                return;
+        }
+
         var path = replaced ? _project!.PicturePath(decal.Name) : _preview?.Get(decal.CarIdentifier)?.PngPath;
 
         if (path is null || !File.Exists(path))
@@ -228,6 +241,7 @@ public partial class MainWindow
             image.EndInit();
 
             PreviewImage.Source = image;
+            FramesView.Visibility = Visibility.Collapsed;
             PreviewPlaceholder.Visibility = Visibility.Collapsed;
             ApplyBackdrop();
 
@@ -265,6 +279,7 @@ public partial class MainWindow
     private void ShowPlaceholder(string text)
     {
         PreviewImage.Source = null;
+        FramesView.Visibility = Visibility.Collapsed;
         PreviewPlaceholder.Visibility = Visibility.Visible;
         PreviewPlaceholder.Text = text;
         ApplyBackdrop();
@@ -285,6 +300,8 @@ public partial class MainWindow
     // One brush, recoloured in place. A fresh SolidColorBrush per slider tick
     // would allocate on every pixel of the drag.
     private readonly SolidColorBrush _previewBackdropBrush = new(Colors.White);
+
+
 
     /// <summary>
     /// Point the backdrop slider at the end that matches the app's own theme,
@@ -309,12 +326,34 @@ public partial class MainWindow
     /// </summary>
     private void ApplyBackdrop()
     {
-        var hasImage = PreviewImage.Source is not null;
-        BackdropBar.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
+        // Either view counts: the frames sit on this ground too, so the
+        // slider belongs with them as much as with the single picture.
+        var hasImage = PreviewImage.Source is not null
+                       || FramesView.Visibility == Visibility.Visible;
 
-        if (hasImage)
+        // The bar goes with the selection rather than with the picture, because
+        // it carries the chips: hiding it in a view that shows no picture would
+        // take away the only way out of that view.
+        BackdropBar.Visibility = _selected is not null ? Visibility.Visible : Visibility.Collapsed;
+
+
+        _previewBackdropBrush.Color = BackdropColour(_previewBackdropMix);
+
+        // Inside the frames, not behind everything. What the slider is for is
+        // judging a logo against light or dark, and in this view the only parts
+        // that are a logo are the two textures — the rest is the app's own
+        // surface, and the sizes under them read against that.
+        var framing = FramesView.Visibility == Visibility.Visible;
+
+        if (CarFrame is not null)
+            CarFrame.Background = framing ? _previewBackdropBrush : null;
+        if (MenuFrame is not null)
+            MenuFrame.Background = framing ? _previewBackdropBrush : null;
+
+        if (hasImage && !framing)
         {
-            _previewBackdropBrush.Color = BackdropColour(_previewBackdropMix);
+            // The single picture has no frame to sit in, so the ground is the
+            // panel behind it, as it always was.
             PreviewSurface.Background = _previewBackdropBrush;
         }
         else

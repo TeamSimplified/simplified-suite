@@ -34,6 +34,23 @@ public sealed class UserConfig
     /// <summary>Where the last replacement picture was picked from.</summary>
     public string? LastArtworkFolder { get; set; }
 
+    /// <summary>
+    /// Which of the decal views the pane is showing: Artwork, Frames or Car.
+    ///
+    /// Frames to begin with — it answers what the single picture answered and
+    /// the question it could not, which is where the artwork lands in each of
+    /// the two textures a sponsor goes into. Remembered, because somebody
+    /// checking that is doing it for every decal they import rather than once.
+    ///
+    /// A name rather than a number, so a config somebody has opened says what it
+    /// means, and anything unrecognised falls back to the frames.
+    ///
+    /// Artwork has no chip on the bar. The single picture is still here and
+    /// still works, set this to Artwork to have it back, because it shows one
+    /// picture larger than two frames ever can.
+    /// </summary>
+    public string? DecalView { get; set; } = "Frames";
+
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static string ConfigPath => AppPaths.ConfigFile;
