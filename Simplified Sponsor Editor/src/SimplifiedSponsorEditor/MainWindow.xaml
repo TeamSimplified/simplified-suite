@@ -282,10 +282,18 @@
                      is where Studio's Export and Import sit. At the size Studio
                      gives them — 22,8 with an 8px gap, the primary in SemiBold. -->
                 <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" LastChildFill="False">
+                    <!-- Export first so it sits left of Import, the order Studio
+                         uses. Import keeps the SemiBold: in Studio the primary
+                         action is getting a texture out, here it is putting
+                         artwork on, and the weight follows the app. -->
+                    <Button DockPanel.Dock="Left" Name="ExportButton" Content="Export"
+                            Padding="22,8"
+                            IsEnabled="False" Click="Export_Click"
+                            ToolTip="Save this decal's picture as a PNG"/>
                     <Button DockPanel.Dock="Left" Name="ImportButton" Content="Import"
-                            Padding="22,8" FontWeight="SemiBold"
+                            Padding="22,8" Margin="8,0,0,0" FontWeight="SemiBold"
                             IsEnabled="False" Click="Import_Click"
-                            ToolTip="Choose a PNG to put on this decal"/>
+                            ToolTip="Choose a PNG or an SVG to put on this decal"/>
                     <Button DockPanel.Dock="Left" Name="RevertButton" Content="Revert"
                             Padding="22,8" Margin="8,0,0,0"
                             IsEnabled="False" Click="Revert_Click"

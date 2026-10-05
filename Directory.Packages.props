@@ -18,6 +18,13 @@
          belt and braces. -->
     <PackageVersion Include="SharpCompress" Version="0.48.0" />
 
+    <!-- Reading an SVG, for the Sponsor Editor's artwork import. Managed only,
+         and WPF's own drawing model rather than a native rasteriser, which is
+         what lets it go inside a single-file self-contained build with nothing
+         beside the exe. Linked in by the one app that wants it, through
+         Shared\SvgPicture.cs, so the rest of the suite does not carry it. -->
+    <PackageVersion Include="SharpVectors.Reloaded" Version="1.8.6" />
+
     <!-- NefsLib's own, at the versions it pins. It reads the NeFS archive
          inside the game exe, which is where the language files live. -->
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />

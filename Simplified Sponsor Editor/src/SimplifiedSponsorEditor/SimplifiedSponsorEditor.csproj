@@ -38,6 +38,16 @@
   <ItemGroup>
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+
+    <!-- Rasterising an SVG somebody imports. Linked rather than put in the UI
+         library, because that one is referenced by every app in the suite and
+         this is the only one that reads SVGs — a shared library here would hand
+         the SharpVectors dependency to thirteen apps that do not want it. -->
+    <Compile Include="..\..\..\Shared\SvgPicture.cs" Link="SvgPicture.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpVectors.Reloaded" />
   </ItemGroup>
 
   <!-- Everything the app needs and nobody should be poking at goes in runtime\,

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -20,7 +21,10 @@ public partial class MainWindow
         var picker = new OpenFileDialog
         {
             Title = $"Choose a picture for {_selected.Name}",
-            Filter = "PNG images (*.png)|*.png|All files (*.*)|*.*",
+            Filter = "Pictures (*.png;*.svg)|*.png;*.svg"
+                     + "|PNG images (*.png)|*.png"
+                     + "|SVG drawings (*.svg)|*.svg"
+                     + "|All files (*.*)|*.*",
             CheckFileExists = true,
             InitialDirectory = FirstExistingDir(_config.LastArtworkFolder) ?? "",
         };
@@ -36,6 +40,12 @@ public partial class MainWindow
     /// <summary>
     /// Take a picture into the project: the artwork as given, and a copy
     /// letterboxed for the customisation menu.
+    ///
+    /// An SVG is rendered to a raster first, at the size the decal it is going
+    /// into wants, and everything after this point treats it as any other
+    /// picture. The project stores PNGs — the game stores compressed blocks, so
+    /// a drawing has to become pixels somewhere, and doing it once on the way in
+    /// means the preview shows exactly what will be packaged.
     /// </summary>
     private void Apply(SponsorDecal decal, string sourcePng)
     {
@@ -46,7 +56,9 @@ public partial class MainWindow
             Directory.CreateDirectory(_project.SponsorsFolder);
             Directory.CreateDirectory(_project.MenuFolder);
 
-            var image = Load(sourcePng);
+            var image = Simplified.Shared.SvgPicture.IsSvg(sourcePng)
+                ? Simplified.Shared.SvgPicture.Render(sourcePng, LongEdgeFor(decal))
+                : Load(sourcePng);
 
             // Saved re-encoded rather than copied, so what the project holds is
             // always a PNG this app can read back — someone's file could be a
@@ -67,6 +79,82 @@ public partial class MainWindow
                 $"{Path.GetFileName(sourcePng)} couldn't be used.\n\n{ex.Message}",
                 "Import", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// How big to render a drawing: the longest side of the decal it is going
+    /// into, which is the resolution the game itself keeps these at.
+    ///
+    /// From the archive rather than assumed, though every car decal in the game
+    /// measures 1024x1024. Rendering larger would be sharper and would cost
+    /// every person who installs the mod the extra megabytes, so matching the
+    /// game is the default; anyone who wants more can hand over a big PNG.
+    /// </summary>
+    private int LongEdgeFor(SponsorDecal decal)
+    {
+        const int gameKeepsThemAt = 1024;
+
+        if (_preview?.Get(decal.CarIdentifier) is not { } own) return gameKeepsThemAt;
+
+        var longest = (int)Math.Max(own.Width, own.Height);
+        return longest > 0 ? longest : gameKeepsThemAt;
+    }
+
+    /// <summary>
+    /// Save out the picture this decal is wearing — the artwork if it has been
+    /// replaced, the game's own if it has not.
+    ///
+    /// Copied rather than re-encoded. Both are already PNGs, one written by this
+    /// app and one by texconv, so a copy is exactly what the decal holds and a
+    /// re-encode could only lose something.
+    /// </summary>
+    private void Export_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selected is null) return;
+
+        var source = PictureOn(_selected);
+        if (source is null) return;
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var stem = new string(_selected.Name.Where(c => !invalid.Contains(c)).ToArray()).Trim();
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export artwork",
+            Filter = "PNG image (*.png)|*.png",
+            FileName = (stem.Length > 0 ? stem : "decal") + ".png",
+            DefaultExt = ".png",
+            InitialDirectory = FirstExistingDir(_config.LastArtworkFolder) ?? "",
+        };
+
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            File.Copy(source, dialog.FileName, overwrite: true);
+
+            _config.LastArtworkFolder = Path.GetDirectoryName(dialog.FileName);
+            _config.Save();
+        }
+        catch (Exception ex)
+        {
+            SimplifiedUi.MessageDialog.Show(this,
+                $"{Path.GetFileName(dialog.FileName)} couldn't be written.\n\n{ex.Message}",
+                "Export", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// The PNG behind a decal as the pane shows it: the project's artwork when
+    /// there is some, the game's own otherwise. Null when there is neither.
+    /// </summary>
+    private string? PictureOn(SponsorDecal decal)
+    {
+        var mine = _project?.IsReplaced(decal.Name) == true ? _project!.PicturePath(decal.Name) : null;
+        if (mine is not null && File.Exists(mine)) return mine;
+
+        var theirs = _preview?.Get(decal.CarIdentifier)?.PngPath;
+        return theirs is not null && File.Exists(theirs) ? theirs : null;
     }
 
     private void Revert_Click(object sender, RoutedEventArgs e)

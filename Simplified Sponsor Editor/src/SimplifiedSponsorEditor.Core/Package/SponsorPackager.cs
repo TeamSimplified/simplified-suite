@@ -79,6 +79,18 @@ public static class SponsorPackager
     /// </summary>
     private const ErpGfxSurfaceFormat DecalFormat = ErpGfxSurfaceFormat.BC7_SRGB;
 
+    /// <summary>
+    /// How much of a decal to leave clear around the artwork, each side.
+    ///
+    /// The game never runs its own to an edge. Measured across its decals: a
+    /// side margin from 1.6% to 5.3% of the texture, median 2.0%, and from 4.4%
+    /// to 25% on the menu thumbnails, median 8.8%. Six per cent sits inside both
+    /// ranges and reads as deliberate rather than as a rounding error — on a
+    /// 1024 decal it is 61 pixels, which is the room the most generous of the
+    /// game's own leaves.
+    /// </summary>
+    private const double DecalMargin = 0.06;
+
     public static PackageResult Build(PackageRequest request, Action<string>? log = null,
                                       IProgress<string>? say = null,
                                       CancellationToken cancel = default)
@@ -140,6 +152,7 @@ public static class SponsorPackager
             // ── The pictures ──────────────────────────────────────────
             var carCount = 0;
             var menuCount = 0;
+            var fitted = new List<string>();
 
             var done = 0;
             foreach (var decal in decals)
@@ -149,7 +162,7 @@ public static class SponsorPackager
                 say?.Report($"Converting your pictures — {++done} of {decals.Count}…");
 
                 if (Import(carOverlay, decal.CarIdentifier, project.PicturePath(decal.Name),
-                           runner, work, width: 0, height: 0, warnings))
+                           runner, work, width: 0, height: 0, warnings, fitted))
                 {
                     carCount++;
                 }
@@ -167,11 +180,15 @@ public static class SponsorPackager
                 }
 
                 if (Import(menuOverlay, decal.MenuIdentifier!, menuArtwork,
-                           runner, work, MenuWidth, MenuHeight, warnings))
+                           runner, work, MenuWidth, MenuHeight, warnings, fitted))
                 {
                     menuCount++;
                 }
             }
+
+            // Said after the pictures rather than during them, so the notes sit
+            // together rather than between the decals they belong to.
+            warnings.AddRange(SliceFit.Summarise(fitted));
 
             // ── Merge into both shader archives and zip ───────────────
             var staging = Path.Combine(work, PackageRootName, ShaderFolderName);
@@ -241,9 +258,16 @@ public static class SponsorPackager
     }
 
     /// <summary>Encode one picture and write it into the overlay's texture.</summary>
+    /// <param name="width">
+    /// The one size this texture will accept, or zero to let the picture keep
+    /// its own resolution — which a standalone texture may, since the resource
+    /// carries its own size. Its shape is another matter: see
+    /// <see cref="SliceFit.EncodeToShape"/>.
+    /// </param>
     private static bool Import(ErpFile overlay, string viewIdentifier, string pngPath,
                                TexconvRunner runner, string work,
-                               uint width, uint height, List<string> warnings)
+                               uint width, uint height, List<string> warnings,
+                               List<string>? fitted = null)
     {
         try
         {
@@ -255,12 +279,30 @@ public static class SponsorPackager
             // Keep the mip count the game gave this texture. Where the picture
             // is too small to make that many, PngToDds falls back to as many as
             // it can rather than refusing.
-            var mips = Math.Max((int)srv.SurfaceRes.Fragment0.MipMapCount, 1);
+            var f0 = srv.SurfaceRes.Fragment0;
+            var mips = Math.Max((int)f0.MipMapCount, 1);
 
-            var ddsPath = runner.PngToDds(pngPath, work, DecalFormat, mips,
-                                          overwrite: true, width: width, height: height);
+            // Neither of these stretches a picture. The menu's are one size and
+            // land on it exactly; a car decal keeps whatever resolution it
+            // arrived at, and only its shape is corrected — the quad it is drawn
+            // on belongs to the car model and does not move, so a texture of
+            // another shape is stretched onto it however big it is. Every one of
+            // the game's 641 car decals is 1024x1024.
+            var fit = width > 0 && height > 0
+                ? SliceFit.Encode(pngPath, work, DecalFormat, mips, width, height, runner, DecalMargin)
+                : SliceFit.EncodeToShape(pngPath, work, DecalFormat, mips,
+                                         f0.Width, f0.Height, runner, DecalMargin);
 
-            using var stream = File.Open(ddsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Only a change of shape is worth a note. Every picture is inset to
+            // leave its margin, so saying so would be a line per decal reporting
+            // that the app did what it always does.
+            if (fit.How == FitKind.Padded && fit.ShapeChanged && fit.Describe() is { } how)
+            {
+                var note = $"{SponsorCatalogue.ShortName(viewIdentifier)} was {how}.";
+                if (fitted is not null && !fitted.Contains(note)) fitted.Add(note);
+            }
+
+            using var stream = File.Open(fit.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             var dds = new DdsFile(stream);
 
             // Stream.Null for the mipmaps: every decal in these archives keeps
@@ -269,7 +311,7 @@ public static class SponsorPackager
             dds.ToErpGfxSRVResource(srv, Stream.Null, importTexArray: false, texArrayIndex: 0);
             srv.ToResource(resource);
 
-            File.Delete(ddsPath);
+            File.Delete(fit.Path);
             return true;
         }
         catch (Exception ex)

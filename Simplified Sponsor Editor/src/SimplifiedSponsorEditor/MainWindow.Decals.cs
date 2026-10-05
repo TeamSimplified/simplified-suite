@@ -6,6 +6,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using EgoEngineLibrary.Texconv;
 using SimplifiedSponsorEditor.Core.Sponsors;
 
 namespace SimplifiedSponsorEditor;
@@ -180,11 +181,18 @@ public partial class MainWindow
         ImportButton.IsEnabled = open && decal is not null;
         RevertButton.IsEnabled = open && decal is not null && _project!.IsReplaced(decal.Name);
 
+        // Exporting wants a picture rather than a replacement: the game's own
+        // decal can be taken out and worked on, which is how somebody gets a
+        // starting point at the right size and shape. A project is open either
+        // way, since the list is empty without one.
+        ExportButton.IsEnabled = decal is not null && PictureOn(decal) is not null;
+
         if (decal is null)
         {
             ShowPlaceholder(open ? "Select a decal" : "Start a new project, or open one");
             DecalInfoLabel.Text = "";
             ReplacedLabel.Text = "";
+            ExportButton.IsEnabled = false;
             return;
         }
 
@@ -222,6 +230,26 @@ public partial class MainWindow
             PreviewImage.Source = image;
             PreviewPlaceholder.Visibility = Visibility.Collapsed;
             ApplyBackdrop();
+
+            // What the car is actually going to get. A decal is drawn on a quad
+            // belonging to the car model, so a picture of another shape is
+            // padded to the decal's own rather than stretched onto that quad ~
+            // and this pane shows the picture as it is, which is the shape
+            // somebody would otherwise expect to see in game.
+            //
+            // Canvas says nothing when there is nothing to do, which is the
+            // condition itself. The same arithmetic does it at package time.
+            if (replaced && _preview?.Get(decal.CarIdentifier) is { } own)
+            {
+                var becomes = SliceFit.ShapeOf(
+                    (uint)image.PixelWidth, (uint)image.PixelHeight, own.Width, own.Height);
+
+                if (becomes != ((uint)image.PixelWidth, (uint)image.PixelHeight))
+                {
+                    DecalInfoLabel.Text += $"   \u00b7   {image.PixelWidth}\u00d7{image.PixelHeight}, "
+                                           + $"fitted into {becomes.Width}\u00d7{becomes.Height}";
+                }
+            }
         }
         catch
         {
