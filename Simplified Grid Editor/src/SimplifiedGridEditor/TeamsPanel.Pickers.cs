@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using EgoEngineLibrary.Texconv;
 using SimplifiedTeamEditor.Core.Logos;
 using SimplifiedTeamEditor.Core.Teams;
 using SimplifiedGridEditor.Model;
@@ -228,7 +229,7 @@ public partial class TeamsPanel
 
             var text = new StackPanel { Margin = new Thickness(14, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(new TextBlock { Text = kind.Label, FontWeight = FontWeights.SemiBold });
-            var size = image is null ? "" : $"{image.PixelWidth}\u00d7{image.PixelHeight}";
+            var size = SizeNote(image, chosen, kind);
             text.Children.Add(new TextBlock
             {
                 Text = Describe(chosen, slice)
@@ -290,6 +291,33 @@ public partial class TeamsPanel
 
             PickerBody.Children.Add(PickerCard(grid));
         }
+    }
+
+    /// <summary>
+    /// The size line under a logo: what the picture is, and — when that is not
+    /// the slot's own size — what it is going to become.
+    ///
+    /// Every slice of a texture array shares one size, so a picture of any other
+    /// size is fitted on the way in. Saying so here is what stops somebody
+    /// resizing a wide logo to a square themselves to satisfy the slot: the
+    /// game's own badges are letterboxed inside theirs, and a wordmark squashed
+    /// to 24x24 is what that mistake looks like in game.
+    /// </summary>
+    private string SizeNote(BitmapImage? image, string? chosen, LogoKind kind)
+    {
+        if (image is null) return "";
+
+        var mine = $"{image.PixelWidth}\u00d7{image.PixelHeight}";
+        if (chosen is null || Previews.SizeFor(kind) is not { } slot) return mine;
+
+        var slotSize = $"{slot.Width}\u00d7{slot.Height}";
+
+        return SliceFit.Plan((uint)image.PixelWidth, (uint)image.PixelHeight, slot.Width, slot.Height) switch
+        {
+            FitKind.Scaled => $"{mine} \u2192 scaled to {slotSize}",
+            FitKind.Padded => $"{mine} \u2192 fitted into {slotSize}",
+            _ => mine,
+        };
     }
 
     /// <summary>

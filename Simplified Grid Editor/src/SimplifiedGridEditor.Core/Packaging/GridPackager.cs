@@ -461,9 +461,11 @@ public static class GridPackager
             var (overlay, _) = LogoBaker.BuildOverlay(branding, edits);
 
             // A picture at the wrong size is the common case — every slice of
-            // an array shares one size and format — and it must not take the
-            // rest of the package down with it.
-            var (imported, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
+            // an array shares one size and format — so it is fitted to the slot
+            // on the way in. What could not be used at all is reported and
+            // costs only itself.
+            var (imported, skipped, fitted) = LogoBaker.ImportAll(overlay, edits, runner);
+            warnings.AddRange(SliceFit.Summarise(fitted));
             warnings.AddRange(skipped);
 
             // The pair the game expects in any mod that ships a shader package.

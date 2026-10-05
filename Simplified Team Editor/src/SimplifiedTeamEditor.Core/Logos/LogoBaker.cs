@@ -53,19 +53,34 @@ public static class LogoBaker
         return (overlay, before - overlay.Resources.Count);
     }
 
+    /// <summary>The size every slice of an array has, or null for an array it has not got.</summary>
+    public static (uint Width, uint Height)? SliceSize(ErpFile archive, string texarrayBase)
+    {
+        var resource = TeamLogos.ResourceFor(archive, texarrayBase);
+        if (resource is null) return null;
+
+        var srv = new ErpGfxSRVResource();
+        srv.FromResource(resource);
+
+        return (srv.SurfaceRes.Fragment0.Width, srv.SurfaceRes.Fragment0.Height);
+    }
+
     /// <summary>
     /// Put one picture into one slice of one array.
     ///
-    /// The slice keeps the array's own format and mip count — a texture array
-    /// is a single resource with every slice sharing those, so an import has to
-    /// match rather than choose.
+    /// The slice keeps the array's own size, format and mip count — a texture
+    /// array is a single resource with every slice sharing those, so an import
+    /// has to match rather than choose. A picture of another size is fitted to
+    /// it rather than refused, and one of another shape is padded rather than
+    /// squashed, which is how the game's own logos sit in these slots.
     /// </summary>
     /// <returns>
-    /// False when the array is too short to hold that slice, which happens and
-    /// is not an error: the three badge arrays are not the same length, so the
-    /// last 2026 team has a slot in two of them and not the third.
+    /// How the picture was fitted, or null when the array is too short to hold
+    /// that slice, which happens and is not an error: the three badge arrays
+    /// are not the same length, so the last 2026 team has a slot in two of them
+    /// and not the third.
     /// </returns>
-    public static bool ImportSlice(
+    public static Fit? ImportSlice(
         ErpFile overlay, string texarrayBase, int slice, string pngPath, TexconvRunner runner)
     {
         var resource = TeamLogos.ResourceFor(overlay, texarrayBase)
@@ -79,18 +94,22 @@ public static class LogoBaker
                 $"{texarrayBase} keeps its mipmaps in a separate file, which this "
                 + "does not write. No UI texture array in the shipped game does.");
 
-        var arraySize = srv.SurfaceRes.Fragment0.ArraySize;
-        if (slice < 0 || slice >= arraySize) return false;
+        var f0 = srv.SurfaceRes.Fragment0;
+        if (slice < 0 || slice >= f0.ArraySize) return null;
 
-        var format = srv.SurfaceRes.Fragment0.ImageType;
-        var mipCount = Math.Max((int)srv.SurfaceRes.Fragment0.MipMapCount, 1);
+        var mipCount = Math.Max((int)f0.MipMapCount, 1);
 
         var work = Path.Combine(Path.GetTempPath(), "simplified-team-editor", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
         try
         {
-            var ddsPath = runner.PngToDds(pngPath, work, format, mipCount);
-            using var fs = File.Open(ddsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            // Fitted rather than handed straight over: a slice is a fixed
+            // stretch of its resource, so only the array's exact size can go
+            // in, and SliceFit lands a picture of any size there without
+            // squashing it.
+            var fit = SliceFit.Encode(pngPath, work, f0.ImageType, mipCount, f0.Width, f0.Height, runner);
+
+            using var fs = File.Open(fit.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             var dds = new DdsFile(fs);
 
             // importTexArray false: one slice is being replaced, not the whole
@@ -98,7 +117,7 @@ public static class LogoBaker
             // which the check above has already ruled out.
             dds.ToErpGfxSRVResource(srv, Stream.Null, importTexArray: false, texArrayIndex: (uint)slice);
             srv.ToResource(resource);
-            return true;
+            return fit;
         }
         finally
         {
@@ -172,24 +191,66 @@ public static class LogoBaker
 
     /// <summary>
     /// Apply every edit to the overlay, fanning each across its kind's arrays.
-    /// Reports what went in and what would not fit.
+    /// Reports what went in, what had to be done to it, and what did not go in.
+    ///
+    /// A picture that cannot be used costs that picture and nothing else. It
+    /// used to cost all of them: the throw travelled out past every edit still
+    /// to do and into the packager's single catch, so a package of a dozen
+    /// logos shipped with none of them because one file was bad.
     /// </summary>
-    public static (int Imported, List<string> Skipped) ImportAll(
+    public static (int Imported, List<string> Skipped, List<string> Fitted) ImportAll(
         ErpFile overlay, IEnumerable<LogoEdit> edits, TexconvRunner runner)
     {
         var imported = 0;
         var skipped = new List<string>();
+        var fitted = new List<string>();
 
         foreach (var edit in edits)
         {
+            var picture = Path.GetFileName(edit.PngPath);
+
             foreach (var texarray in edit.Kind.Texarrays)
             {
-                if (ImportSlice(overlay, texarray, edit.Slice, edit.PngPath, runner)) imported++;
-                else skipped.Add($"{texarray} has no slice {edit.Slice}");
+                try
+                {
+                    var fit = ImportSlice(overlay, texarray, edit.Slice, edit.PngPath, runner);
+                    if (fit is null)
+                    {
+                        skipped.Add($"{texarray} has no slice {edit.Slice}");
+                        continue;
+                    }
+
+                    imported++;
+
+                    // Only the padding is worth saying afterwards. Scaling a
+                    // picture to the slot's size is invisible and expected;
+                    // padding it is a decision made on somebody's behalf, and
+                    // the transparent bands it leaves are the thing they might
+                    // not have asked for.
+                    //
+                    // Noted once per picture and slot rather than once per
+                    // array: a badge goes into three of them and was padded the
+                    // same way for each, and three identical notes read like
+                    // three problems.
+                    if (fit.How == FitKind.Padded && fit.Describe() is { } how)
+                    {
+                        var note = $"{picture} was {how}.";
+                        if (!fitted.Contains(note)) fitted.Add(note);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // On one line: these are read in a list beside other notes,
+                    // and a message with newlines in it breaks the list up.
+                    var why = string.Join(" ", ex.Message.Split(
+                        ['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+                    skipped.Add($"{picture} couldn't go into {edit.Kind.Label}: {why}");
+                }
             }
         }
 
-        return (imported, skipped);
+        return (imported, skipped, fitted);
     }
 
     /// <summary>

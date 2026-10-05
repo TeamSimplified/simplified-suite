@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 using EgoEngineLibrary.Archive.Erp.Data;
 
@@ -102,6 +102,11 @@ public sealed class TexconvRunner
     /// tex array slice sits in a fixed stretch of its resource, so a PNG at any
     /// other size cannot go in, and resizing it beats refusing it. An ordinary
     /// texture is free to change size and passes nothing.
+    ///
+    /// The input may equally be a DDS — texconv reads either, and the fitting
+    /// in <see cref="SliceFit"/> hands back a DDS of its own to encode. The
+    /// output is named after the input, so an input already in
+    /// <paramref name="outDir"/> under that name would be written over.
     /// </summary>
     public string PngToDds(string pngPath, string outDir, ErpGfxSurfaceFormat targetFormat, int mipCount = 0, bool overwrite = true,
         uint width = 0, uint height = 0)
@@ -171,10 +176,28 @@ public sealed class TexconvRunner
 
         if (proc.ExitCode != 0)
         {
+            var said = Complaint(stderr, stdout);
             throw new InvalidOperationException(
-                $"texconv exited with code {proc.ExitCode}." +
-                (stderr.Length > 0 ? $"\nstderr: {stderr.Trim()}" : "") +
-                (stdout.Length > 0 ? $"\nstdout: {stdout.Trim()}" : ""));
+                $"texconv exited with code {proc.ExitCode}" + (said.Length > 0 ? $": {said}" : "."));
         }
+    }
+
+    /// <summary>
+    /// What texconv actually complained about, on one line.
+    ///
+    /// It prints its name and copyright before anything else and reports the
+    /// failure after, so the message as it stands is three lines of which one
+    /// says something. These end up in front of people — a picture that could
+    /// not be encoded becomes a note on a package — so the banner comes off and
+    /// what is left is joined up.
+    /// </summary>
+    private static string Complaint(string stderr, string stdout)
+    {
+        var lines = (stderr + "\n" + stdout)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(line => !line.StartsWith("Microsoft (R) DirectX", StringComparison.Ordinal)
+                           && !line.StartsWith("Copyright (C) Microsoft", StringComparison.Ordinal));
+
+        return string.Join(" ", lines);
     }
 }

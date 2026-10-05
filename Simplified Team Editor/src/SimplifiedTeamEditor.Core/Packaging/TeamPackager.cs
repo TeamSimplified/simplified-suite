@@ -297,7 +297,12 @@ public static class TeamPackager
         try
         {
             var (overlay, _) = LogoBaker.BuildOverlay(branding, edits);
-            var (_, skipped) = LogoBaker.ImportAll(overlay, edits, runner);
+
+            // A picture of another size or shape is fitted to the slot rather
+            // than refused, and is said so; what could not be used at all costs
+            // only itself.
+            var (_, skipped, fitted) = LogoBaker.ImportAll(overlay, edits, runner);
+            warnings.AddRange(SliceFit.Summarise(fitted));
             warnings.AddRange(skipped);
 
             // The pair the game expects in any mod that ships a shader package.

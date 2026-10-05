@@ -28,6 +28,7 @@ public sealed class LogoPreviewCache
     private readonly TexconvRunner _runner;
 
     private readonly Dictionary<string, string?> _byKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (uint Width, uint Height)?> _sizes = new(StringComparer.Ordinal);
     private ErpFile? _branding;
 
     public LogoPreviewCache(string assetsDir, TexconvRunner runner)
@@ -35,6 +36,39 @@ public sealed class LogoPreviewCache
         _brandingErpPath = Path.Combine(assetsDir, "ui", "ui_texarrays_team_branding.erp");
         _runner = runner;
         _directory = Path.Combine(Path.GetTempPath(), "simplified-team-editor", "previews");
+    }
+
+    /// <summary>
+    /// The size a picture put into one of this kind's slots ends up at, which is
+    /// the array's own — every slice of one shares it.
+    ///
+    /// Read from the archive rather than measured off the preview PNG: a preview
+    /// that could not be made would otherwise take the answer with it, and this
+    /// is wanted precisely when telling somebody their picture is a different
+    /// size.
+    /// </summary>
+    public (uint Width, uint Height)? SizeFor(LogoKind kind)
+    {
+        var texarray = kind.Texarrays[0];
+        if (_sizes.TryGetValue(texarray, out var cached)) return cached;
+
+        (uint Width, uint Height)? result = null;
+        try
+        {
+            if (File.Exists(_brandingErpPath))
+            {
+                _branding ??= ErpFileIO.Load(_brandingErpPath);
+                result = LogoBaker.SliceSize(_branding, texarray);
+            }
+        }
+        catch
+        {
+            // As with a preview: not knowing leaves the line saying less, rather
+            // than stopping the page from opening.
+        }
+
+        _sizes[texarray] = result;
+        return result;
     }
 
     /// <summary>
