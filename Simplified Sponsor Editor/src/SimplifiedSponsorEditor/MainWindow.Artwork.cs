@@ -54,11 +54,12 @@ public partial class MainWindow
     /// Take a picture into the project: the artwork as given, and a copy
     /// letterboxed for the customisation menu.
     ///
-    /// An SVG is rendered to a raster first, at the size the decal it is going
-    /// into wants, and everything after this point treats it as any other
-    /// picture. The project stores PNGs — the game stores compressed blocks, so
-    /// a drawing has to become pixels somewhere, and doing it once on the way in
-    /// means the preview shows exactly what will be packaged.
+    /// An SVG goes through the editor first and is then rendered to a raster, at
+    /// the size the decal it is going into wants; everything after this point
+    /// treats it as any other picture. The project stores PNGs — the game stores
+    /// compressed blocks, so a drawing has to become pixels somewhere, and doing
+    /// it once on the way in means the preview shows exactly what will be
+    /// packaged.
     /// </summary>
     private void Apply(SponsorDecal decal, string sourcePng)
     {
@@ -69,9 +70,23 @@ public partial class MainWindow
             Directory.CreateDirectory(_project.SponsorsFolder);
             Directory.CreateDirectory(_project.MenuFolder);
 
-            var image = Simplified.Shared.SvgPicture.IsSvg(sourcePng)
-                ? Simplified.Shared.SvgPicture.Render(sourcePng, LongEdgeFor(decal))
-                : Load(sourcePng);
+            System.Windows.Media.Imaging.BitmapSource image;
+
+            if (Simplified.Shared.SvgPicture.IsSvg(sourcePng))
+            {
+                // A drawing comes in as its pieces first, so a background plate
+                // or somebody else's colour can go before it is a picture. What
+                // comes back is the artwork as it was left; closing that window
+                // without importing drops the whole thing.
+                var edited = SvgEditor.Show(this, sourcePng);
+                if (edited is null) return;
+
+                image = Simplified.Shared.SvgPicture.Render(edited, LongEdgeFor(decal));
+            }
+            else
+            {
+                image = Load(sourcePng);
+            }
 
             // Saved re-encoded rather than copied, so what the project holds is
             // always a PNG this app can read back — someone's file could be a
