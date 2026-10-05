@@ -38,6 +38,19 @@ public partial class MainWindow
     }
 
     /// <summary>
+    /// Whether a file is artwork this app will take.
+    ///
+    /// One rule, because there are three ways in — the file dialog, a drop on a
+    /// row, and a drop anywhere on the window — and a format one of them accepts
+    /// and the others do not is not a thing anybody reports as a bug. They drag
+    /// a file in, nothing happens, and they conclude that dragging does not
+    /// work.
+    /// </summary>
+    private static bool IsArtwork(string path) =>
+        path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+        || Simplified.Shared.SvgPicture.IsSvg(path);
+
+    /// <summary>
     /// Take a picture into the project: the artwork as given, and a copy
     /// letterboxed for the customisation menu.
     ///
@@ -189,8 +202,8 @@ public partial class MainWindow
             return;
         }
 
-        var png = files.FirstOrDefault(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase));
-        if (png is null) return;
+        var picture = files.FirstOrDefault(IsArtwork);
+        if (picture is null) return;
 
         // Both of these say what to do next rather than what went wrong. A drop
         // that lands on nothing has to answer for itself — there is no status
@@ -212,7 +225,7 @@ public partial class MainWindow
             return;
         }
 
-        Apply(_selected, png);
+        Apply(_selected, picture);
     }
 
     // ── The menu's copy ───────────────────────────────────────────────

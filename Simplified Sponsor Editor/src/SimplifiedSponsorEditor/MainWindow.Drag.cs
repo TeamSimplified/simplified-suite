@@ -10,10 +10,13 @@ namespace SimplifiedSponsorEditor;
 /// Dragging a picture onto a decal, and dragging a decal's picture out.
 ///
 /// The same two gestures Studio and the ERP app have over their resource list,
-/// on the only list this app has. Dropping a PNG on a row replaces that decal —
-/// not the selected one — and dragging a row out hands over the picture the
-/// preview is showing: the project's if it has been replaced, the game's own if
-/// it hasn't.
+/// on the only list this app has. Dropping a picture on a row replaces that
+/// decal — not the selected one — and dragging a row out hands over the picture
+/// the preview is showing: the project's if it has been replaced, the game's own
+/// if it hasn't.
+///
+/// What counts as a picture is the import's own rule, so a drawing can be
+/// dragged in exactly as a PNG can.
 /// </summary>
 public partial class MainWindow
 {
@@ -81,7 +84,7 @@ public partial class MainWindow
         // showing the decal that just changed rather than whichever one was
         // selected before the drag.
         DecalList.SelectedItem = row;
-        Apply(row.Decal, DroppedPng(e)!);
+        Apply(row.Decal, DroppedPicture(e)!);
     }
 
     /// <summary>
@@ -90,7 +93,7 @@ public partial class MainWindow
     /// </summary>
     private (ListBoxItem? Container, DecalRow? Row) RowUnderPointer(DragEventArgs e)
     {
-        if (DroppedPng(e) is null) return (null, null);
+        if (DroppedPicture(e) is null) return (null, null);
 
         var hit = DecalList.InputHitTest(e.GetPosition(DecalList)) as DependencyObject;
         return ItemsControl.ContainerFromElement(DecalList, hit) is ListBoxItem container
@@ -99,22 +102,20 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// The one picture being dragged, or null when the drag is not a single PNG.
+    /// The one picture being dragged, or null when the drag is not a single one.
     ///
     /// A <c>.simplified</c> is excluded on purpose: it belongs to the window,
     /// which opens it. Several files at once are excluded too — one picture onto
     /// one decal is a rule with no ambiguity in it, where a handful of files
     /// over a list would have to guess at pairing them up.
     /// </summary>
-    private static string? DroppedPng(DragEventArgs e)
+    private static string? DroppedPicture(DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return null;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] { Length: 1 } files) return null;
 
         var file = files[0];
-        return File.Exists(file) && Path.GetExtension(file).Equals(".png", StringComparison.OrdinalIgnoreCase)
-            ? file
-            : null;
+        return File.Exists(file) && IsArtwork(file) ? file : null;
     }
 
     private void LightUp(ListBoxItem container)
