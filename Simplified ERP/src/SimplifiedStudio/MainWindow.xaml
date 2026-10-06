@@ -223,8 +223,20 @@
                          DragLeave="TextureList_DragLeave"
                          Drop="TextureList_Drop"
                          PreviewMouseLeftButtonDown="TextureList_PreviewMouseLeftButtonDown"
+                         PreviewMouseRightButtonDown="TextureList_PreviewMouseRightButtonDown"
+                         ContextMenuOpening="TextureList_ContextMenuOpening"
                          MouseMove="TextureList_MouseMove"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <!-- On the list rather than on each row: a row's own menu
+                         would need the whole template rebuilt around it, and
+                         ContextMenuOpening below withholds this one when the
+                         click landed on empty space. -->
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Name="DeleteResourceMenuItem" Header="Delete"
+                                      Click="DeleteResources_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,2,8,2" LastChildFill="True">

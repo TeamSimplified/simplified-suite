@@ -94,6 +94,14 @@
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
     <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
     <Compile Include="..\..\..\Shared\MainWindow.Shared.cs" Link="MainWindow.Shared.cs" />
+
+    <!-- A material's editable colours, and the picker that changes them. The
+         same colour box the Grid, Team and Sponsor editors use, so one behaves
+         the same wherever somebody meets it. -->
+    <Compile Include="..\..\..\Shared\MaterialColours.cs" Link="MaterialColours.cs" />
+    <Compile Include="..\..\..\Shared\ColourDialog.cs" Link="ColourDialog.cs" />
+    <Compile Include="..\..\..\Shared\ScreenColourPicker.cs" Link="ScreenColourPicker.cs" />
+    <Compile Include="..\..\..\Shared\FlatButton.cs" Link="FlatButton.cs" />
     <Compile Include="..\..\..\Shared\Model\ResourceFileIO.cs" Link="Model\ResourceFileIO.cs" />
     <Compile Include="..\..\..\Shared\Model\ResourceListItem.cs" Link="Model\ResourceListItem.cs" />
     <Compile Include="..\..\..\Shared\Model\TextureIO.cs" Link="Model\TextureIO.cs" />

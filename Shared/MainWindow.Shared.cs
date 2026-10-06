@@ -143,6 +143,18 @@ public partial class MainWindow
                 StructuredContent.Children.Add(BuildBindingRow(sampler.Name, sampler.TextureEaid));
         }
 
+        // The colours this shader is known to carry. Most materials have none,
+        // so the section is absent rather than empty.
+        var colours = Simplified.Shared.MaterialColours.In(material);
+        if (colours.Count > 0)
+        {
+            StructuredContent.Children.Add(SectionHeading(
+                colours.Count == 1 ? "Colour" : "Colours", top: 16));
+
+            foreach (var colour in colours)
+                StructuredContent.Children.Add(BuildColourRow(vm, material, colour));
+        }
+
         if (material.UniformNames.Count > 0)
         {
             StructuredContent.Children.Add(SectionHeading($"{material.UniformNames.Count} parameters", top: 16));
@@ -168,9 +180,132 @@ public partial class MainWindow
             Padding = new Thickness(0, 10, 0, 0),
             BorderBrush = ThemeBrush("BorderSoft"),
             BorderThickness = new Thickness(0, 1, 0, 0),
-            Child = Muted("Read-only. The per-parameter records aren't decoded, so Export and "
-                        + "Import round-trip the original bytes rather than rebuilding the file."),
+            Child = Muted(colours.Count > 0
+                ? "Only the colours above can be edited here, and they are written straight over "
+                + "the bytes they came from. Everything else is read-only: the per-parameter records "
+                + "aren't decoded, so Export and Import round-trip the original bytes."
+                : "Read-only. The per-parameter records aren't decoded, so Export and "
+                + "Import round-trip the original bytes rather than rebuilding the file."),
         });
+    }
+
+    /// <summary>
+    /// One editable colour: a swatch that opens the picker, what it is called,
+    /// and the uniform it feeds.
+    ///
+    /// The same swatch the Grid, Team and Sponsor editors use, down to the
+    /// template and the one-click behaviour — a colour box should behave the
+    /// same wherever somebody meets one in the suite.
+    /// </summary>
+    private System.Windows.UIElement BuildColourRow(
+        MaterialVm vm, SimplifiedStudio.Core.Material.MaterialFile material,
+        Simplified.Shared.MaterialColour colour)
+    {
+        var swatch = new System.Windows.Controls.Button
+        {
+            Width = 26,
+            Height = 26,
+            Padding = new Thickness(0),
+            Template = Simplified.Shared.FlatButton.Template(cornerRadius: 3),
+            BorderThickness = new Thickness(1),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Background = new System.Windows.Media.SolidColorBrush(colour.Value),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Click to change this colour",
+        };
+        swatch.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "BorderStrong");
+
+        var hex = Hex(colour.Value);
+
+        var text = new System.Windows.Controls.StackPanel
+        {
+            Margin = new Thickness(10, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        text.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = $"{colour.Label}   {hex}",
+            FontWeight = FontWeights.SemiBold,
+        });
+        text.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = colour.Uniform,
+            Foreground = ThemeBrush("TextMuted"),
+            FontFamily = new System.Windows.Media.FontFamily("Consolas, Cascadia Mono"),
+            FontSize = 11,
+        });
+
+        swatch.Click += (_, _) =>
+        {
+            var chosen = Simplified.Shared.ColourDialog.Show(this, colour.Label, hex);
+            if (chosen is null) return;
+
+            var picked = FromHex(chosen);
+            if (picked is null || picked == colour.Value) return;
+
+            ApplyMaterialColour(vm, material, colour, picked.Value);
+        };
+
+        var row = new System.Windows.Controls.StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        row.Children.Add(swatch);
+        row.Children.Add(text);
+        return row;
+    }
+
+    /// <summary>
+    /// Write a colour back into the material.
+    ///
+    /// The whole file is handed back with three floats overwritten, so this is
+    /// the same shape as importing bytes — and takes the same undo snapshot and
+    /// rebuild, which is also what drops the view model's cached parse.
+    /// </summary>
+    private void ApplyMaterialColour(
+        MaterialVm vm, SimplifiedStudio.Core.Material.MaterialFile material,
+        Simplified.Shared.MaterialColour colour, System.Windows.Media.Color picked)
+    {
+        try
+        {
+            TakeUndoSnapshot($"colour {vm.FileName}");
+            vm.Resource.Fragments[0].SetData(Simplified.Shared.MaterialColours.With(material, colour, picked));
+            MarkDirty(vm);
+
+            Log($"{vm.FileName}: {colour.Label} {Hex(colour.Value)} → {Hex(picked)}");
+
+            RebuildTextureList();
+            ReselectByIdentifier(vm.Identifier);
+        }
+        catch (Exception ex)
+        {
+            Log($"!! Couldn't set {colour.Label}: {ex.Message}");
+            ShowMessage(ex.Message, "Change colour", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static string Hex(System.Windows.Media.Color colour) =>
+        $"#{colour.R:X2}{colour.G:X2}{colour.B:X2}";
+
+    /// <summary>
+    /// The colour a <c>#RRGGBB</c> names, or null if it is not one. The picker
+    /// hands back what somebody typed, so this cannot assume it is well formed.
+    /// </summary>
+    private static System.Windows.Media.Color? FromHex(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var hex = text.Trim().TrimStart('#');
+        if (hex.Length != 6) return null;
+
+        foreach (var c in hex)
+            if (!Uri.IsHexDigit(c)) return null;
+
+        return System.Windows.Media.Color.FromRgb(
+            Convert.ToByte(hex[..2], 16),
+            Convert.ToByte(hex.Substring(2, 2), 16),
+            Convert.ToByte(hex.Substring(4, 2), 16));
     }
 
     /// <summary>
