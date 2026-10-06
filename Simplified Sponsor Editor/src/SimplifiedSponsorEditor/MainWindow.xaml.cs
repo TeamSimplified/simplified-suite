@@ -279,6 +279,11 @@ public partial class MainWindow : Window
 
     private void CloseProject()
     {
+        // The renders are cached by decal name, which the next project uses too.
+        // Cleared here rather than where a project is opened, because this runs
+        // first on every path that swaps one — New, Open and closing outright.
+        _artwork.Clear();
+
         if (_project is null) return;
 
         ProjectStore.Close(_project);
@@ -340,7 +345,13 @@ public partial class MainWindow : Window
 
         PackageButton.IsEnabled = false;
 
-        var request = new PackageRequest(_project, AppPaths.OriginalsDir, gameDir!, picker.FileName);
+        // Rendered here rather than inside the packager: the project keeps the
+        // files somebody imported, and turning a drawing into pixels is a WPF
+        // operation that wants this thread. The worker below gets a folder of
+        // PNGs, which is all it ever wanted.
+        var (artwork, skipped) = Materialise();
+
+        var request = new PackageRequest(artwork, AppPaths.OriginalsDir, gameDir!, picker.FileName);
 
         try
         {
@@ -354,11 +365,13 @@ public partial class MainWindow : Window
             // Always told, not only when something went sideways: Studio reports
             // a finished package in a dialog too, and packaging is long enough
             // that "did that work?" is a fair question with nothing on screen.
+            // The ones that never reached the packager go first: they are about
+            // what is not in the zip, which is the more useful half of the news.
+            var notes = skipped.Concat(result.Warnings).ToList();
+
             var summary = $"Packaged {result.CarDecals} decal(s) to {result.ZipPath}";
             SimplifiedUi.MessageDialog.Show(this,
-                result.Warnings.Count > 0
-                    ? $"{summary}\n\n{string.Join('\n', result.Warnings)}"
-                    : summary,
+                notes.Count > 0 ? $"{summary}\n\n{string.Join('\n', notes)}" : summary,
                 "Package complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -369,6 +382,9 @@ public partial class MainWindow : Window
         }
         finally
         {
+            try { if (Directory.Exists(artwork)) Directory.Delete(artwork, recursive: true); }
+            catch { /* best effort — it is under the temp folder either way */ }
+
             PackageButton.IsEnabled = _project is not null;
         }
     }

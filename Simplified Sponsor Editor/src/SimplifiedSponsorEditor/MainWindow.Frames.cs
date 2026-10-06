@@ -94,9 +94,7 @@ public partial class MainWindow
         var own = _preview?.Get(decal.CarIdentifier);
 
         // ── On the car ───────────────────────────────────────────────
-        var artwork = replaced && _project is not null ? _project.PicturePath(decal.Name) : null;
-
-        if (artwork is not null && File.Exists(artwork) && Picture(artwork) is { } mine)
+        if (replaced && Artwork(decal) is { } mine)
         {
             // The texture keeps the resolution handed over, corrected to the
             // decal's shape — so a sharper decal than the game's stays sharper.
@@ -129,14 +127,13 @@ public partial class MainWindow
         }
         else
         {
-            // The letterboxed copy made when the artwork was chosen. Where a
-            // project has none the packager leaves the game's thumbnail alone,
-            // so this shows the game's too rather than a picture that will not
-            // be there.
-            var menuArt = replaced && _project is not null ? _project.MenuPicturePath(decal.Name) : null;
+            // The artwork letterboxed onto the menu's shape, the same way the
+            // packager will do it. Where a project has none the packager leaves
+            // the game's thumbnail alone, so this shows the game's too rather
+            // than a picture that will not be there.
             var menuOwn = MenuPreview?.Get(decal.MenuIdentifier!);
 
-            if (menuArt is not null && File.Exists(menuArt) && Picture(menuArt) is { } mineMenu)
+            if (replaced && MenuArtwork(decal) is { } mineMenu)
             {
                 var texture = (Width: SponsorPackager.MenuWidth, Height: SponsorPackager.MenuHeight);
 

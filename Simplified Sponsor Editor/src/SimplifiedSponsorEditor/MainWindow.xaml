@@ -294,6 +294,14 @@
                             Padding="22,8" Margin="8,0,0,0" FontWeight="SemiBold"
                             IsEnabled="False" Click="Import_Click"
                             ToolTip="Choose a PNG or an SVG to put on this decal"/>
+                    <!-- Only ever enabled for a drawing: a PNG has no pieces to
+                         pick, and a button that greys out for most decals says
+                         so better than one that opens a window with nothing in
+                         it. -->
+                    <Button DockPanel.Dock="Left" Name="EditButton" Content="Edit"
+                            Padding="22,8" Margin="8,0,0,0"
+                            IsEnabled="False" Click="Edit_Click"
+                            ToolTip="Open this SVG again to drop or recolour its parts"/>
                     <Button DockPanel.Dock="Left" Name="RevertButton" Content="Revert"
                             Padding="22,8" Margin="8,0,0,0"
                             IsEnabled="False" Click="Revert_Click"

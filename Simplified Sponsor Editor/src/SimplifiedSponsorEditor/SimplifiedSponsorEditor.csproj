@@ -47,6 +47,10 @@
          this is the only one that reads SVGs — a shared library here would hand
          the SharpVectors dependency to thirteen apps that do not want it. -->
     <Compile Include="..\..\..\Shared\SvgPicture.cs" Link="SvgPicture.cs" />
+
+    <!-- And what somebody did to one, kept beside the file rather than baked
+         into it, so the editor can be opened on the same drawing again. -->
+    <Compile Include="..\..\..\Shared\SvgEdits.cs" Link="SvgEdits.cs" />
   </ItemGroup>
 
   <ItemGroup>

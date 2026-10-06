@@ -10,9 +10,18 @@ using SimplifiedSponsorEditor.Core.Sponsors;
 
 namespace SimplifiedSponsorEditor.Core.Package;
 
-/// <summary>What a package needs to know.</summary>
+/// <summary>
+/// What a package needs to know.
+///
+/// <paramref name="ArtworkDir"/> holds the pictures to ship, rendered at package
+/// time from whatever the project kept — <c>&lt;decal&gt;.png</c> for the car and
+/// <c>menu/&lt;decal&gt;.png</c> for the thumbnail. The project itself is not
+/// passed: a drawing has to become pixels on a thread that can render one, which
+/// is the app's, and handing this a folder of PNGs keeps that where it belongs
+/// and keeps this assembly free of WPF.
+/// </summary>
 public sealed record PackageRequest(
-    SponsorProject Project,
+    string ArtworkDir,
     string OriginalsDir,
     string GameDir,
     string OutputZipPath);
@@ -62,6 +71,12 @@ public static class SponsorPackager
     public const string PackageRootName = "F1 25";
 
     /// <summary>
+    /// Where the menu's copies sit inside <see cref="PackageRequest.ArtworkDir"/>
+    /// — the same name the project used for them, so the two layouts read alike.
+    /// </summary>
+    public const string MenuFolderName = ProjectStore.MenuFolderName;
+
+    /// <summary>
     /// What the menu's pictures measure. The artwork is letterboxed onto this
     /// aspect when it is chosen; texconv does the scaling down on the way in.
     /// </summary>
@@ -95,8 +110,13 @@ public static class SponsorPackager
                                       IProgress<string>? say = null,
                                       CancellationToken cancel = default)
     {
-        var project = request.Project;
-        var replaced = project.ReplacedDecals;
+        var replaced = Directory.Exists(request.ArtworkDir)
+            ? Directory.EnumerateFiles(request.ArtworkDir, "*.png")
+                .Select(Path.GetFileNameWithoutExtension)
+                .OfType<string>()
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : [];
 
         if (replaced.Count == 0)
             throw new InvalidOperationException("Nothing has been replaced, so there is nothing to package.");
@@ -161,7 +181,8 @@ public static class SponsorPackager
                 log?.Invoke($"  {decal.Name}");
                 say?.Report($"Converting your pictures — {++done} of {decals.Count}…");
 
-                if (Import(carOverlay, decal.CarIdentifier, project.PicturePath(decal.Name),
+                if (Import(carOverlay, decal.CarIdentifier,
+                           Path.Combine(request.ArtworkDir, decal.Name + ".png"),
                            runner, work, width: 0, height: 0, warnings, fitted))
                 {
                     carCount++;
@@ -169,10 +190,10 @@ public static class SponsorPackager
 
                 if (!decal.HasMenuThumbnail) continue;
 
-                // The menu picture is the letterboxed copy made when the
-                // artwork was chosen; falling back to the raw artwork would put
-                // a squashed logo in the menu, which is worse than none.
-                var menuArtwork = project.MenuPicturePath(decal.Name);
+                // The menu picture is the letterboxed copy prepared alongside
+                // the car one; falling back to the raw artwork would put a
+                // squashed logo in the menu, which is worse than none.
+                var menuArtwork = Path.Combine(request.ArtworkDir, MenuFolderName, decal.Name + ".png");
                 if (!File.Exists(menuArtwork))
                 {
                     warnings.Add($"{decal.Name} has no menu version, so the menu keeps the original picture.");

@@ -181,11 +181,15 @@ public partial class MainWindow
         ImportButton.IsEnabled = open && decal is not null;
         RevertButton.IsEnabled = open && decal is not null && _project!.IsReplaced(decal.Name);
 
+        // Editing is for drawings. A PNG has no pieces to pick, and a project
+        // made by 1.0 kept only the rendered picture, so neither offers one.
+        EditButton.IsEnabled = open && CanEdit(decal);
+
         // Exporting wants a picture rather than a replacement: the game's own
         // decal can be taken out and worked on, which is how somebody gets a
         // starting point at the right size and shape. A project is open either
         // way, since the list is empty without one.
-        ExportButton.IsEnabled = decal is not null && PictureOn(decal) is not null;
+        ExportButton.IsEnabled = decal is not null && HasPicture(decal);
 
         if (decal is null)
         {
@@ -222,24 +226,22 @@ public partial class MainWindow
                 return;
         }
 
-        var path = replaced ? _project!.PicturePath(decal.Name) : _preview?.Get(decal.CarIdentifier)?.PngPath;
+        // The project's artwork, rendered from whatever it keeps, or the game's
+        // own PNG where this decal has not been replaced.
+        var image = replaced
+            ? Artwork(decal)
+            : _preview?.Get(decal.CarIdentifier)?.PngPath is { } png && File.Exists(png)
+                ? Picture(png)
+                : null;
 
-        if (path is null || !File.Exists(path))
+        if (image is null)
         {
-            ShowPlaceholder("No picture for this one");
+            ShowPlaceholder(replaced ? "This one couldn't be read" : "No picture for this one");
             return;
         }
 
         try
         {
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.UriSource = new Uri(path);
-            // OnLoad, or the file stays locked and replacing it again fails.
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-            image.EndInit();
-
             PreviewImage.Source = image;
             FramesView.Visibility = Visibility.Collapsed;
             PreviewPlaceholder.Visibility = Visibility.Collapsed;

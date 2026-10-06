@@ -17,7 +17,10 @@ public static class ProjectStore
     public const string ProjectFileExtension = ".simplified";
     public const string InfoFileName         = "info.json";
 
-    /// <summary>The replacement pictures.</summary>
+    /// <summary>The files somebody imported, kept as they arrived.</summary>
+    public const string SourcesFolderName = "Sources";
+
+    /// <summary>1.0's rendered pictures. Read for those projects; never written.</summary>
     public const string SponsorsFolderName = "Sponsors";
 
     /// <summary>Inside it, the menu versions of the same pictures.</summary>
@@ -57,8 +60,7 @@ public static class ProjectStore
             },
         };
 
-        Directory.CreateDirectory(project.SponsorsFolder);
-        Directory.CreateDirectory(project.MenuFolder);
+        Directory.CreateDirectory(project.SourcesFolder);
 
         WriteInfo(project);
         return project;
@@ -83,11 +85,12 @@ public static class ProjectStore
 
         var project = new SponsorProject { TempDir = temp, ZipPath = zipPath, Info = info };
 
-        // A project made by hand, or by an older build, may be missing these.
+        // A project made by hand, or by an older build, may be missing this.
         // Empty is a state the app can show; absent is one it would trip over on
-        // every path that enumerates them.
-        Directory.CreateDirectory(project.SponsorsFolder);
-        Directory.CreateDirectory(project.MenuFolder);
+        // every path that enumerates it. A 1.0 project's Sponsors folder is left
+        // exactly as it is — it is read, and creating one where there was none
+        // would only put an empty folder into the next save.
+        Directory.CreateDirectory(project.SourcesFolder);
 
         return project;
     }

@@ -30,11 +30,43 @@ public static class SvgEditor
 {
     private static readonly Regex Hex = new("^#?[0-9a-fA-F]{6}$", RegexOptions.Compiled);
 
-    /// <summary>The artwork as it was left, or null if the import was dropped.</summary>
-    public static Drawing? Show(Window owner, string svgPath)
+    /// <summary>
+    /// Open a drawing as its pieces. <paramref name="existing"/> seeds the
+    /// window with what was done to it last time, so coming back to a decal
+    /// carries on from there rather than starting at the untouched file.
+    /// </summary>
+    /// <returns>
+    /// What was done to it, or null if the window was closed without applying.
+    /// An empty set is a real answer: it means the drawing was left whole.
+    /// </returns>
+    public static SvgEdits? Show(Window owner, string svgPath,
+                                 SvgEdits? existing = null, string action = "Import")
     {
-        var parts = SvgPicture.Parts(SvgPicture.Read(svgPath)).ToList();
-        if (parts.Count == 0) return null;
+        var all = SvgPicture.Parts(SvgPicture.Read(svgPath)).ToList();
+        if (all.Count == 0) return null;
+
+        // Where each part sits in the file's own order, and the colour it
+        // arrived with. What leaves here records only what somebody changed: a
+        // part painted back to its own colour is not an edit, and writing it
+        // down would pin the drawing to a colour its file already has.
+        var index = new Dictionary<SvgPart, int>();
+        for (var i = 0; i < all.Count; i++) index[all[i]] = i;
+        var original = all.Select(p => p.Colour).ToList();
+
+        var seed = existing ?? new SvgEdits();
+        var parts = new List<SvgPart>();
+
+        for (var i = 0; i < all.Count; i++)
+        {
+            if (seed.Removed.Contains(i)) continue;
+            if (seed.Colours.TryGetValue(i, out var hex) && SvgEdits.Parse(hex) is { } colour) all[i].Paint(colour);
+            parts.Add(all[i]);
+        }
+
+        // Only a hand-edited sidecar can name every part — the window below will
+        // not apply one that does. Showing the drawing whole beats opening an
+        // empty canvas with nothing on it to click.
+        if (parts.Count == 0) parts.AddRange(all);
 
         // ── The artwork, as pickable shapes ───────────────────────────
         //
@@ -236,7 +268,7 @@ public static class SvgEditor
             Mark();
         };
 
-        var import = new Button { Content = "Import", Width = 80, IsDefault = true, FontWeight = FontWeights.SemiBold };
+        var import = new Button { Content = action, Width = 80, IsDefault = true, FontWeight = FontWeights.SemiBold };
         var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -305,7 +337,7 @@ public static class SvgEditor
             if (parts.Count == 0)
             {
                 MessageDialog.Show(window,
-                    "Everything has been deleted, so there is no artwork to import.",
+                    "Everything has been deleted, so there is no artwork left.",
                     "Edit artwork", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -313,7 +345,25 @@ public static class SvgEditor
             window.DialogResult = true;
         };
 
-        return window.ShowDialog() == true ? SvgPicture.ToDrawing(parts) : null;
+        if (window.ShowDialog() != true) return null;
+
+        // Said as what changed rather than as the drawing that came out, so the
+        // file somebody imported stays the thing the project holds and this can
+        // be reopened on top of it later.
+        var result = new SvgEdits();
+        var kept = new HashSet<SvgPart>(parts);
+
+        for (var i = 0; i < all.Count; i++)
+            if (!kept.Contains(all[i])) result.Removed.Add(i);
+
+        foreach (var part in parts)
+        {
+            var at = index[part];
+            if (part.Colour is not { } now || now == original[at]) continue;
+            result.Colours[at] = SvgEdits.Format(now);
+        }
+
+        return result;
     }
 
     /// <summary>A brush from the palette, or grey if the app has no palette.</summary>
