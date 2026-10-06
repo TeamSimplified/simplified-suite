@@ -211,12 +211,21 @@ public static class SvgPicture
         {
             case DrawingGroup group:
             {
-                // A group's clip is taken to be in the space it is drawn into
-                // rather than the one its children are drawn in, so it carries
-                // the ancestors' transform and not the group's own. Clips are
-                // rare in a logo; this is the reading, not a measurement.
+                // A group's clip is in the space its children are drawn in, so
+                // it carries the group's own transform as well as its ancestors'.
+                // WPF applies ClipGeometry before Transform, and SVG resolves a
+                // userSpaceOnUse clip in the space the element's own transform
+                // establishes; both say the same thing.
+                //
+                // Measured, because this was wrong the other way round and the
+                // artwork it broke did not look clipped - it looked cropped. A
+                // bull drawn under matrix(1.33,0,0,-1.33,0,283) with a clip of
+                // 0,0 340x213 came out as its own top-left corner: in the
+                // children's space that clip is the whole canvas, 0,0 453x283,
+                // but left in the ancestors' space it cut everything past
+                // x=340 of artwork reaching x=409.
                 var inside = Then(group.Transform, transform);
-                var narrowed = Narrow(clip, group.ClipGeometry, transform);
+                var narrowed = Narrow(clip, group.ClipGeometry, inside);
 
                 foreach (var child in group.Children)
                     Walk(child, inside, opacity * group.Opacity, narrowed, into);
@@ -224,8 +233,16 @@ public static class SvgPicture
                 break;
             }
 
+            // The shape's own transform counts towards the pen as well as the
+            // ancestors'. SharpVectors hands an element's transform over on the
+            // geometry and leaves the pen alone, and WPF then strokes in the
+            // space after it — so a stroke of 0.4 inside scale(840) is drawn
+            // 0.4 wide where SVG asks for 336. Measured on an Australian flag,
+            // whose red diagonals are one such stroke and were simply absent.
             case GeometryDrawing { Geometry: not null } shape:
-                into.Add(new SvgPart(Place(shape.Geometry, transform), shape.Brush, shape.Pen, opacity, clip));
+                into.Add(new SvgPart(
+                    Place(shape.Geometry, transform), shape.Brush,
+                    Thicken(shape.Pen, Then(shape.Geometry.Transform, transform)), opacity, clip));
                 break;
 
             // Kept as a shape painted with the picture, rather than skipped: an
@@ -245,6 +262,36 @@ public static class SvgPicture
                     text.ForegroundBrush, null, opacity, clip));
                 break;
         }
+    }
+
+    /// <summary>
+    /// An outline at the width it is drawn at once its shape has been moved.
+    ///
+    /// The transform is baked into the geometry, and a pen's thickness is not
+    /// part of a geometry — so a line drawn 0.4 wide inside <c>scale(840)</c>
+    /// would come out 0.4 wide instead of 336 and read as nothing at all. That
+    /// is an Australian flag with no red in it, which is what it looked like.
+    ///
+    /// The square root of the determinant: exact for a uniform scale, which is
+    /// what these documents use, and the one sensible number where a transform
+    /// scales the axes differently — a pen has one thickness, so there is no
+    /// answer that is right in both directions.
+    /// </summary>
+    private static Pen? Thicken(Pen? pen, Transform transform)
+    {
+        if (pen is null) return null;
+
+        var matrix = transform.Value;
+        if (matrix.IsIdentity) return pen;
+
+        var scale = Math.Sqrt(Math.Abs(matrix.Determinant));
+        if (double.IsNaN(scale) || scale <= 0 || Math.Abs(scale - 1) < 1e-9) return pen;
+
+        // Cloned rather than built: a new Pen would lose the dashes, the caps
+        // and the joins along with the width.
+        var scaled = pen.CloneCurrentValue();
+        scaled.Thickness = pen.Thickness * scale;
+        return scaled;
     }
 
     /// <summary>A shape moved into the space its ancestors put it in.</summary>
