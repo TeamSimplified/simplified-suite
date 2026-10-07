@@ -61,6 +61,23 @@ public partial class ShellWindow : Window
     private const double Gap = 0.35;
 
     /// <summary>
+    /// How long the block takes to travel to the top. The Launcher's
+    /// SlideSeconds, which is what its heading moves on.
+    /// </summary>
+    private const double SlideSeconds = 0.55;
+
+    /// <summary>Where the block sits once it has travelled, from the top of the window.</summary>
+    private const double TopMargin = 62;
+
+    /// <summary>
+    /// Google's done, on its own 24-square and untranslated — the Canvas around
+    /// it in the XAML is what keeps it to the grid, so it needs no moving by
+    /// hand and cannot be measured by its own bounds. Its counterpart, the plus,
+    /// is in the XAML because that is the one the button opens with.
+    /// </summary>
+    private const string TickData = "M9,16.17L4.83,12l-1.42,1.41L9,19L21,7l-1.41-1.41z";
+
+    /// <summary>
     /// How long "SETTING UP YOUR PROJECT" stays up.
     ///
     /// Two full turns of the dots and a little over. Less than one turn and the
@@ -196,11 +213,71 @@ public partial class ShellWindow : Window
         }
     }
 
+    /// <summary>
+    /// On to a sponsor: the block travels to the top of the window, the heading
+    /// says what this page is for, and the plus becomes the tick that will
+    /// finish it.
+    ///
+    /// All three start together. This is one movement — the page becoming
+    /// another page — and staging it would read as three things agreeing to
+    /// happen rather than as one.
+    /// </summary>
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        // Nothing behind it yet. The plus is the next thing to be built, and a
-        // button that silently does nothing is better than one that half does
-        // something.
+        AddButton.IsHitTestVisible = false;
+
+        Lift();
+        Retitle("EDIT YOUR", "SPONSOR");
+
+        // The button stays; only its glyph changes, and it changes while nobody
+        // can see it. Same trick as the heading, and for the same reason: a
+        // shape cannot be animated into another shape, but it can be swapped at
+        // the bottom of a fade.
+        Fade(AddButton, to: 0, seconds: ClearSeconds);
+
+        After(ClearSeconds + Gap, () =>
+        {
+            ActionGlyph.Data = Geometry.Parse(TickData);
+            AddButton.ToolTip = "Done";
+            AddButton.IsHitTestVisible = true;
+            FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
+        });
+    }
+
+    /// <summary>
+    /// Move the block to the top of the window.
+    ///
+    /// How far is measured rather than written down: the block is a mark, a
+    /// label, two lines of type and the margins between them, and every one of
+    /// those has been changed today. The shift already applied is taken back off
+    /// first, because TranslatePoint reports where the block is drawn and that
+    /// includes the transform — so read from a block already at the top it would
+    /// say it needs to move nowhere, which is true of where it is and useless as
+    /// an answer to where it belongs.
+    /// </summary>
+    private void Lift()
+    {
+        // Where it is drawn now, before anything is taken out from under it.
+        var was = Block.TranslatePoint(new Point(0, 0), Root).Y;
+
+        // The choices have been invisible since the project opened but were
+        // still laid out, which is what kept the heading from jumping when they
+        // faded. Travelling to the top they would carry 84px of nothing down
+        // with them and sit between the heading and whatever goes under it, so
+        // this is where they stop taking up room.
+        Choices.Visibility = Visibility.Collapsed;
+        Root.UpdateLayout();
+
+        // Collapsing them shortens the block, and a block centred on the window
+        // moves when it gets shorter — half the height, downward. So the slide
+        // starts from wherever that put it rather than from zero, which cancels
+        // the jump exactly: the first frame draws it where the last one did.
+        var laidOut = Block.TranslatePoint(new Point(0, 0), Root).Y - BlockShift.Y;
+
+        var travel = Glide(TopMargin - laidOut, SlideSeconds);
+        travel.From = was - laidOut;
+
+        BlockShift.BeginAnimation(TranslateTransform.YProperty, travel);
     }
 
     /// <summary>
@@ -303,6 +380,10 @@ public partial class ShellWindow : Window
     {
         Retitle("READY TO", "EDIT SPONSORS", then: () =>
         {
+            // Only reached before the block has ever travelled, so these are
+            // still laid out — but said anyway, because the one thing worse than
+            // a dead branch is a dead branch that would be wrong if it ran.
+            Choices.Visibility = Visibility.Visible;
             Choices.IsHitTestVisible = true;
             Fade(NewButton, to: 1, seconds: ClearSeconds);
             Fade(OpenButton, to: 1, seconds: ClearSeconds);

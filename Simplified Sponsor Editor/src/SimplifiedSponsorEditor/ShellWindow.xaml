@@ -233,7 +233,7 @@
 
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="Root">
 
         <!-- The gradient: five soft points rather than one ramp, which is what
              gives it the blurred look. Each is a radial brush with a gentle
@@ -444,7 +444,15 @@
              is even in layout units is a half pixel on screen. Full width, the
              panel never resizes, so there is one rounding rather than two and
              nothing can disagree. -->
-        <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+        <StackPanel x:Name="Block" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+
+            <!-- The block travels to the top of the window on the way to a
+                 sponsor, and a render transform is what moves it. Animating the
+                 margin instead would re-run the layout every frame, and
+                 VerticalAlignment Center would fight it the whole way. -->
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="BlockShift"/>
+            </StackPanel.RenderTransform>
 
             <!-- The mark, above and apart. The 24 below it against the 6 under
                  STATUS is the whole point of the spacing: a gap four times the
@@ -507,19 +515,24 @@
                 IsHitTestVisible="False"
                 Click="Add_Click"
                 ToolTip="Add a sponsor">
-            <!-- The same 44 and the same 18 the Launcher's play sits at, so the
-                 one icon this window has is the size icons are over there. The
-                 pad and the hover come with the style for the same reason.
+            <!-- The 44 is the Launcher's play button, and the pad and the hover
+                 come with its style for the same reason.
 
-                 Moved to start at the origin, which matters more than it looks:
-                 a Path measures as the bounds of its geometry counted from 0,0,
-                 so Google's 5,5 start would be measured as part of the shape and
-                 the Viewbox would scale an 19x19 box with a 14x14 plus in the
-                 corner of it. The Launcher's play glyph carries the same nudge
-                 for the same reason. -->
-            <Viewbox Height="18" Stretch="Uniform">
-                <Path Data="M14,8h-6v6h-2v-6H0v-2h6V0h2v6h6V8z"
-                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                 Google's 24-square is kept whole rather than cropped to the
+                 glyph, and that is what lets two icons swap places honestly. A
+                 Path measures as the bounds of its geometry, so scaled to its
+                 own box a 17x13 tick comes out as tall as a 14x14 plus and
+                 reads much bigger. Scaled by the grid they stay in the
+                 proportion the set draws them in, and each sits where Google
+                 put it. 30.86 is the plus's 18 taken up from its 14 units to
+                 the grid's 24 — the same plus, the same size, measured off the
+                 same thing the Launcher's play is. -->
+            <Viewbox Height="30.86" Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path x:Name="ActionGlyph"
+                          Data="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Canvas>
             </Viewbox>
         </Button>
 
