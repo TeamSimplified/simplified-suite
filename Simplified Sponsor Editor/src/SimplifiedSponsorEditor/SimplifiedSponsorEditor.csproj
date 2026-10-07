@@ -53,6 +53,18 @@
     <Compile Include="..\..\..\Shared\SvgEdits.cs" Link="SvgEdits.cs" />
   </ItemGroup>
 
+  <!-- Outfit, carried rather than named. A machine without it installed falls
+       back silently and the whole look goes with it, which is a thing nobody
+       reports as a bug - the app just looks wrong on their screen and right on
+       ours. Same file the Launcher ships, linked from Shared. -->
+  <ItemGroup>
+    <Resource Include="..\..\..\Shared\Fonts\*.ttf" Link="Fonts\%(Filename)%(Extension)" />
+    <Content Include="..\..\..\Shared\Fonts\OFL.txt" Link="runtime\fonts\OFL.txt"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="SharpVectors.Reloaded" />
   </ItemGroup>
