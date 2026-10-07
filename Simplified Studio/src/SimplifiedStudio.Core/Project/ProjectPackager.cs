@@ -61,6 +61,17 @@ public static class ProjectPackager
         [System.Text.Json.Serialization.JsonPropertyName("game_version")]
         [System.Text.Json.Serialization.JsonPropertyOrder(5)]
         public string GameVersion { get; init; } = "";
+
+        /// <summary>
+        /// Which app built this and which build of it, the same key and shape a
+        /// project's info.json carries. On the base rather than on SerpsInfo, so
+        /// a template says it too — a template is as much a thing somebody is
+        /// handed as a mod is, and the question "what made this" is the same
+        /// question either way.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("simplified_app")]
+        [System.Text.Json.Serialization.JsonPropertyOrder(7)]
+        public string[] SimplifiedApp { get; init; } = [];
     }
 
     /// <summary>
@@ -218,6 +229,7 @@ public static class ProjectPackager
                     Game          = gameName,
                     GameVersion   = gameVersion,
                     StudioVersion = StudioVersion.Current,
+                    SimplifiedApp = [StudioVersion.AppId, StudioVersion.Stamp],
                 }, SerpsJson));
 
             // Final delivery — zip or copy
@@ -331,6 +343,7 @@ public static class ProjectPackager
                 Game          = ReadGameName(gameDir),
                 GameVersion   = ReadGameVersion(gameDir),
                 StudioVersion = StudioVersion.Current,
+                SimplifiedApp = [StudioVersion.AppId, StudioVersion.Stamp],
             };
 
             var infoEntry = zip.CreateEntry(TemplateInfoFileName, CompressionLevel.Optimal);

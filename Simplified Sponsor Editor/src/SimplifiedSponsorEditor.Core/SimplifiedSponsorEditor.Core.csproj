@@ -19,6 +19,10 @@
   -->
   <ItemGroup>
     <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
+
+    <!-- Which game build a mod was packaged against, read the one way the whole
+         suite reads it, so two apps' manifests compare equal. -->
+    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
   </ItemGroup>
 
   <!-- The two resources the game wants in every mod that ships a shader

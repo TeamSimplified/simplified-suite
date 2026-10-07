@@ -351,7 +351,7 @@ public static class TeamPackager
     /// </summary>
     private static string BuildModSerps(ModInfo info, string? gameDir)
     {
-        var manifest = new Dictionary<string, string> { ["mod_name"] = info.Name.Trim() };
+        var manifest = new Dictionary<string, object> { ["mod_name"] = info.Name.Trim() };
         if (!string.IsNullOrWhiteSpace(info.Author)) manifest["author"] = info.Author.Trim();
         if (!string.IsNullOrWhiteSpace(info.Version)) manifest["version"] = info.Version.Trim();
 
@@ -361,6 +361,12 @@ public static class TeamPackager
         // 1.0.141.2878, and the two manifests would not compare equal.
         manifest["game"] = Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
         manifest["game_version"] = Simplified.Shared.GameVersion.Read(gameDir) ?? "";
+
+        // Which app built this and which build of it, the same key and shape the
+        // other apps write. A mod is handed to somebody who has neither the
+        // project nor the app, and this is the only place that question gets
+        // answered for them.
+        manifest["simplified_app"] = AppStamp.Pair;
 
         return JsonSerializer.Serialize(manifest, SerpsJson);
     }

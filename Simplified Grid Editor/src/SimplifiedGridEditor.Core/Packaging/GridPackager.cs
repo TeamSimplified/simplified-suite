@@ -519,7 +519,7 @@ public static class GridPackager
     /// </summary>
     private static string BuildModSerps(GridProject project, string? gameDir)
     {
-        var manifest = new Dictionary<string, string>
+        var manifest = new Dictionary<string, object>
         {
             ["mod_name"] = project.Info.Name.Trim().Length > 0 ? project.Info.Name.Trim() : project.DisplayName,
         };
@@ -534,6 +534,12 @@ public static class GridPackager
         // only place that difference is written down.
         manifest["game"] = Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
         manifest["game_version"] = Simplified.Shared.GameVersion.Read(gameDir) ?? "";
+
+        // Which app built this and which build of it, the same key and shape a
+        // project's info.json carries. A mod is handed to somebody who has
+        // neither the project nor the app, and this is the only place that
+        // question gets answered for them.
+        manifest["simplified_app"] = new[] { EditorVersion.AppId, EditorVersion.Stamp };
 
         return JsonSerializer.Serialize(manifest, SerpsJson);
     }

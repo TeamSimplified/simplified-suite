@@ -24,7 +24,10 @@ public sealed record PackageRequest(
     string ArtworkDir,
     string OriginalsDir,
     string GameDir,
-    string OutputZipPath);
+    string OutputZipPath,
+    string ModName = "",
+    string Author = "",
+    string ModVersion = "");
 
 /// <summary>What it produced.</summary>
 public sealed record PackageResult(
@@ -243,6 +246,13 @@ public static class SponsorPackager
             var directory = Path.GetDirectoryName(request.OutputZipPath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
+            // mod.serps at the root, beside the F1 25 folder, the way the other
+            // apps write one. Without it the launcher has only a file name to go
+            // on, and a mod is handed to somebody who has neither the project
+            // nor the app that made it.
+            if (!string.IsNullOrWhiteSpace(request.ModName))
+                File.WriteAllText(Path.Combine(work, "mod.serps"), BuildModSerps(request));
+
             ZipFile.CreateFromDirectory(work, request.OutputZipPath,
                 CompressionLevel.Optimal, includeBaseDirectory: false);
 
@@ -253,6 +263,43 @@ public static class SponsorPackager
             try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); } catch { }
         }
     }
+
+    /// <summary>
+    /// The manifest, at the root where the launcher looks for it. Name, author
+    /// and version come from the project rather than from a dialog — the project
+    /// already knows them, and asking again is how two answers drift apart.
+    /// </summary>
+    private static string BuildModSerps(PackageRequest request)
+    {
+        var manifest = new Dictionary<string, object> { ["mod_name"] = request.ModName.Trim() };
+
+        if (!string.IsNullOrWhiteSpace(request.Author)) manifest["author"] = request.Author.Trim();
+        if (!string.IsNullOrWhiteSpace(request.ModVersion)) manifest["version"] = request.ModVersion.Trim();
+
+        // Which game build this was made against, named and numbered the way the
+        // other apps do it, so a mod from any of them says what it was packaged
+        // for in one spelling.
+        manifest["game"] = Simplified.Shared.GameVersion.ReadName(request.GameDir) ?? "";
+        manifest["game_version"] = Simplified.Shared.GameVersion.Read(request.GameDir) ?? "";
+
+        // Which app built it and which build of it, the same key and shape a
+        // project's info.json carries.
+        manifest["simplified_app"] = new[] { Project.EditorVersion.AppId, Project.EditorVersion.Stamp };
+
+        return System.Text.Json.JsonSerializer.Serialize(manifest, SerpsJson);
+    }
+
+    /// <summary>
+    /// How the manifest is written — the options the other apps use, so all of
+    /// them spell a mod.serps identically. The encoder is the reason: the
+    /// default one escapes the game's own name to <c>F1® 25</c>, where this
+    /// writes <c>F1® 25</c>. Both parse the same; only one is readable.
+    /// </summary>
+    private static readonly System.Text.Json.JsonSerializerOptions SerpsJson = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+    };
 
     /// <summary>
     /// An archive cut down to the decals being changed, and the surfaces holding

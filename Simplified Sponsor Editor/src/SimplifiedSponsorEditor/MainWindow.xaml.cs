@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -351,7 +351,12 @@ public partial class MainWindow : Window
         // PNGs, which is all it ever wanted.
         var (artwork, skipped) = Materialise();
 
-        var request = new PackageRequest(artwork, AppPaths.OriginalsDir, gameDir!, picker.FileName);
+        var request = new PackageRequest(artwork, AppPaths.OriginalsDir, gameDir!, picker.FileName,
+                                         ModName: _project.Info.Name.Trim().Length > 0
+                                             ? _project.Info.Name.Trim()
+                                             : _project.DisplayName,
+                                         Author: _project.Info.Author,
+                                         ModVersion: _project.Info.Version);
 
         try
         {
