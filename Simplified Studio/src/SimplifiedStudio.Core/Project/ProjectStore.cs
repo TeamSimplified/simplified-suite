@@ -156,7 +156,6 @@ public static class ProjectStore
                 Name          = name,
                 Author        = author,
                 Version       = templateModVersion,
-                StudioVersion = StudioVersion.Current,
                 ShaderPackage = shaderPackage,
                 SerpsTemplate = Path.GetFileName(serpsPath),
             },
@@ -221,7 +220,6 @@ public static class ProjectStore
             {
                 Name             = name,
                 Author           = author,
-                StudioVersion    = StudioVersion.Current,
                 ShaderPackage    = shaderPackage,
                 SerpsTemplate    = "",
                 IsCustomTemplate = true,
@@ -645,7 +643,6 @@ public static class ProjectStore
             {
                 Name             = legacyInfo.name,
                 Author           = legacyInfo.author,
-                StudioVersion    = StudioVersion.Current,
                 ShaderPackage    = legacyInfo.shaderPackage,
                 SerpsTemplate    = legacyInfo.serpsTemplate,
                 IsCustomTemplate = legacyInfo.isCustom,
@@ -766,8 +763,12 @@ public static class ProjectStore
 
     private static void WriteInfo(SimplifiedProject project)
     {
-        project.Info.StudioVersion = StudioVersion.Current;
         project.Info.App = [StudioVersion.AppId, StudioVersion.Stamp];
+
+        // A project from 1.3 through 2.0 goes back out with the new key alone.
+        // Both would be a file saying two things about itself, and the next
+        // reader would have to decide which to believe.
+        project.Info.LegacyStudioVersion = null;
         var path = Path.Combine(project.TempDir, InfoFileName);
         File.WriteAllText(path, JsonSerializer.Serialize(project.Info, Json));
     }

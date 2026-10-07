@@ -32,14 +32,29 @@ public sealed class ProjectInfo
     /// conflict group.
     /// </summary>
     /// <summary>
-    /// Kept, where the other apps drop their old key once <c>simplified_app</c>
-    /// carries the same thing. Here the key is not only metadata: its
-    /// <em>absence</em> is what tells a build this is a pre-1.3 project, so a
-    /// file written without it would be read by an older Studio as the flat
-    /// layout with the old prefix scheme — silently, and wrongly. Both are
-    /// written from the same value, so they cannot disagree.
+    /// What 1.3 through 2.0 wrote instead. Read so those projects still report
+    /// their build; cleared on save, so one opened and saved here comes out with
+    /// the new key alone rather than both.
+    ///
+    /// It was kept at first on the understanding that its absence marked a
+    /// pre-1.3 project. It does not, and the comment that said so was stale:
+    /// <see cref="ProjectStore.Inspect"/> calls a project legacy when it has no
+    /// <c>info.json</c> at all, because before 1.3 the file was called
+    /// <c>mod.json</c>. A 1.3+ project missing only this key reads as current,
+    /// which is what it is.
     /// </summary>
-    [JsonPropertyName("studio_version")] public string StudioVersion { get; set; } = "";
+    [JsonPropertyName("studio_version")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyStudioVersion { get; set; }
+
+    /// <summary>
+    /// The build that wrote this, whichever key it came from. Not serialised: it
+    /// is a reading of the two above, and a third copy of the same fact could
+    /// disagree with them.
+    /// </summary>
+    [JsonIgnore]
+    public string StudioVersion =>
+        App.Length > 1 && !string.IsNullOrWhiteSpace(App[1]) ? App[1] : LegacyStudioVersion ?? "";
 
     /// <summary>
     /// Which app wrote this file and which build of it, as
