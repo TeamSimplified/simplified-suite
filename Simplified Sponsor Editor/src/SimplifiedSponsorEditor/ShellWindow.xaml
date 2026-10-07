@@ -42,10 +42,69 @@
              pixels is what keeps a light grey from turning to mush, and the
              uneven spacing it causes is too small to see. The two settings are
              right for opposite reasons. -->
-        <Style x:Key="Label" TargetType="TextBlock">
+        <!-- ── The three kinds of text ───────────────────────────────
+             Named, so a size and a colour belong to a role rather than to
+             wherever they were first typed. Everything in the window is one of
+             these; anything that is none of them is a fourth kind nobody has
+             decided on yet, and that is worth noticing before it is drawn.
+
+             The formatting modes differ on purpose. Display snaps stems to
+             whole pixels, which is what keeps small text crisp and a light grey
+             from turning to mush; Ideal keeps sub-pixel positions, which is
+             what keeps large type evenly spaced. Each is right for one and
+             wrong for the other. -->
+
+        <!-- Highlight: the small grey word over something, like STATUS. One
+             word, upper case, never shows its leading.
+
+             Regular rather than Light: at twelve pixels in a grey this far down
+             the stems were landing under a pixel and the anti-aliasing was
+             doing the rest. One step up and the word is there without being
+             louder. -->
+        <Style x:Key="Highlight" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Regular"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="#6B6B6B"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <!-- Main: the stacked line the window speaks in. Two short lines of
+             upper case, centred, and the only thing on screen at this size.
+
+             LineHeight needs BlockLineHeight beside it or it is ignored. At
+             about 0.87 of the size the lines sit closer than the font's own
+             leading, which all-caps can take because there is nothing below the
+             baseline to collide. Change the size and this wants changing with
+             it. -->
+        <Style x:Key="Main" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="38"/>
+            <Setter Property="LineHeight" Value="33"/>
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+
+        <!-- Body: prose. Sentences that explain something, where the other two
+             are labels.
+
+             Two points up from Highlight and the leading with it — 20 on 14
+             holds the ratio 17 on 12 does. A label is one word and never shows
+             its leading; three lines of prose at the font's own would set too
+             tight. White rather than grey, because this is read rather than
+             glanced at. -->
+        <Style x:Key="Body" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="LineHeight" Value="20"/>
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         </Style>
 
@@ -463,8 +522,7 @@
             </Viewbox>
 
             <TextBlock Text="STATUS"
-                       Style="{StaticResource Label}"
-                       FontWeight="Regular"
+                       Style="{StaticResource Highlight}"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 
@@ -478,15 +536,7 @@
                  below the baseline to collide. Change the size and this wants
                  changing with it. -->
             <TextBlock x:Name="Headline"
-                       HorizontalAlignment="Center"
-                       FontFamily="{StaticResource Face}"
-                       FontWeight="Bold"
-                       FontSize="38"
-                       LineHeight="33"
-                       LineStackingStrategy="BlockLineHeight"
-                       TextAlignment="Center"
-                       Foreground="#FFFFFF"
-                       TextOptions.TextFormattingMode="Ideal">READY TO<LineBreak/>EDIT SPONSORS</TextBlock>
+                       Style="{StaticResource Main}">READY TO<LineBreak/>EDIT SPONSORS</TextBlock>
 
             <!-- The two choices. Height reserved whether or not they are shown,
                  so the block above does not jump up the window when they go. -->
