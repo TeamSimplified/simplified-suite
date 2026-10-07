@@ -17,19 +17,6 @@
     <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
-  <!-- ERP fragment baked into the assembly; ProjectPackager extracts it to a
-       temp file at package time and merges it into both shader_package ERPs.
-       Stored as a resource (not a Content file) so it never ships loose next
-       to the EXE — only the assembly is published. -->
-  <ItemGroup>
-    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
-    <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
