@@ -49,6 +49,13 @@ public sealed class SvgEdits
     public bool IsEmpty => Removed.Count == 0 && Colours.Count == 0;
 
     /// <summary>
+    /// A separate set saying the same thing, for a window to work on until
+    /// somebody keeps it. Both members are rebuilt rather than handed over, so
+    /// cancelling leaves the original untouched.
+    /// </summary>
+    public SvgEdits Copy() => new() { Removed = [.. Removed], Colours = new(Colours) };
+
+    /// <summary>
     /// The edits beside a source file, or an empty set when there are none —
     /// including when the file is unreadable, since a drawing with no edits is a
     /// state the app can show and a failure to open one is not.

@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="Simplified Sponsor Editor"
         Width="1180" Height="820" MinWidth="940" MinHeight="640"
         WindowStartupLocation="CenterScreen"
@@ -11,6 +12,7 @@
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         StateChanged="Window_StateChanged"
+        PreviewKeyDown="Window_KeyDown"
         Closing="Window_Closing">
 
     <!-- WindowChrome rather than the Launcher's AllowsTransparency. The two buy
@@ -37,11 +39,51 @@
              silently and the whole look goes with it. -->
         <FontFamily x:Key="Face">pack://application:,,,/Fonts/#Outfit</FontFamily>
 
-        <!-- The small grey word over the heading. Display formatting, against
-             the heading's Ideal: at twelve pixels snapping the stems to whole
-             pixels is what keeps a light grey from turning to mush, and the
-             uneven spacing it causes is too small to see. The two settings are
-             right for opposite reasons. -->
+        <!-- The numbers behind the three kinds, named once.
+
+             A Style belongs to a single TargetType, so the box that edits a
+             line of Main cannot inherit from Main however much it has to
+             match it. Without this the size and the leading would be typed
+             twice, in two styles, and the first change to either would be a
+             heading and its own edit field in different type. -->
+        <sys:Double x:Key="HighlightSize">12</sys:Double>
+        <sys:Double x:Key="MainSize">38</sys:Double>
+        <sys:Double x:Key="MainLeading">33</sys:Double>
+        <sys:Double x:Key="BodySize">14</sys:Double>
+
+        <!-- Main again, small enough to sit under a card. Not a fourth
+             kind: same face, same weight, same centre, and the leading
+             holds Main's own ratio of 0.87 so two words wrap the way two
+             lines of the heading do. Only the size is this card's. -->
+        <sys:Double x:Key="CardSize">16</sys:Double>
+
+        <!-- A byline: who made this, under what it is called. Main's face
+             at about half its size and off its weight, which is what makes
+             it read as the second line of one thing rather than as a second
+             thing. Same 0.87 leading ratio as the rest. -->
+        <sys:Double x:Key="BylineSize">20</sys:Double>
+        <sys:Double x:Key="CardLeading">14</sys:Double>
+        <sys:Double x:Key="BodyLeading">20</sys:Double>
+
+        <SolidColorBrush x:Key="Ink" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Quiet" Color="#6B6B6B"/>
+
+        <!-- What a selection looks like over the window's near-black. White
+             at a tenth or so reads as the text being held rather than as a
+             highlighter laid over it. -->
+        <SolidColorBrush x:Key="Selected" Color="#FFFFFF" Opacity="0.14"/>
+
+        <!-- The outline of something empty. White at a tenth, which is the
+             pad that fades in under a window button on hover — the same
+             colour at the same opacity, so an empty slot sits at exactly the
+             weight this window already uses for "something is here,
+             lightly".
+
+             Stated twice rather than shared, because the pad animates its
+             own Opacity from nothing up to this and a brush cannot be
+             animated into place that way. Move one and move the other:
+             ChromeButton's Hit border. -->
+        <SolidColorBrush x:Key="Outline" Color="#FFFFFF" Opacity="0.10"/>
         <!-- ── The three kinds of text ───────────────────────────────
              Named, so a size and a colour belong to a role rather than to
              wherever they were first typed. Everything in the window is one of
@@ -54,8 +96,17 @@
              what keeps large type evenly spaced. Each is right for one and
              wrong for the other. -->
 
-        <!-- Highlight: the small grey word over something, like STATUS. One
-             word, upper case, never shows its leading.
+        <!-- Highlight: the small grey word over something, like STATUS.
+
+             Always upper case. That is a rule of the kind rather than a habit
+             of the labels that happen to exist — Highlight is what names the
+             thing under it, and a label set in sentence case stops reading as a
+             name and starts reading as a sentence somebody left unfinished. Set
+             the text in capitals; there is no setter for it, because WPF has no
+             text-transform and a converter in the way of three static words
+             would be machinery pretending to be a rule.
+
+             Short, and never shows its leading: one or two words, on one line.
 
              Regular rather than Light: at twelve pixels in a grey this far down
              the stems were landing under a pixel and the anti-aliasing was
@@ -64,8 +115,8 @@
         <Style x:Key="Highlight" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Face}"/>
             <Setter Property="FontWeight" Value="Regular"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#6B6B6B"/>
+            <Setter Property="FontSize" Value="{StaticResource HighlightSize}"/>
+            <Setter Property="Foreground" Value="{StaticResource Quiet}"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         </Style>
 
@@ -80,12 +131,12 @@
         <Style x:Key="Main" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Face}"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="38"/>
-            <Setter Property="LineHeight" Value="33"/>
+            <Setter Property="FontSize" Value="{StaticResource MainSize}"/>
+            <Setter Property="LineHeight" Value="{StaticResource MainLeading}"/>
             <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
             <Setter Property="TextAlignment" Value="Center"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
         </Style>
 
@@ -100,12 +151,371 @@
         <Style x:Key="Body" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Face}"/>
             <Setter Property="FontWeight" Value="Regular"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="LineHeight" Value="20"/>
+            <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+            <Setter Property="LineHeight" Value="{StaticResource BodyLeading}"/>
             <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <!-- ── The same text, editable ───────────────────────
+             A sponsor's name is Main and its bio is Body, and they are typed
+             rather than written down — so they are these two kinds of text in a
+             box that has had everything a box normally has taken off it.
+
+             The template is the whole of it. A TextBox's default brings a
+             border, a white background, a focus rectangle and a theme hover,
+             and setting each of those to nothing leaves them all still there
+             in the visual tree waiting to be re-enabled by a trigger. What is
+             left is PART_ContentHost, which is the one piece the control looks
+             up by name and cannot do without. -->
+        <Style x:Key="Bare" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource Ink}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource Selected}"/>
+            <Setter Property="SelectionOpacity" Value="1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Focusable="False"
+                                      Background="Transparent"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Main, typed. Same size, same leading, same weight, read from the
+             same four numbers the heading reads.
+
+             MinWidth because empty it would measure to nothing: no box means no
+             box to aim at, and a caret alone in the middle of a window is not a
+             target. This is the width of the two lines above it, so the field
+             reads as belonging under them before there is a letter in it.
+
+             MaxWidth for the opposite reason. The box grows with what is in it
+             and at 38 bold a long name reaches the edge of the window in about
+             fifty characters; past this it scrolls instead, which is contained
+             where overflowing the window is not. -->
+        <Style x:Key="MainField" TargetType="TextBox" BasedOn="{StaticResource Bare}">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="{StaticResource MainSize}"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="300"/>
+            <Setter Property="MaxWidth" Value="700"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+
+        <!-- Body, typed. Wrapping, so it needs a width to wrap inside — an
+             auto-width box would grow sideways forever and never reach the end
+             of a line. Fixed rather than stretched: Body is prose and prose has
+             a measure, and across the whole of a 1180 window it would be one
+             line of very long lines.
+
+             Return is a new paragraph rather than a submit, because there is
+             nothing here to submit to — the tick does that.
+
+             This is the one place an editable kind does not match the kind it
+             copies, and it is worth being plain about: BodyLeading is not here
+             because a TextBox has no LineHeight. Only a FlowDocument does, so
+             matching Body exactly would mean a RichTextBox, which would bring
+             pasted fonts and colours into a window that has none. Measured,
+             Outfit's own leading is 1.26em — 17.64 at this size against Body's
+             20, so a three-line bio sets 7px tighter here than the same words
+             would displayed. Nowhere shows both at once. -->
+        <Style x:Key="BodyField" TargetType="TextBox" BasedOn="{StaticResource Bare}">
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="Width" Value="440"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <!-- The byline, typed. Lighter than Main and smaller, so a project
+             and its author are a title and a credit rather than two
+             headings arguing.
+
+             Regular rather than Bold, and that is the whole of "less bold":
+             Outfit is a variable font, so this is the same face at another
+             weight rather than a different family pretending. -->
+        <Style x:Key="BylineField" TargetType="TextBox" BasedOn="{StaticResource Bare}">
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontSize" Value="{StaticResource BylineSize}"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="240"/>
+            <Setter Property="MaxWidth" Value="560"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+
+        <!-- A slot. Square, and the radius is the window button's pad
+             rather than a new number, which is what keeps six of these from
+             reading as a different kind of object to everything else here.
+
+             A Button rather than a Border now that there is something to do
+             with one: empty, it asks for a file; filled, it opens what is
+             in it. Transparent rather than no background, because a button
+             with nothing in the middle of it still has to be clickable in
+             the middle.
+
+             The artwork goes in as Content and is clipped by a second
+             border inside the edge, so a square logo cannot paint over the
+             outline that says where the slot ends. -->
+        <Style x:Key="Slot" TargetType="Button">
+            <Setter Property="Width" Value="60"/>
+            <Setter Property="Height" Value="60"/>
+            <Setter Property="Margin" Value="0,0,16,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <!-- The same pad the window buttons fade in, at
+                                 the same weight, so a slot lights up the way
+                                 everything else in this window does. -->
+                            <Border x:Name="Pad" Background="{StaticResource Ink}"
+                                    Opacity="0" CornerRadius="6"/>
+
+                            <Border CornerRadius="6" ClipToBounds="True" Margin="5">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+
+                            <Border BorderBrush="{StaticResource Outline}"
+                                    BorderThickness="1" CornerRadius="6"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Pad"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.10" Duration="0:0:0.12">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Pad"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.14">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A sponsor on the shelf. The artwork in a rounded square, with
+             the name under it.
+
+             Square because the texture inside it is: a card shows the decal
+             as the car carries it, and the car's is 1024 by 1024. At 132 by
+             112 the square landed in a letterbox and every logo drew smaller
+             than its scale said it would — the card was quietly undoing the
+             thing the scale is for.
+
+             The same outline and the same hover pad the variation slots
+             use, so a card and a slot are plainly the same kind of object
+             at two sizes. -->
+        <Style x:Key="Card" TargetType="Button">
+            <Setter Property="Width" Value="132"/>
+            <Setter Property="Height" Value="132"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Pad" Background="{StaticResource Ink}"
+                                    Opacity="0" CornerRadius="10"/>
+
+                            <Border CornerRadius="10" ClipToBounds="True" Margin="10">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+
+                            <Border BorderBrush="{StaticResource Outline}"
+                                    BorderThickness="1" CornerRadius="10"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Pad"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.10" Duration="0:0:0.12">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Pad"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0" Duration="0:0:0.14">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CardName" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="{StaticResource CardSize}"/>
+            <Setter Property="LineHeight" Value="{StaticResource CardLeading}"/>
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <!-- Display rather than Main's Ideal. At 16 the stems want
+                 snapping to whole pixels, which is the same reason Highlight
+                 uses it and the opposite of why the heading does not. -->
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+
+        <!-- Google’s icons, on their own 24-square, as the plus and the tick
+             are. Kept whole rather than cropped to each glyph: a Path measures
+             as the bounds of its geometry, so cropped ones come out at
+             different weights beside each other. Scaled by the grid they stay in
+             the proportion the set draws them in. -->
+        <StreamGeometry x:Key="EditGlyph">M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z</StreamGeometry>
+        <StreamGeometry x:Key="SaveGlyph">M17,3H5C3.89,3 3,3.9 3,5v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2V7L17,3zM12,19c-1.66,0 -3,-1.34 -3,-3s1.34,-3 3,-3 3,1.34 3,3 -1.34,3 -3,3zM15,9H5V5h10v4z</StreamGeometry>
+        <StreamGeometry x:Key="PackageGlyph">M20,2H4C3,2 2,2.9 2,4v3.01C2,7.73 2.43,8.35 3,8.7V20c0,1.1 1.1,2 2,2h14c0.9,0 2,-0.9 2,-2V8.7c0.57,-0.35 1,-0.97 1,-1.69V4C22,2.9 21,2 20,2zM15,14H9v-2h6V14zM20,7H4V4h16V7z</StreamGeometry>
+        <StreamGeometry x:Key="CloseGlyph">M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z</StreamGeometry>
+        <StreamGeometry x:Key="SettingsGlyph">M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z</StreamGeometry>
+
+        <!-- ── The scrolling section
+ ──────────────────────────────
+             A stock ScrollViewer brings the Windows scrollbar with it — a grey
+             track, two arrow buttons and a thumb with a border — into a window
+             that has drawn every other pixel itself. This is the same control
+             with a four-pixel thumb and nothing else.
+
+             The numbers are the Launcher's, so the two windows scroll alike: 3
+             wide, white at 4D, a radius of half the width because that is as
+             round as a bar this thin can be, and brighter than a wider one
+             would need to be because there is so little of it.
+
+             No RepeatButtons in the track. They are what makes clicking above
+             or below the thumb page the view, and at three pixels wide nobody
+             is aiming at the track on purpose. The wheel, a drag and the
+             keyboard all still work, because those are the ScrollViewer's
+             rather than the bar's. -->
+        <Style x:Key="SlimBar" TargetType="ScrollBar">
+            <!-- MinWidth as well as Width, and it is the one that matters. The
+                 theme sets MinWidth to the system scrollbar width, and a
+                 minimum is a layout constraint rather than a competing value
+                 — it wins over Width whatever the style precedence says. Set
+                 Width alone and this measured 4 and laid out at 17, which is
+                 what a stock Windows scrollbar is and exactly what the style
+                 was written to avoid. -->
+            <Setter Property="Width" Value="3"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True" Focusable="False">
+                            <Track.Thumb>
+                                <Thumb Focusable="False">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4DFFFFFF"
+                                                    CornerRadius="1.5"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The section, and the one thing worth knowing about this template:
+             the bar and the content share a cell rather than sitting in two
+             columns. In the stock arrangement the bar takes layout width, so
+             the moment the content grows past the viewport everything centred
+             inside it shifts left by the width of a scrollbar. Overlaid, the
+             content is the full width whether the bar is there or not, and at
+             four pixels hard against the right edge of a window this wide it is
+             nowhere near the fields it floats over.
+
+             CanContentScroll false is pixel scrolling rather than item
+             scrolling: a wheel notch moves a few pixels instead of jumping a
+             whole field at a time. -->
+        <Style x:Key="Scroller" TargetType="ScrollViewer">
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="CanContentScroll" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ScrollContentPresenter
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                CanContentScroll="{TemplateBinding CanContentScroll}"
+                                Margin="{TemplateBinding Padding}"/>
+
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                       Style="{StaticResource SlimBar}"
+                                       Orientation="Vertical"
+                                       HorizontalAlignment="Right"
+                                       Margin="0,0,6,0"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- The three window buttons. The glyph is the whole button until the
@@ -521,22 +931,14 @@
                 <Path Data="{DynamicResource BrandWord}" Fill="#FFFFFF"/>
             </Viewbox>
 
-            <TextBlock Text="STATUS"
+            <TextBlock x:Name="StatusWord" Text="STATUS"
                        Style="{StaticResource Highlight}"
                        HorizontalAlignment="Center"
                        Margin="0,0,0,6"/>
 
-            <!-- Ideal rather than the window's Display formatting: Display snaps
-                 stems to whole pixels, which keeps small UI text crisp and makes
-                 type this size sit unevenly.
-
-                 LineHeight needs BlockLineHeight beside it or it is ignored. At
-                 about 0.87 of the size the two lines sit closer than the font's
-                 own leading, which all-caps can take because there is nothing
-                 below the baseline to collide. Change the size and this wants
-                 changing with it. -->
+            <!-- Main, and why it is set the way it is lives with the style. -->
             <TextBlock x:Name="Headline"
-                       Style="{StaticResource Main}">READY TO<LineBreak/>EDIT SPONSORS</TextBlock>
+                       Style="{StaticResource Main}">START A<LineBreak/>PROJECT</TextBlock>
 
             <!-- The two choices. Height reserved whether or not they are shown,
                  so the block above does not jump up the window when they go. -->
@@ -551,40 +953,403 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- The plus, bottom centre, absent until there is a project to add a
-             sponsor to. Hidden rather than collapsed is wrong here and absent is
-             wrong too: it fades, so it has to be laid out all along and only its
-             opacity changes. -->
-        <Button x:Name="AddButton"
-                Style="{StaticResource ChromeButton}"
-                Width="44" Height="44"
-                Foreground="#FFFFFF"
-                HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                Margin="0,0,0,54"
-                Opacity="0"
-                IsHitTestVisible="False"
-                Click="Add_Click"
-                ToolTip="Add a sponsor">
-            <!-- The 44 is the Launcher's play button, and the pad and the hover
-                 come with its style for the same reason.
 
-                 Google's 24-square is kept whole rather than cropped to the
-                 glyph, and that is what lets two icons swap places honestly. A
-                 Path measures as the bounds of its geometry, so scaled to its
-                 own box a 17x13 tick comes out as tall as a 14x14 plus and
-                 reads much bigger. Scaled by the grid they stay in the
-                 proportion the set draws them in, and each sits where Google
-                 put it. 30.86 is the plus's 18 taken up from its 14 units to
-                 the grid's 24 — the same plus, the same size, measured off the
-                 same thing the Launcher's play is. -->
-            <Viewbox Height="30.86" Stretch="Uniform">
-                <Canvas Width="24" Height="24">
-                    <Path x:Name="ActionGlyph"
-                          Data="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z"
-                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                </Canvas>
-            </Viewbox>
-        </Button>
+        <!-- The sponsor itself, in the room between the heading and the tick.
 
+             A section rather than more of the block, because this is the part
+             that grows: a sponsor is two fields today and will be a decal and a
+             colour and a contract tomorrow, and the block above it is a heading
+             that must stay where the slide put it. Growth belongs on this side
+             of that line.
+
+             Both margins are set here except the top, which Lift works out once
+             the block has stopped moving — the heading's height is a mark and a
+             label and two lines of type and is not worth writing down twice.
+             The bottom is the tick's own numbers, 44 tall over a 54 margin, and
+             24 of air above it. Stretch between the two, so a resized window
+             gives the section the difference rather than the heading.
+
+             Collapsed and transparent until the page arrives: a ScrollViewer
+             stretched across the window would otherwise swallow the wheel on
+             the landing page, and a transparent TextBox is still a TextBox and
+             would take a click through it. -->
+        <ScrollViewer x:Name="Section"
+                      Style="{StaticResource Scroller}"
+                      Margin="0,0,0,122"
+                      Visibility="Collapsed"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+
+            <StackPanel x:Name="Fields" HorizontalAlignment="Center">
+
+                <TextBlock Text="SPONSOR NAME"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,4"/>
+
+                <TextBox x:Name="SponsorName"
+                         Style="{StaticResource MainField}"
+                         MaxLength="64"
+                         TabIndex="0"/>
+
+                <!-- 26 above against the 4 under each label, the same grouping
+                     the mark and STATUS use: a gap several times the other is
+                     what makes a label belong to the field under it rather
+                     than float between two. -->
+                <TextBlock Text="SPONSOR BIO"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,26,0,4"/>
+
+                <TextBox x:Name="SponsorBio"
+                         Style="{StaticResource BodyField}"
+                         MaxLength="400"
+                         TabIndex="1"/>
+
+                <!-- Six slots, on the bio's own measure: six of 60 with 16
+                     between them is 440, which is the width the bio wraps
+                     inside. The column holds whether you are reading the
+                     prose or counting the squares.
+
+                     The last one carries no right margin, and that is the
+                     whole of why it comes to 440 exactly — five gaps between
+                     six squares, not six.
+
+                     37 above the label, against the 26 every other group
+                     here uses, and
+                     the difference is not an inconsistency — it is what makes
+                     this gap match the one over SPONSOR BIO instead of merely
+                     equalling it on paper.
+
+                     A line box is taller than the letters in it. Outfit puts its
+                     baseline at exactly 1 em and a field lays out at 1.21, so a
+                     38px name carries about 8px of empty box under its letters
+                     where the 14px bio carries 3. Set both to 26 and they
+                     measure 40 and 29 on screen. The 12 is that difference.
+
+                     The last 3 of it is descenders: prose ends on a g or a y
+                     often enough that the bio’s last line reaches lower than
+                     its baseline, and a name usually does not. So this is tuned
+                     to the common case rather than exact for every string —
+                     measured, 40 against 40 here, and within 3 either way as the
+                     text changes. -->
+                <TextBlock Text="VARIATIONS"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,37,0,4"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button x:Name="Slot0" Style="{StaticResource Slot}" Tag="0" Click="Slot_Click"/>
+                    <Button x:Name="Slot1" Style="{StaticResource Slot}" Tag="1" Click="Slot_Click"/>
+                    <Button x:Name="Slot2" Style="{StaticResource Slot}" Tag="2" Click="Slot_Click"/>
+                    <Button x:Name="Slot3" Style="{StaticResource Slot}" Tag="3" Click="Slot_Click"/>
+                    <Button x:Name="Slot4" Style="{StaticResource Slot}" Tag="4" Click="Slot_Click"/>
+                    <Button x:Name="Slot5" Style="{StaticResource Slot}" Tag="5" Click="Slot_Click" Margin="0"/>
+                </StackPanel>
+
+                <!-- Whatever comes next goes here, and the section scrolls when
+                     there is more of it than there is room. 24 of air under the
+                     last field so the end of a long list clears the tick. -->
+                <Border Height="24"/>
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Settings. Empty, and honestly so: the page exists, the way in and
+             the way out work, and there is nothing in it yet. -->
+        <ScrollViewer x:Name="SettingsPage"
+                      Style="{StaticResource Scroller}"
+                      Margin="0,0,0,122"
+                      Visibility="Collapsed"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+            <StackPanel HorizontalAlignment="Center"/>
+        </ScrollViewer>
+
+        <!-- Naming a project: what it is called, and who made it.
+
+             The same room, the same shape and the same tick as editing a
+             sponsor, because it is the same kind of act — fill this in and
+             press the tick. The only difference is what the tick does at
+             the end of it, which is ask where to put the file.
+
+             A scroller like the others for one reason: Lift sets the top of
+             each of these, and a panel that was not one would need its own
+             arrangement for no gain. There is never enough here to scroll. -->
+        <ScrollViewer x:Name="Naming"
+                      Style="{StaticResource Scroller}"
+                      Margin="0,0,0,122"
+                      Visibility="Collapsed"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+
+            <StackPanel HorizontalAlignment="Center">
+
+                <TextBlock Text="PROJECT NAME"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,4"/>
+
+                <TextBox x:Name="ProjectName"
+                         Style="{StaticResource MainField}"
+                         MaxLength="64"
+                         TabIndex="0"/>
+
+                <!-- 26 above, the same grouping every other pair on these
+                     pages uses. -->
+                <TextBlock Text="AUTHOR"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,26,0,4"/>
+
+                <TextBox x:Name="ProjectAuthor"
+                         Style="{StaticResource BylineField}"
+                         MaxLength="64"
+                         TabIndex="1"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- The sponsors in this project, in the same room the fields use.
+
+             A second scroller rather than a second page inside the first:
+             the two are never up together — one is the project and the other
+             is one sponsor out of it — and sharing a ScrollViewer would mean
+             sharing how far down it somebody had scrolled.
+
+             Lift sets the top of both, so the shelf starts under the heading
+             wherever the heading ends up. -->
+        <ScrollViewer x:Name="Shelf"
+                      Style="{StaticResource Scroller}"
+                      Margin="0,0,0,122"
+                      Visibility="Collapsed"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+
+            <!-- Wrapping, because a shelf of sponsors is a shelf rather than
+                 a column: they fill across and then down, and the panel is
+                 centred so a row that does not fill stays under the heading
+                 rather than hugging the left of the window.
+
+                 The right and bottom margins on a card are the gaps between
+                 them, so the panel is wider than its cards by one gap. -1
+                 either side takes that back, which is what keeps a full row
+                 centred on the same middle the heading is. -->
+            <WrapPanel x:Name="Shelved"
+                       HorizontalAlignment="Center"
+                       MaxWidth="756"
+                       Margin="8,0,-8,0"/>
+        </ScrollViewer>
+
+        <!-- The tools, bottom centre, absent until there is a project to use
+             them on. Hidden rather than collapsed is wrong here and absent is
+             wrong too: they fade, so they have to be laid out all along and only
+             their opacity changes.
+
+             The plus is centred on the window and the rest hang off it. Three
+             columns, the outer two the same width, so the middle one is the
+             centre whatever is in the others — two buttons on the left against
+             one on the right would otherwise push the plus off it, which is
+             exactly what centring the row as a whole did.
+
+             18 against the plus’s 30.86, and the gap is wider than it looks:
+             Google draws a plus as a thin cross over 14 of its 24 units where a
+             pencil or a floppy nearly fills its grid. At one grid size the plus
+             came out the smallest mark in the row — measured, 18px against 20
+             and 22 — which is the opposite of what a primary button is. These
+             now draw 13.5 to 15 against its 18.
+
+             The sides are their own panels so they can be faded as one thing.
+             They go when a sponsor is being edited: the tick finishes that page,
+             and a Save beside it would be a second answer to the same question. -->
+        <!-- What project this is, over the tools that act on it.
+
+             Right-aligned to the package icon rather than to its button. The
+             button is 32 across and the mark inside it is 15, so its hover pad
+             reaches 8.5 further right than anything you can see — and a name
+             lined up with the pad looks lined up with nothing. 54.5 is the 46
+             the row sits at plus that, measured off the glyph.
+
+             Body rather than Highlight: this is the project’s own name, which is
+             something somebody typed and should read as they typed it. Highlight
+             is always upper case, and a name is not a label.
+
+             The close sits under the name rather than beside it: a cross that
+             is always there is an invitation to shut the project every time
+             the eye passes the corner. Hovering the name slides it aside and
+             the cross takes the space it left, so the row is the same width
+             either way and nothing else on the page moves. -->
+        <Grid x:Name="ProjectTag"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom"
+              Margin="0,0,54.5,84"
+              Background="Transparent"
+              Opacity="0"
+              IsHitTestVisible="False">
+
+            <!-- No wrapping, whatever Body says: this one is a corner label with
+                 a window beside it, and a long name belongs on one line with an
+                 ellipsis rather than stacked over the icons. -->
+            <TextBlock x:Name="ProjectTagName"
+                       Style="{StaticResource Body}"
+                       TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="320"
+                       HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock.RenderTransform>
+                    <TranslateTransform x:Name="ProjectTagShift"/>
+                </TextBlock.RenderTransform>
+            </TextBlock>
+
+            <Button x:Name="CloseProjectButton"
+                    Style="{StaticResource ChromeButton}"
+                    Width="22" Height="22"
+                    Foreground="#FFFFFF"
+                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Opacity="0"
+                    IsHitTestVisible="False"
+                    Click="CloseProject_Click"
+                    ToolTip="Close this project">
+                <Viewbox Height="16" Stretch="Uniform">
+                    <Canvas Width="24" Height="24">
+                        <Path Data="{StaticResource CloseGlyph}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Canvas>
+                </Viewbox>
+            </Button>
+        </Grid>
+
+        <!-- The bottom row: settings in one corner, the tools in the other, and
+             the plus on the centre line of the window between them.
+
+             40 from the bottom, which is where the Launcher puts its own bottom
+             row — the two windows are the same window as far as anybody using
+             them is concerned, so the row they both have sits at the same
+             height.
+
+             46 in from each side, which is not the Launcher’s 19 and is not
+             meant to be. The corner icons are 32 in a row sized by the 44 in the
+             middle of it, so they sit 6 above the row’s own floor and 46 clear
+             of the window — and an icon 19 from the side but 46 from the bottom
+             reads as pinned to one edge and adrift from the other. This is that
+             measured number, so the two gaps are the same gap.
+
+             Three columns with the outer two the same width, so the middle one
+             is the centre whatever is in the others. The corners hold different
+             numbers of buttons, and that is exactly what would push the plus off
+             the centre if the row were simply centred.
+
+             Everything here shares the row, so everything here shares a middle
+             without being told where it is. -->
+        <Grid VerticalAlignment="Bottom" Margin="0,0,0,40">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Settings, on its own in the far corner. It is not one of the
+                 things you do to a project, so it does not stand with them. -->
+            <Button x:Name="SettingsButton"
+                    Grid.Column="0"
+                    Style="{StaticResource ChromeButton}"
+                    Width="32" Height="32"
+                    Foreground="#FFFFFF"
+                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="46,0,0,0"
+                    Opacity="0"
+                    IsHitTestVisible="False"
+                    Click="Settings_Click"
+                    ToolTip="Settings">
+                <Viewbox Height="18" Stretch="Uniform">
+                    <Canvas Width="24" Height="24">
+                        <Path Data="{StaticResource SettingsGlyph}"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Canvas>
+                </Viewbox>
+            </Button>
+
+            <Button x:Name="AddButton"
+                    Grid.Column="1"
+                    Style="{StaticResource ChromeButton}"
+                    Width="44" Height="44"
+                    Foreground="#FFFFFF"
+                    VerticalAlignment="Center"
+                    Opacity="0"
+                    IsHitTestVisible="False"
+                    Click="Add_Click"
+                    ToolTip="Add a sponsor">
+                <!-- The 44 is the Launcher’s play button, and the pad and the
+                     hover come with its style for the same reason.
+
+                     Google’s 24-square is kept whole rather than cropped to the
+                     glyph, and that is what lets two icons swap places honestly.
+                     A Path measures as the bounds of its geometry, so scaled to
+                     its own box a 17x13 tick comes out as tall as a 14x14 plus
+                     and reads much bigger. Scaled by the grid they stay in the
+                     proportion the set draws them in. 30.86 is the plus’s 18
+                     taken up from its 14 units to the grid’s 24 — the same plus,
+                     the same size, measured off the same thing the Launcher’s
+                     play is. -->
+                <Viewbox Height="30.86" Stretch="Uniform">
+                    <Canvas Width="24" Height="24">
+                        <Path x:Name="ActionGlyph"
+                              Data="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Canvas>
+                </Viewbox>
+            </Button>
+
+            <!-- The tools, together in the other corner, in the order you would
+                 reach for them: change what this is, keep it, ship it.
+
+                 18 against the plus’s 30.86, and the gap is wider than it looks:
+                 Google draws a plus as a thin cross over 14 of its 24 units
+                 where a pencil or a floppy nearly fills its grid. At one grid
+                 size the plus came out the smallest mark in the row — measured,
+                 18px against 20 and 22 — which is the opposite of what a primary
+                 button is. These now draw 13.5 to 15 against its 18.
+
+                 Their own panel so they can be faded as one thing. They go when
+                 a sponsor is being edited: the tick finishes that page, and a
+                 Save beside it would be a second answer to the same question. -->
+            <StackPanel x:Name="Tools" Grid.Column="2" Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Margin="0,0,46,0"
+                        Opacity="0" IsHitTestVisible="False">
+
+                <Button x:Name="EditButton" Style="{StaticResource ChromeButton}"
+                        Width="32" Height="32" Foreground="#FFFFFF" Margin="0,0,10,0"
+                        Click="Edit_Click"
+                        ToolTip="Rename this project">
+                    <Viewbox Height="18" Stretch="Uniform">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="{StaticResource EditGlyph}"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+
+                <Button x:Name="SaveButton" Style="{StaticResource ChromeButton}"
+                        Width="32" Height="32" Foreground="#FFFFFF" Margin="0,0,10,0"
+                        Click="Save_Click"
+                        ToolTip="Save the project (Ctrl+S)">
+                    <Viewbox Height="18" Stretch="Uniform">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="{StaticResource SaveGlyph}"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+
+                <Button x:Name="PackageButton" Style="{StaticResource ChromeButton}"
+                        Width="32" Height="32" Foreground="#FFFFFF"
+                        IsEnabled="False"
+                        ToolTip="Package this project — not built yet">
+                    <Viewbox Height="18" Stretch="Uniform">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="{StaticResource PackageGlyph}"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

@@ -70,11 +70,23 @@ public partial class ShellWindow : Window
     private const double TopMargin = 62;
 
     /// <summary>
+    /// Between the bottom of the heading and the top of the section under it.
+    /// The same 34 the fields used to hold while they were part of the block,
+    /// so the page reads as it did before the section existed.
+    /// </summary>
+    private const double SectionGap = 34;
+
+    /// <summary>
     /// Google's done, on its own 24-square and untranslated — the Canvas around
     /// it in the XAML is what keeps it to the grid, so it needs no moving by
     /// hand and cannot be measured by its own bounds. Its counterpart, the plus,
     /// is in the XAML because that is the one the button opens with.
     /// </summary>
+    /// <summary>Google's add, on their 24-square. The same path the window
+    /// starts with — said here as well, because the button changes back to it
+    /// and a shape cannot be read off a Path that is currently the other one.</summary>
+    private const string PlusData = "M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6V13z";
+
     private const string TickData = "M9,16.17L4.83,12l-1.42,1.41L9,19L21,7l-1.41-1.41z";
 
     /// <summary>
@@ -124,6 +136,9 @@ public partial class ShellWindow : Window
         // Segoe codepoint, so Window_StateChanged below swaps it instead.
         SimplifiedUi.FramelessWindow.Attach(this);
 
+        // Once, here, because the handlers outlive every page the window shows.
+        WatchTheTag();
+
         // Nothing, then one, then two, and round again.
         _ticker.Tick += (_, _) => Dots((_shown + 1) % 3);
     }
@@ -137,39 +152,159 @@ public partial class ShellWindow : Window
     /// only metadata in info.json and neither is worth a form before anybody has
     /// put a decal in it.
     /// </summary>
+    /// <summary>
+    /// New does not ask for a file any more. It asks what the project is
+    /// called and who is making it, and the tick at the bottom is what turns
+    /// that into a file.
+    ///
+    /// The order matters: a save dialog as the first thing after a click is the
+    /// app asking where to put something nobody has described yet, and the name
+    /// it would offer could only be a guess. Asked this way round, the filename
+    /// is the name they just typed.
+    /// </summary>
     private void New_Click(object sender, RoutedEventArgs e)
     {
+        _stage = Stage.Naming;
+
+        // Off at the top, before any of it runs: the fades take the better part
+        // of a second and a second click inside that would start the whole
+        // sequence again over itself.
+        Choices.IsHitTestVisible = false;
+
+        // The one not chosen leaves on its own first, so what is left on screen
+        // is the button somebody pressed — and the eye is already on it when the
+        // window answers.
+        Fade(OpenButton, to: 0, seconds: ClearSeconds);
+
+        const double answering = ClearSeconds + Gap;
+
+        Fade(NewButton, to: 0, seconds: ClearSeconds, delay: answering);
+
+        // The block travels once the heading has arrived rather than with it.
+        // Lift takes the choices out of the layout, and doing that while the
+        // chosen button is still fading would snatch it off the screen instead
+        // of letting it go.
+        Retitle("NAME YOUR", "PROJECT", delay: answering, then: () =>
+        {
+            Lift();
+
+            Naming.Visibility = Visibility.Visible;
+            Naming.IsHitTestVisible = true;
+            FadeInAfter(Naming, delay: 0, seconds: PlusIn);
+
+            ActionGlyph.Data = Geometry.Parse(TickData);
+            AddButton.ToolTip = "Create the project";
+            AddButton.IsHitTestVisible = true;
+            FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
+
+            ProjectName.Focus();
+        });
+    }
+
+    /// <summary>
+    /// The tick on the naming page: ask where it lives, then make it.
+    ///
+    /// The dialog opens before anything moves, and cancelling leaves the page
+    /// exactly as it was — somebody who changes their mind about the folder has
+    /// not changed their mind about the name they typed.
+    /// </summary>
+    private void Create()
+    {
+        var name = ProjectName.Text.Trim();
+        var author = ProjectAuthor.Text.Trim();
+
         var picker = new SaveFileDialog
         {
-            Title = "New sponsor project",
+            Title = "Where to keep this project",
             Filter = $"Simplified project (*{ProjectStore.ProjectFileExtension})"
                      + $"|*{ProjectStore.ProjectFileExtension}",
             DefaultExt = ProjectStore.ProjectFileExtension,
-            FileName = "Sponsors" + ProjectStore.ProjectFileExtension,
+            FileName = FileNameFor(name) + ProjectStore.ProjectFileExtension,
             InitialDirectory = Remembered(),
             OverwritePrompt = true,
         };
 
-        // Asked before anything moves. A dialog over a window mid-animation
-        // looks like the app was interrupted, and cancelling has to leave the
-        // landing exactly as it was.
-        if (picker.ShowDialog(this) != true) return;
+        if (picker.ShowDialog(this) != true)
+        {
+            AddButton.IsHitTestVisible = true;
+            return;
+        }
 
         var path = picker.FileName;
         Remember(path);
 
-        Begin(NewButton, "SETTING UP", () =>
-        {
-            var project = ProjectStore.Create(
-                Path.GetFileNameWithoutExtension(path),
-                UserConfig.Load().DefaultAuthor ?? "");
+        _stage = Stage.Project;
 
-            // Written out at once rather than on first save: somebody who picked
-            // a name and a folder has said where this lives, and a project that
-            // is not there yet would be a surprise.
-            ProjectStore.Save(project, path);
-            return project;
+        Naming.IsHitTestVisible = false;
+        Fade(Naming, to: 0, seconds: ClearSeconds);
+        Fade(AddButton, to: 0, seconds: ClearSeconds);
+
+        const double answering = ClearSeconds + Gap;
+
+        After(answering, () =>
+        {
+            Naming.Visibility = Visibility.Collapsed;
+
+            // Swapped while nobody can see it, as every other glyph change on
+            // this button is. Finish brings it back.
+            ActionGlyph.Data = Geometry.Parse(PlusData);
+            AddButton.ToolTip = "Add a sponsor";
+
+            // And the block comes down now rather than when the work is done.
+            // It was lifted to make room for the fields, the fields have just
+            // gone, and leaving it up until the project exists would hold the
+            // mark and the status at the top through the whole of SETTING UP —
+            // on a page that by then has nothing under them.
+            Drop();
         });
+
+        Retitle("SETTING UP", "YOUR PROJECT", working: true, delay: answering,
+                then: () => Finish(() =>
+                {
+                    var project = ProjectStore.Create(name, author);
+
+                    // Written out at once rather than on first save: somebody
+                    // who picked a name and a folder has said where this lives,
+                    // and a project that is not there yet would be a surprise.
+                    ProjectStore.Save(project, path);
+                    return project;
+                }));
+    }
+
+    /// <summary>
+    /// A project name as a filename: lower case, spaces as underscores, and
+    /// nothing a filesystem would refuse.
+    ///
+    /// Runs of spaces collapse to one underscore rather than becoming several,
+    /// because "My  Project" is a typo somebody made in a text box and not a
+    /// request for two of them.
+    /// </summary>
+    private static string FileNameFor(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var built = new System.Text.StringBuilder();
+        var scored = false;
+
+        foreach (var letter in name.Trim().ToLowerInvariant())
+        {
+            if (char.IsWhiteSpace(letter))
+            {
+                if (!scored && built.Length > 0) built.Append('_');
+                scored = true;
+                continue;
+            }
+
+            if (Array.IndexOf(invalid, letter) >= 0) continue;
+
+            built.Append(letter);
+            scored = false;
+        }
+
+        var done = built.ToString().Trim('_');
+
+        // A name of nothing but spaces and punctuation still has to be saved
+        // somewhere, and this is what the dialog used to offer anyway.
+        return done.Length == 0 ? "sponsors" : done;
     }
 
     private void Open_Click(object sender, RoutedEventArgs e)
@@ -224,7 +359,46 @@ public partial class ShellWindow : Window
     /// </summary>
     private void Add_Click(object sender, RoutedEventArgs e)
     {
+        // Off at the top, before any of it runs: the fades take the better
+        // part of a second, and a second click inside that would start the
+        // other direction over the top of this one.
         AddButton.IsHitTestVisible = false;
+
+        switch (_stage)
+        {
+            // The same button at the bottom of three pages, and it finishes
+            // whichever one it is on. Read off the page rather than off the
+            // glyph: the glyph is swapped at the bottom of a fade, so for a
+            // third of a second it says the opposite of what the page is doing.
+            case Stage.Naming when _renaming: Rename(); break;
+            case Stage.Naming: Create(); break;
+            case Stage.Sponsor: Shelve(); break;
+            case Stage.Settings: LeaveSettings(); break;
+            default: Compose(); break;
+        }
+    }
+
+    /// <summary>
+    /// To the sponsor page. The block travels to the top, the heading says what
+    /// this page is for, the plus becomes the tick that will finish it, and
+    /// whatever is on the shelf gets out of the way.
+    ///
+    /// All of it starts together. This is one movement — the page becoming
+    /// another page — and staging it would read as several things agreeing to
+    /// happen rather than as one.
+    /// </summary>
+    private void Compose()
+    {
+        _openAt = -1;
+        ToSponsorPage();
+    }
+
+    /// <summary>
+    /// The journey itself, which a new sponsor and an old one both take.
+    /// </summary>
+    private void ToSponsorPage()
+    {
+        _stage = Stage.Sponsor;
 
         Lift();
         Retitle("EDIT YOUR", "SPONSOR");
@@ -234,13 +408,78 @@ public partial class ShellWindow : Window
         // shape cannot be animated into another shape, but it can be swapped at
         // the bottom of a fade.
         Fade(AddButton, to: 0, seconds: ClearSeconds);
+        ShowTools(false);
+
+        Shelf.IsHitTestVisible = false;
+        if (Shelf.Visibility == Visibility.Visible) Fade(Shelf, to: 0, seconds: ClearSeconds);
 
         After(ClearSeconds + Gap, () =>
         {
+            Shelf.Visibility = Visibility.Collapsed;
+
             ActionGlyph.Data = Geometry.Parse(TickData);
-            AddButton.ToolTip = "Done";
+            AddButton.ToolTip = "Keep this sponsor";
             AddButton.IsHitTestVisible = true;
             FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
+
+            // The section comes in with it rather than after it. It is what the
+            // page is — the heading says to edit a sponsor and this is the
+            // sponsor — so arriving separately would read as the page loading
+            // in pieces.
+            Section.Visibility = Visibility.Visible;
+            Section.IsHitTestVisible = true;
+            FadeInAfter(Section, delay: 0, seconds: PlusIn);
+
+            // Focused at the start of the fade, not the end: by the time
+            // anybody can see the field they can already type into it. Nothing
+            // else on the page takes a keystroke, so there is nothing to take
+            // it from.
+            SponsorName.Focus();
+        });
+    }
+
+    /// <summary>
+    /// Back to the project, with the sponsor on the shelf.
+    ///
+    /// Kept at the top rather than at the bottom of the fade, so the card is
+    /// already built when the shelf arrives — the shelf is invisible while this
+    /// happens, and a card appearing into a shelf somebody is already looking at
+    /// would be the page finishing after it had arrived.
+    ///
+    /// The block does not travel back down. The heading and the mark are where
+    /// the slide put them and they stay there: this page now has a list under
+    /// it, and a window that re-centred itself every time a sponsor was added
+    /// would move the two things that are meant to hold still.
+    /// </summary>
+    private void Shelve()
+    {
+        _stage = Stage.Project;
+
+        Keep();
+        Retitle(ProjectTitle.First, ProjectTitle.Second);
+
+        Fade(AddButton, to: 0, seconds: ClearSeconds);
+
+        Section.IsHitTestVisible = false;
+        Fade(Section, to: 0, seconds: ClearSeconds);
+
+        After(ClearSeconds + Gap, () =>
+        {
+            Section.Visibility = Visibility.Collapsed;
+
+            // Emptied once it is out of sight. Doing it on the way out would
+            // be the fields blanking themselves while somebody watched.
+            Clear();
+
+            ActionGlyph.Data = Geometry.Parse(PlusData);
+            AddButton.ToolTip = "Add a sponsor";
+            AddButton.IsHitTestVisible = true;
+            FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
+
+            Shelf.Visibility = Visibility.Visible;
+            Shelf.IsHitTestVisible = true;
+            FadeInAfter(Shelf, delay: 0, seconds: PlusIn);
+            ShowTools(true);
         });
     }
 
@@ -275,6 +514,71 @@ public partial class ShellWindow : Window
         var laidOut = Block.TranslatePoint(new Point(0, 0), Root).Y - BlockShift.Y;
 
         var travel = Glide(TopMargin - laidOut, SlideSeconds);
+        travel.From = was - laidOut;
+
+        // And once it is there it stops being centred, which matters more than
+        // it sounds. A centred block that grows moves up by half of what it
+        // grew — and the bio under it grows, by a line, the moment what is
+        // typed into it wraps. Left centred, the mark and STATUS and the
+        // heading would all jump 8px up the window at whichever character
+        // happened to reach the end of the line.
+        //
+        // Nothing moves at the swap: the animation ends with the block drawn at
+        // TopMargin, and aligning to the top makes its laid-out position zero,
+        // so a shift of exactly TopMargin leaves it where the last frame put
+        // it. From here the fields grow downward, into the empty half of the
+        // window they were always going to need.
+        travel.Completed += (_, _) =>
+        {
+            BlockShift.BeginAnimation(TranslateTransform.YProperty, null);
+            Block.VerticalAlignment = VerticalAlignment.Top;
+            BlockShift.Y = TopMargin;
+        };
+
+        BlockShift.BeginAnimation(TranslateTransform.YProperty, travel);
+
+        // Where the section starts, measured off the heading it sits under
+        // rather than written down: the block is a mark, a label and two lines
+        // of type, and the last thing that should decide this number is
+        // somebody adding them up by hand after changing one of them.
+        //
+        // Measured here rather than when the section appears, because the
+        // heading is the height it is going to be the moment the choices
+        // collapse — the slide moves it but does not resize it.
+        var top = TopMargin + Block.ActualHeight + SectionGap;
+
+        // Every page that sits in that room, not just the two that were
+        // here first. One left out renders at the top of the window,
+        // straight over the mark and the heading.
+        Naming.Margin = new Thickness(0, top, 0, Naming.Margin.Bottom);
+        Section.Margin = new Thickness(0, top, 0, Section.Margin.Bottom);
+        Shelf.Margin = new Thickness(0, top, 0, Shelf.Margin.Bottom);
+    }
+
+    /// <summary>
+    /// Back to the middle of the window.
+    ///
+    /// Lift in reverse, and measured the same way: where the block is drawn now
+    /// is read before anything moves, the alignment and the shift are put back
+    /// to what a centred block has, and the animation starts from the difference
+    /// — so the first frame draws it exactly where the last one did and it
+    /// glides rather than jumps.
+    ///
+    /// For a project with nothing on its shelf. The block is lifted to make room
+    /// for a list, and a page with no list has nothing to make room for.
+    /// </summary>
+    private void Drop()
+    {
+        var was = Block.TranslatePoint(new Point(0, 0), Root).Y;
+
+        Block.VerticalAlignment = VerticalAlignment.Center;
+        BlockShift.BeginAnimation(TranslateTransform.YProperty, null);
+        BlockShift.Y = 0;
+        Root.UpdateLayout();
+
+        var laidOut = Block.TranslatePoint(new Point(0, 0), Root).Y;
+
+        var travel = Glide(0, SlideSeconds);
         travel.From = was - laidOut;
 
         BlockShift.BeginAnimation(TranslateTransform.YProperty, travel);
@@ -362,13 +666,18 @@ public partial class ShellWindow : Window
 
         _project = project;
 
-        Retitle("ADD A", "SPONSOR", then: () =>
+        // Whatever it already holds, before the page that shows it arrives.
+        LoadSponsors();
+        NameTheProject();
+
+        Retitle(ProjectTitle.First, ProjectTitle.Second, then: () =>
         {
             // After it, not alongside: two things moving at once read as one
             // event and neither gets looked at, which is exactly why the button
             // and the first heading are together and this is not.
             AddButton.IsHitTestVisible = true;
             FadeInAfter(AddButton, delay: Gap, seconds: PlusIn);
+            ShowTools(true, delay: Gap);
         });
     }
 
@@ -378,13 +687,16 @@ public partial class ShellWindow : Window
     /// </summary>
     private void ShowLanding()
     {
-        Retitle("READY TO", "EDIT SPONSORS", then: () =>
+        Retitle("START A", "PROJECT", then: () =>
         {
             // Only reached before the block has ever travelled, so these are
             // still laid out — but said anyway, because the one thing worse than
             // a dead branch is a dead branch that would be wrong if it ran.
             Choices.Visibility = Visibility.Visible;
             Choices.IsHitTestVisible = true;
+            Section.Visibility = Visibility.Collapsed;
+            Section.IsHitTestVisible = false;
+            Drop();
             Fade(NewButton, to: 1, seconds: ClearSeconds);
             Fade(OpenButton, to: 1, seconds: ClearSeconds);
         });

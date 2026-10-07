@@ -275,6 +275,55 @@
         </Setter>
     </Style>
 
+    <!-- An ordinary slider, for a number rather than for a colour.
+
+         BackdropSlider draws its own gradient because the track *is* the thing
+         being chosen. Here the track is a track: a hairline groove with the part
+         behind the thumb filled in, so how far along it sits is readable without
+         looking at the number beside it.
+
+         The same thumb as the backdrop one, deliberately. A slider should be the
+         same object to grab wherever it turns up in the suite, and the only
+         thing that differs between these two is what is under it. -->
+    <Style x:Key="ValueSlider" TargetType="Slider">
+        <!-- Click the track to jump there, rather than stepping towards it. -->
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid Height="16" VerticalAlignment="Center">
+                        <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                Background="{DynamicResource SurfaceSunken}"
+                                BorderBrush="{DynamicResource BorderSoft}" BorderThickness="1"/>
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <!-- The filled part. A RepeatButton because that
+                                     is what the Track gives the space before the
+                                     thumb; it keeps the click-to-page behaviour
+                                     and happens to be the right shape to paint. -->
+                                <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                                    Background="{DynamicResource Accent}"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource BackdropThumb}"/>
+                            </Track.Thumb>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" Focusable="False"/>
+                            </Track.IncreaseRepeatButton>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ─────────────── Panels ───────────────
          One style for every framed section, so they can't drift apart again:
          the preview, the bars under it and the metadata block were square while
