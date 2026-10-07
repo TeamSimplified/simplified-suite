@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 
 namespace SimplifiedSponsorEditor.Core.Project;
@@ -54,9 +54,8 @@ public static class ProjectStore
             ZipPath = null,
             Info = new ProjectInfo
             {
-                Name          = name,
-                Author        = author,
-                EditorVersion = EditorVersion.Current,
+                Name   = name,
+                Author = author,
             },
         };
 
@@ -168,7 +167,13 @@ public static class ProjectStore
 
     private static void WriteInfo(SponsorProject project)
     {
-        project.Info.EditorVersion = EditorVersion.Current;
+        project.Info.App = [EditorVersion.AppId, EditorVersion.Stamp];
+
+        // A 1.x project opened here goes back out with the new key alone. Both
+        // would be a file saying two things about itself, and the next reader
+        // would have to decide which to believe.
+        project.Info.LegacyEditorVersion = null;
+
         File.WriteAllText(Path.Combine(project.TempDir, InfoFileName),
             JsonSerializer.Serialize(project.Info, Json));
     }

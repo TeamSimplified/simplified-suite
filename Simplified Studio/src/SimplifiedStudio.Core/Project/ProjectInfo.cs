@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace SimplifiedStudio.Core.Project;
 
@@ -31,7 +31,28 @@ public sealed class ProjectInfo
     /// layout, and a <c>NNN--</c> prefix whose <em>first</em> digit was the
     /// conflict group.
     /// </summary>
+    /// <summary>
+    /// Kept, where the other apps drop their old key once <c>simplified_app</c>
+    /// carries the same thing. Here the key is not only metadata: its
+    /// <em>absence</em> is what tells a build this is a pre-1.3 project, so a
+    /// file written without it would be read by an older Studio as the flat
+    /// layout with the old prefix scheme — silently, and wrongly. Both are
+    /// written from the same value, so they cannot disagree.
+    /// </summary>
     [JsonPropertyName("studio_version")] public string StudioVersion { get; set; } = "";
+
+    /// <summary>
+    /// Which app wrote this file and which build of it, as
+    /// <c>["studio", "v2.0"]</c>. The same key in every app that writes an
+    /// info.json: a reader asking what made a project should not have to know
+    /// every app's name to ask, which with a key per app meant trying each in
+    /// turn and concluding from silence.
+    /// </summary>
+    [JsonPropertyName("simplified_app")] public string[] App { get; set; } = [];
+
+    /// <summary>Which app, when a project says so. Empty for anything older.</summary>
+    [JsonIgnore]
+    public string AppId => App.Length > 0 ? App[0] : "";
 
     /// <summary>Engine shader-package identifier, e.g. <c>object_my_team.nefx2.sm51</c>.
     /// Taken from a .serps template's ZIP comment on creation, or typed by the user.</summary>

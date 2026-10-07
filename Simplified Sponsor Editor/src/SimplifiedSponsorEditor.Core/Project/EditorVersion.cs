@@ -10,8 +10,23 @@ namespace SimplifiedSponsorEditor.Core.Project;
 /// </summary>
 public static class EditorVersion
 {
+    /// <summary>
+    /// What this app calls itself in a project's <c>simplified_app</c>. Fixed
+    /// rather than derived from the assembly name: the assembly is "Simplified
+    /// Sponsor Editor" with spaces and capitals, and a key somebody else has to
+    /// match should not change because a product name did.
+    /// </summary>
+    public const string AppId = "sponsor_editor";
+
     /// <summary>e.g. <c>1.0</c>. Build metadata after a <c>+</c> is dropped.</summary>
     public static string Current { get; } = Read();
+
+    /// <summary>
+    /// How the version is written down, e.g. <c>v2.0</c>. The prefix is part of
+    /// the value rather than something a reader adds, so what is in the file is
+    /// what gets shown.
+    /// </summary>
+    public static string Stamp { get; } = "v" + Current;
 
     /// <summary>
     /// Parsed form, or null when absent or malformed. Parsing matters: compared
@@ -22,6 +37,12 @@ public static class EditorVersion
         if (string.IsNullOrWhiteSpace(version)) return null;
 
         var text = version.Trim();
+
+        // Versions are written with a v now, and 1.x projects have one without.
+        // Both have to parse, or opening an old project would read as opening a
+        // project from the future.
+        if (text.StartsWith('v') || text.StartsWith('V')) text = text[1..];
+
         var plus = text.IndexOf('+');
         if (plus >= 0) text = text[..plus];
 

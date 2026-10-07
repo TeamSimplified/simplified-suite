@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace SimplifiedStudio.Core.Project;
 
@@ -15,6 +15,19 @@ public static class StudioVersion
 {
     /// <summary>e.g. <c>1.3</c>. Build metadata after a <c>+</c> is dropped.</summary>
     public static string Current { get; } = Read();
+
+    /// <summary>
+    /// What this app calls itself in a project's <c>simplified_app</c>. Fixed
+    /// rather than derived from the assembly name, so a key other apps have to
+    /// match cannot change because a product name did.
+    /// </summary>
+    public const string AppId = "studio";
+
+    /// <summary>
+    /// How the version is written down, e.g. <c>v2.0</c>. The prefix is part of
+    /// the value rather than something a reader adds.
+    /// </summary>
+    public static string Stamp { get; } = "v" + Current;
 
     /// <summary>
     /// Compare two version strings numerically. Returns &lt;0 when
@@ -42,6 +55,12 @@ public static class StudioVersion
     {
         if (string.IsNullOrWhiteSpace(version)) return null;
         var text = version.Trim();
+
+        // simplified_app writes the version with a v and studio_version without.
+        // Both have to parse, or one project would read as newer than the other
+        // for saying the same thing twice.
+        if (text.StartsWith('v') || text.StartsWith('V')) text = text[1..];
+
         var plus = text.IndexOf('+');
         if (plus >= 0) text = text[..plus];
         return Version.TryParse(text, out var parsed) ? parsed : null;

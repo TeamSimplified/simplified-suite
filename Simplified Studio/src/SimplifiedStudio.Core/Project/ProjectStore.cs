@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -68,9 +68,21 @@ public static class ProjectStore
         {
             using var stream = info.Open();
             using var doc = JsonDocument.Parse(stream);
-            if (doc.RootElement.TryGetProperty("studio_version", out var v) &&
-                v.ValueKind == JsonValueKind.String)
+            // simplified_app first, studio_version behind it: a project written
+            // by 1.3 through 2.0 has only the old key, and one written from here
+            // has both.
+            if (doc.RootElement.TryGetProperty("simplified_app", out var app)
+                && app.ValueKind == JsonValueKind.Array
+                && app.GetArrayLength() > 1
+                && app[1].ValueKind == JsonValueKind.String)
+            {
+                version = app[1].GetString() ?? "";
+            }
+            else if (doc.RootElement.TryGetProperty("studio_version", out var v) &&
+                     v.ValueKind == JsonValueKind.String)
+            {
                 version = v.GetString() ?? "";
+            }
         }
         catch { /* unreadable info.json — treat as current and let Open cope */ }
 
@@ -755,6 +767,7 @@ public static class ProjectStore
     private static void WriteInfo(SimplifiedProject project)
     {
         project.Info.StudioVersion = StudioVersion.Current;
+        project.Info.App = [StudioVersion.AppId, StudioVersion.Stamp];
         var path = Path.Combine(project.TempDir, InfoFileName);
         File.WriteAllText(path, JsonSerializer.Serialize(project.Info, Json));
     }
