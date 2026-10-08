@@ -27,7 +27,8 @@ public sealed record PackageRequest(
     string OutputZipPath,
     string ModName = "",
     string Author = "",
-    string ModVersion = "");
+    string ModVersion = "",
+    double Margin = SponsorPackager.DecalMargin);
 
 /// <summary>What it produced.</summary>
 public sealed record PackageResult(
@@ -98,7 +99,8 @@ public static class SponsorPackager
     private const ErpGfxSurfaceFormat DecalFormat = ErpGfxSurfaceFormat.BC7_SRGB;
 
     /// <summary>
-    /// How much of a decal to leave clear around the artwork, each side.
+    /// How much of a decal to leave clear around the artwork, each side, unless
+    /// the request says otherwise.
     ///
     /// The game never runs its own to an edge. Measured across its decals: a
     /// side margin from 1.6% to 5.3% of the texture, median 2.0%, and from 4.4%
@@ -108,6 +110,17 @@ public static class SponsorPackager
     /// game's own leaves.
     /// </summary>
     public const double DecalMargin = 0.06;
+
+    /// <summary>
+    /// The margin to leave, which a request may set to none.
+    ///
+    /// None is for artwork that arrives already placed — a picture that is
+    /// already the whole texture with the logo sized into it, as the v2 editor
+    /// renders one. Insetting that again would be a second margin inside the
+    /// first, and every logo would come out smaller than it was drawn.
+    /// </summary>
+    private static double MarginFor(PackageRequest request) =>
+        Math.Clamp(request.Margin, 0, 0.45);
 
     public static PackageResult Build(PackageRequest request, Action<string>? log = null,
                                       IProgress<string>? say = null,
@@ -186,7 +199,8 @@ public static class SponsorPackager
 
                 if (Import(carOverlay, decal.CarIdentifier,
                            Path.Combine(request.ArtworkDir, decal.Name + ".png"),
-                           runner, work, width: 0, height: 0, warnings, fitted))
+                           runner, work, width: 0, height: 0, MarginFor(request),
+                           warnings, fitted))
                 {
                     carCount++;
                 }
@@ -204,7 +218,8 @@ public static class SponsorPackager
                 }
 
                 if (Import(menuOverlay, decal.MenuIdentifier!, menuArtwork,
-                           runner, work, MenuWidth, MenuHeight, warnings, fitted))
+                           runner, work, MenuWidth, MenuHeight, MarginFor(request),
+                           warnings, fitted))
                 {
                     menuCount++;
                 }
@@ -334,8 +349,8 @@ public static class SponsorPackager
     /// </param>
     private static bool Import(ErpFile overlay, string viewIdentifier, string pngPath,
                                TexconvRunner runner, string work,
-                               uint width, uint height, List<string> warnings,
-                               List<string>? fitted = null)
+                               uint width, uint height, double margin,
+                               List<string> warnings, List<string>? fitted = null)
     {
         try
         {
@@ -357,9 +372,9 @@ public static class SponsorPackager
             // another shape is stretched onto it however big it is. Every one of
             // the game's 641 car decals is 1024x1024.
             var fit = width > 0 && height > 0
-                ? SliceFit.Encode(pngPath, work, DecalFormat, mips, width, height, runner, DecalMargin)
+                ? SliceFit.Encode(pngPath, work, DecalFormat, mips, width, height, runner, margin)
                 : SliceFit.EncodeToShape(pngPath, work, DecalFormat, mips,
-                                         f0.Width, f0.Height, runner, DecalMargin);
+                                         f0.Width, f0.Height, runner, margin);
 
             // Only a change of shape is worth a note. Every picture is inset to
             // leave its margin, so saying so would be a line per decal reporting

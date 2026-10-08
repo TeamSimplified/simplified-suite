@@ -34,33 +34,53 @@ public partial class ShellWindow
     /// </summary>
     private static IReadOnlyList<Replaceable>? _replaceable;
 
+    /// <summary>The archives, once they have been read, and whether they have been.</summary>
+    private static Catalogue? _catalogue;
+    private static bool _asked;
+
+    /// <summary>
+    /// Every decal the game ships, or null when the archives could not be read.
+    ///
+    /// The dropdown is one question about this and packaging is another — which
+    /// decals a sponsor's six variations are going into — so the catalogue
+    /// itself is what is kept, rather than only the list of names built from it.
+    ///
+    /// Null is not the same as empty: a copied folder with no archives beside
+    /// the exe can answer nothing at all, and a package that quietly matched
+    /// nothing would look like a project with nothing in it.
+    /// </summary>
+    private static Catalogue? GameDecals
+    {
+        get
+        {
+            if (_asked) return _catalogue;
+            _asked = true;
+
+            try { _catalogue = SponsorCatalogue.Read(AppPaths.OriginalsDir); }
+            catch { _catalogue = null; }
+
+            return _catalogue;
+        }
+    }
+
     private static IReadOnlyList<Replaceable> Replaceables
     {
         get
         {
             if (_replaceable is not null) return _replaceable;
 
-            try
-            {
-                var catalogue = SponsorCatalogue.Read(AppPaths.OriginalsDir);
-
-                // Sponsors, not decals. One of ours takes the place of a whole
-                // sponsor — every variation of it the game ships — so listing
-                // the decals would be offering the same choice six times over
-                // and inviting somebody to replace a fifth of a sponsor.
-                _replaceable = catalogue.BySponsor
-                    .Select(group => new Replaceable(
-                        group.Key,
-                        group.Count() == 1 ? group.Key : $"{group.Key}  ({group.Count()})"))
-                    .ToList();
-            }
-            catch
-            {
-                // No archives beside the exe is a thing that can happen to a
-                // copied folder. An empty list leaves the row showing nothing
-                // rather than taking the window down.
-                _replaceable = [];
-            }
+            // Sponsors, not decals. One of ours takes the place of a whole
+            // sponsor — every variation of it the game ships — so listing the
+            // decals would be offering the same choice six times over and
+            // inviting somebody to replace a fifth of a sponsor.
+            //
+            // No archives leaves the row showing nothing rather than taking the
+            // window down.
+            _replaceable = GameDecals?.BySponsor
+                .Select(group => new Replaceable(
+                    group.Key,
+                    group.Count() == 1 ? group.Key : $"{group.Key}  ({group.Count()})"))
+                .ToList() ?? [];
 
             return _replaceable;
         }

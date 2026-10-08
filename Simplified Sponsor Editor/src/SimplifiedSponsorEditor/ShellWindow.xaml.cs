@@ -935,6 +935,15 @@ public partial class ShellWindow : Window
     /// </summary>
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
+        // Refused rather than queued while a package is being written: the work
+        // is already running on another thread and cannot be called back, and a
+        // window that goes mid-package leaves a half-written zip behind.
+        if (_packaging)
+        {
+            e.Cancel = true;
+            return;
+        }
+
         if (_project is null) return;
 
         // The same question the cross asks, because it is the same question:

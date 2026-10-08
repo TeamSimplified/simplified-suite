@@ -316,18 +316,32 @@ public partial class ShellWindow
         AddButton.IsHitTestVisible = false;
         Fade(AddButton, to: 0, seconds: ClearSeconds);
 
+        // The gear goes with them. On this page it would be a button that opens
+        // the page you are already looking at, and the tick is the way out.
+        SettingsButton.IsHitTestVisible = false;
+        Fade(SettingsButton, to: 0, seconds: ClearSeconds);
+
         Lift();
 
-        Retitle("YOUR", "SETTINGS", delay: ClearSeconds, then: () =>
+        Retitle("APP", "SETTINGS", delay: ClearSeconds, then: () =>
         {
             Choices.Visibility = Visibility.Collapsed;
             Naming.Visibility = Visibility.Collapsed;
             Section.Visibility = Visibility.Collapsed;
             Shelf.Visibility = Visibility.Collapsed;
 
+            // Filled before it is seen rather than when it was built: the game
+            // folder can have been written down by a package since.
+            FillSettings();
+
             SettingsPage.Visibility = Visibility.Visible;
             SettingsPage.IsHitTestVisible = true;
             FadeInAfter(SettingsPage, delay: 0, seconds: PlusIn);
+
+            // The mark belongs to the page even though it does not sit in it,
+            // so it arrives and leaves with it.
+            TeamSlot.Visibility = Visibility.Visible;
+            FadeInAfter(TeamSlot, delay: 0, seconds: PlusIn);
 
             ActionGlyph.Data = Geometry.Parse(TickData);
             AddButton.ToolTip = "Back";
@@ -344,11 +358,20 @@ public partial class ShellWindow
 
         SettingsPage.IsHitTestVisible = false;
         Fade(SettingsPage, to: 0, seconds: ClearSeconds);
+        Fade(TeamSlot, to: 0, seconds: ClearSeconds);
         Fade(AddButton, to: 0, seconds: ClearSeconds);
 
         After(ClearSeconds + Gap, () =>
         {
             SettingsPage.Visibility = Visibility.Collapsed;
+            TeamSlot.Visibility = Visibility.Collapsed;
+
+            // Back whatever page is returning, and said once rather than in
+            // each of the four: the gear belongs to the app rather than to any
+            // of them, which is the whole reason it is on screen from the first
+            // frame and leaves only for its own page.
+            SettingsButton.IsHitTestVisible = true;
+            FadeInAfter(SettingsButton, delay: 0, seconds: PlusIn);
 
             switch (back)
             {

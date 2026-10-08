@@ -650,6 +650,105 @@
              The pad is a sibling of the glyph rather than its parent: fading a
              parent fades everything inside it, so a pad wrapped round the
              content would take the glyph down with it. -->
+        <!-- Google's Material folder, the same glyph the Launcher's game-folder
+             row uses, so the one control both apps have reads the same. -->
+        <StreamGeometry x:Key="FolderGlyph">F1 M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z</StreamGeometry>
+
+        <!-- A box somebody types a path into. The one filled field in this app:
+             everything else it asks for is prose and wears no box at all, where
+             a folder is a value, is usually pasted rather than written, and has
+             an end worth showing. The fill is the same white at a tenth the
+             outline uses, so the field and the variation squares are the same
+             idea at two strengths. -->
+        <Style x:Key="PathField" TargetType="TextBox">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="{StaticResource Outline}"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource Ink}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource Selected}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="Center"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The button beside it: the same fill and the same height, so the two
+             read as one control rather than a box with something next to it. -->
+        <Style x:Key="FieldButton" TargetType="Button">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Background" Value="{StaticResource Outline}"/>
+            <Setter Property="Foreground" Value="#D0D0D0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Pad"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pad" Property="Background" Value="{StaticResource Selected}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Which build this is. Bold and two points up from the prose under it,
+             so the settings page opens by saying which editor you are in. -->
+        <Style x:Key="Build" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="{StaticResource CardSize}"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+
+        <!-- A credit: who, then what they did. The same two weights the Launcher
+             and Studio use for theirs — a name reads as a name and the role sits
+             behind it — because three apps crediting the same people differently
+             is worse than any one wording. -->
+        <Style x:Key="CreditLine" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="FontSize" Value="{StaticResource HighlightSize}"/>
+            <Setter Property="Foreground" Value="{StaticResource Quiet}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+
+        <Style x:Key="CreditName" TargetType="Run">
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#C8C8C8"/>
+        </Style>
+
         <Style x:Key="ChromeButton" TargetType="Button">
             <Setter Property="Width" Value="38"/>
             <Setter Property="Height" Value="38"/>
@@ -663,7 +762,8 @@
                     <ControlTemplate TargetType="Button">
                         <Grid Background="Transparent">
                             <Border x:Name="Hit" Background="#FFFFFF" Opacity="0" CornerRadius="6"/>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ContentPresenter x:Name="Glyph"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <!-- Pressed first and hover second, and the order is
@@ -727,6 +827,53 @@
                                             <DoubleAnimation Storyboard.TargetName="Hit"
                                                              Storyboard.TargetProperty="Opacity"
                                                              To="0" Duration="0:0:0.16">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+
+                            <!-- Off, the Launcher's way: the glyph goes dim
+                                 rather than away, so a button that cannot be
+                                 pressed still reads as a button and the hand
+                                 goes with it. Animated rather than set, so it
+                                 dims and lifts instead of blinking.
+
+                                 The glyph inside the template rather than the
+                                 button itself, which this window animates on
+                                 its own when the tools come and go. Two owners
+                                 of one property is how an element ends up stuck
+                                 at whichever animation ran last — and a button
+                                 that is both off and away wants both, which
+                                 multiplying two opacities gives and setting one
+                                 twice does not.
+
+                                 Last of the triggers, so it wins over hover if
+                                 the two ever hold at once. -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Glyph"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.25" Duration="0:0:0.28">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Glyph"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.28">
                                                 <DoubleAnimation.EasingFunction>
                                                     <CubicEase EasingMode="EaseInOut"/>
                                                 </DoubleAnimation.EasingFunction>
@@ -1065,7 +1212,8 @@
                       StrokeThickness="1" SnapsToDevicePixels="True"/>
             </Button>
 
-            <Button Style="{StaticResource ChromeButton}" Click="Close_Click"
+            <Button x:Name="CloseButton"
+                    Style="{StaticResource ChromeButton}" Click="Close_Click"
                     Margin="4,0,0,0" ToolTip="Close">
                 <Path Data="M 0,0 L 12,12 M 12,0 L 0,12"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -1254,12 +1402,110 @@
              the way out work, and there is nothing in it yet. -->
         <ScrollViewer x:Name="SettingsPage"
                       Style="{StaticResource Scroller}"
-                      Margin="0,0,0,122"
+                      Margin="0,0,0,170"
                       Visibility="Collapsed"
                       Opacity="0"
                       IsHitTestVisible="False">
-            <StackPanel HorizontalAlignment="Center"/>
+
+            <!-- The same 440 everything else on these pages is set to, so the
+                 field, the prose and the bio all share an edge.
+
+                 Centred rather than ranged left as the Launcher's are. That is
+                 not a departure: this window centres everything, and a page of
+                 left-aligned rows under a centred heading would be the only
+                 thing in the app that did not. -->
+            <StackPanel HorizontalAlignment="Center" Width="440">
+
+                <TextBlock x:Name="BuildLine"
+                           Style="{StaticResource Build}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,10"/>
+
+                <!-- What the page is for, in the same body the bio is set in.
+                     It says the one thing somebody needs to know before filling
+                     the row under it: why an app that bundles its own archives
+                     wants the game as well. -->
+                <TextBlock Style="{StaticResource Body}"
+                           Margin="0,0,0,26"
+                           Text="Everything you edit comes from archives bundled with this app, so the game is not needed to make a mod — only to package one. A mod is built by merging your decals into the game&apos;s own shader archives, which are not ours to ship. The folder is read, never written to."/>
+
+                <TextBlock Text="GAME DIRECTORY"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,9"/>
+
+                <Grid Margin="0,0,0,26">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Written down when the box loses the caret rather than on
+                         every keystroke: a path half-typed is not a path, and
+                         saving one would have the app believe in it until the
+                         next letter arrived. -->
+                    <TextBox x:Name="GameDirBox"
+                             Grid.Column="0"
+                             Style="{StaticResource PathField}"
+                             LostKeyboardFocus="GameDir_Done"
+                             ToolTip="The folder F1_25.exe sits in"/>
+
+                    <Button Grid.Column="1"
+                            Margin="7,0,0,0"
+                            Style="{StaticResource FieldButton}"
+                            Click="BrowseGameDir_Click"
+                            ToolTip="Choose the game folder">
+                        <Path Data="{StaticResource FolderGlyph}"
+                              Stretch="Uniform"
+                              Width="17" Height="17"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                </Grid>
+
+                <TextBlock Text="CREDITS"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,9"/>
+
+                <StackPanel Margin="0,0,0,10">
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Petar Tasev" Style="{StaticResource CreditName}"/><Run Text=" — Underlying ERP structure and format code"/>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Team Simplified" Style="{StaticResource CreditName}"/><Run Text=" — App functionality and Design"/>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource CreditLine}">
+                        <Run Text="Claude Code" Style="{StaticResource CreditName}"/><Run Text=" — Coding"/>
+                    </TextBlock>
+                </StackPanel>
+
+            </StackPanel>
         </ScrollViewer>
+
+        <!-- The team mark, over the button that leaves settings rather than
+             inside the page: it belongs to the window, not to the list of
+             options, which is where the Launcher puts its own. It comes and
+             goes with the page, so it fades with everything else and takes no
+             clicks while it is hidden.
+
+             Twenty-six pixels over the button: the tick is 44 tall on a row
+             that sits 40 up, so its top is at 84 and this stands at 110. The
+             Launcher's own two numbers, which is why they are these — the same
+             mark over the same sized button wants the same air under it.
+
+             And the settings page stops 32 above the mark, at 170, where the
+             other pages stop at 122. Only this one has anything standing under
+             it, so only this one makes room. -->
+        <Viewbox x:Name="TeamSlot"
+                 Height="28"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Bottom"
+                 Margin="0,0,0,110"
+                 Stretch="Uniform"
+                 Opacity="0"
+                 IsHitTestVisible="False">
+            <Path Data="{DynamicResource TeamMark}" Fill="{StaticResource Ink}"/>
+        </Viewbox>
 
         <!-- Naming a project: what it is called, and who made it.
 
@@ -1473,7 +1719,11 @@
                  things you do to a project, so it does not stand with them —
                  and it does not come and go with them either: it belongs to the
                  app rather than to whatever is open, so it is here from the
-                 first frame and never fades. -->
+                 first frame and stays through every page.
+
+                 Every page but its own. On the settings page it would be a
+                 button that opens what you are looking at, so it leaves with
+                 the rest and comes back with whatever the tick returns to. -->
             <Button x:Name="SettingsButton"
                     Grid.Column="0"
                     Style="{StaticResource ChromeButton}"
@@ -1566,8 +1816,8 @@
 
                 <Button x:Name="PackageButton" Style="{StaticResource ChromeButton}"
                         Width="32" Height="32" Foreground="#FFFFFF"
-                        IsEnabled="False"
-                        ToolTip="Package this project — not built yet">
+                        Click="Package_Click"
+                        ToolTip="Package this project as a mod">
                     <Viewbox Height="18" Stretch="Uniform">
                         <Canvas Width="24" Height="24">
                             <Path Data="{StaticResource PackageGlyph}"

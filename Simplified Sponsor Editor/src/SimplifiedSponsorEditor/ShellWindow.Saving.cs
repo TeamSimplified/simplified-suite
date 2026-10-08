@@ -48,6 +48,7 @@ public partial class ShellWindow
         }
 
         if (e.Key != Key.S || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        if (_packaging) return;
 
         e.Handled = true;
         SaveProject();
@@ -80,7 +81,7 @@ public partial class ShellWindow
             ProjectStore.Save(project);
 
             _dirty = false;
-            if (announce) Announce();
+            if (announce) Announce("PROJECT", "SAVED.");
         }
         catch (Exception problem)
         {
@@ -134,13 +135,13 @@ public partial class ShellWindow
     /// the heading\'s opacity, so a second one on a timer would replace the
     /// first and the words would never arrive.
     /// </summary>
-    private void Announce()
+    private void Announce(string first, string second)
     {
         // Only where there is a heading to give back. Mid-transition the page
         // is already retitling itself and this would be a third voice.
         if (_stage != Stage.Project) return;
 
-        Retitle("PROJECT", "SAVED.", then: () =>
+        Retitle(first, second, then: () =>
             After(Said.TotalSeconds, () =>
             {
                 if (_stage == Stage.Project)
