@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using Simplified.Language;
 using Simplified.Shared;
 using SimplifiedSponsorEditor.Core;
 using SimplifiedSponsorEditor.Core.Config;
@@ -108,6 +109,13 @@ public partial class ShellWindow
             Author: project.Info.Author,
             ModVersion: project.Info.Version,
 
+            // What the game should call them. Taken from the sponsors rather
+            // than from the bound variations: the name belongs to the sponsor,
+            // and one of ours replacing a sponsor with one variation filled
+            // still renames the whole of it.
+            Text: Spoken(work),
+            LanguageDir: AppPaths.LanguageDir,
+
             // The artwork arrives already placed. Each PNG is the whole texture
             // with the logo sized into it the way the variation window showed
             // it, so the packager's own inset would be a second margin inside
@@ -116,6 +124,88 @@ public partial class ShellWindow
             Margin: 0);
 
         Write(request, artwork, [.. notes, .. skipped]);
+    }
+
+    /// <summary>
+    /// What each replaced sponsor should now be called, one entry per sponsor.
+    ///
+    /// Only the sponsors whose artwork is actually in this package. A sponsor
+    /// with a name and no artwork has already been reported as left out, and
+    /// renaming one the package does not otherwise touch would make that report
+    /// a lie — and leave somebody with a game that calls the old logo by the
+    /// new name.
+    ///
+    /// Only names and bios that were filled in, too: writing an empty one would
+    /// blank the game's own, which is worse than leaving it.
+    /// </summary>
+    private IReadOnlyList<SponsorText> Spoken(IReadOnlyList<Bound> work)
+    {
+        var packaged = new HashSet<string>(
+            work.Select(bound => bound.Decal.Sponsor), StringComparer.OrdinalIgnoreCase);
+
+        var said = new Dictionary<string, SponsorText>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var sponsor in _sponsors)
+        {
+            if (string.IsNullOrWhiteSpace(sponsor.Replaces)) continue;
+            if (!packaged.Contains(sponsor.Replaces)) continue;
+
+            var name = sponsor.Name.Trim();
+            var bio = sponsor.Bio.Trim();
+            if (name.Length == 0 && bio.Length == 0) continue;
+
+            // Keyed by the game's sponsor, so the first one in wins if two of
+            // ours ever claim it. The plan has already settled that, and this
+            // agrees with it rather than deciding again.
+            if (!said.ContainsKey(sponsor.Replaces))
+                said[sponsor.Replaces] = new SponsorText(sponsor.Replaces, name, bio);
+        }
+
+        return [.. said.Values];
+    }
+
+    /// <summary>
+    /// Make sure the game's language files are beside the app, and say what
+    /// happened if they could not be.
+    ///
+    /// Taken here rather than at startup. They are sixty-six megabytes out of
+    /// a 408 MB exe and nothing but packaging wants them, so an app that only
+    /// ever edits artwork should never pay for them — and the one moment
+    /// somebody is already waiting is the one this runs in.
+    /// </summary>
+    private async Task<string?> Language(string gameDir, List<string> notes)
+    {
+        var state = LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
+        if (state == LanguageState.Current) return AppPaths.LanguageDir;
+
+        if (state == LanguageState.NoGame)
+        {
+            notes.Add("The game isn't where it was, so the sponsors keep their old names in game.");
+            return null;
+        }
+
+        // Said on the heading rather than done quietly: taking these reads the
+        // game's exe end to end, and a package that sat on one word for a
+        // minute would read as one that had stopped.
+        Retitle("READING", "THE GAME", working: true);
+
+        try
+        {
+            await Task.Run(() =>
+                LanguageFiles.Refresh(gameDir, AppPaths.LanguageDir, AppPaths.CacheDir));
+
+            return AppPaths.LanguageDir;
+        }
+        catch (Exception problem)
+        {
+            // Worth a note, not a failure. The artwork is the mod; the names
+            // are the part of it that can be missing and still leave something
+            // worth installing.
+            notes.Add($"The game's text couldn't be read ({problem.Message}), so the sponsors "
+                + "keep their old names in game.");
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -131,6 +221,13 @@ public partial class ShellWindow
         _packaging = true;
         Occupied(true);
 
+        // The text first, because it may have to be fetched out of the game
+        // before there is anything to write, and because the heading says so
+        // while it is.
+        var language = request.Text is { Count: > 0 }
+            ? await Language(request.GameDir, notes)
+            : null;
+
         Retitle("PACKAGING", "YOUR MOD", working: true);
 
         // The same floor the other long jobs have: a status nobody can read is
@@ -140,7 +237,11 @@ public partial class ShellWindow
         PackageResult? result = null;
         Exception? failed = null;
 
-        try { result = await Task.Run(() => SponsorPackager.Build(request)); }
+        try
+        {
+            result = await Task.Run(() => SponsorPackager.Build(
+                request with { LanguageDir = language ?? "" }));
+        }
         catch (Exception problem) { failed = problem; }
 
         await floor;
@@ -174,8 +275,9 @@ public partial class ShellWindow
         var all = notes.Concat(result.Warnings).ToList();
         if (all.Count == 0) return;
 
-        var summary = $"Packaged {Count(result.CarDecals, "decal")} "
-            + $"and {Count(result.MenuDecals, "menu picture")} to\n{result.ZipPath}";
+        var summary = $"Packaged {Count(result.CarDecals, "decal")}, "
+            + $"{Count(result.MenuDecals, "menu picture")} and "
+            + $"{Count(result.LanguageFiles, "language file")} to\n{result.ZipPath}";
 
         MessageDialog.Show(this,
             $"{summary}\n\n{string.Join('\n', all)}",

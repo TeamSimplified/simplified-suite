@@ -28,14 +28,28 @@ public sealed record PackageRequest(
     string ModName = "",
     string Author = "",
     string ModVersion = "",
-    double Margin = SponsorPackager.DecalMargin);
+    double Margin = SponsorPackager.DecalMargin,
+
+    /// <summary>
+    /// What each replaced sponsor should now be called, and what it says about
+    /// itself. Empty leaves the game's own text alone, which is what a package
+    /// built before this existed did.
+    /// </summary>
+    IReadOnlyList<SponsorText>? Text = null,
+
+    /// <summary>
+    /// The game's language files, taken out of the install. Null or missing
+    /// means the text is skipped and said about rather than guessed at.
+    /// </summary>
+    string LanguageDir = "");
 
 /// <summary>What it produced.</summary>
 public sealed record PackageResult(
     string ZipPath,
     int CarDecals,
     int MenuDecals,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    int LanguageFiles = 0);
 
 /// <summary>
 /// Turning a project's artwork into a mod anyone can install.
@@ -254,6 +268,29 @@ public static class SponsorPackager
                 ErpFileIO.Save(target, Path.Combine(staging, name));
             }
 
+            // ── The names ─────────────────────────────────────────────
+            // Into the same staging tree, so the zip is still one folder
+            // walked once. A sponsor whose artwork was replaced but whose name
+            // was not is the game calling somebody's logo by the name of the
+            // one it stands in for.
+            var languageFiles = 0;
+
+            if (request.Text is { Count: > 0 } text)
+            {
+                cancel.ThrowIfCancellationRequested();
+                log?.Invoke("Writing the sponsor names...");
+                say?.Report("Naming your sponsors…");
+
+                // The work folder itself, not the F1 25 inside it: where
+                // language files go already names that folder.
+                languageFiles = SponsorLanguage.WriteInto(
+                    request.LanguageDir, work, text, warnings);
+
+                if (languageFiles == 0)
+                    warnings.Add("The game's language files aren't here, so the sponsors keep "
+                        + "their old names in game.");
+            }
+
             log?.Invoke("Zipping...");
             say?.Report("Writing your mod file…");
             if (File.Exists(request.OutputZipPath)) File.Delete(request.OutputZipPath);
@@ -271,7 +308,8 @@ public static class SponsorPackager
             ZipFile.CreateFromDirectory(work, request.OutputZipPath,
                 CompressionLevel.Optimal, includeBaseDirectory: false);
 
-            return new PackageResult(request.OutputZipPath, carCount, menuCount, warnings);
+            return new PackageResult(request.OutputZipPath, carCount, menuCount, warnings,
+                                     languageFiles);
         }
         finally
         {

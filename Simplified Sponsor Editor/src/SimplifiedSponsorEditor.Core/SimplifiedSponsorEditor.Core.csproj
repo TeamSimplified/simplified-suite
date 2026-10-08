@@ -34,8 +34,16 @@
     <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
   </ItemGroup>
 
+  <!--
+    The language files, and the one reader that writes them back the way the
+    rest of the suite does. The Team Editor's LngFile rather than a second
+    implementation: the Grid Editor already borrows it for the same reason, and
+    a mod's .lng has to come out the way the Launcher expects to merge it.
+  -->
   <ItemGroup>
     <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+    <ProjectReference Include="..\..\..\Language Library\SimplifiedLanguage.csproj" />
+    <ProjectReference Include="..\..\..\Simplified Team Editor\src\SimplifiedTeamEditor.Core\SimplifiedTeamEditor.Core.csproj" />
   </ItemGroup>
 
 </Project>

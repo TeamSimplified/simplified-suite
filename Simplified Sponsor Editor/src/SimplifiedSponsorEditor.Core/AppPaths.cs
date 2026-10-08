@@ -41,4 +41,25 @@ public static class AppPaths
     /// pictures are replacing.
     /// </summary>
     public static string OriginalsDir => Path.Combine(RuntimeDir, "original");
+
+    /// <summary>
+    /// The game's language files, taken out of the install rather than bundled.
+    ///
+    /// Not here when the app has never packaged anything: they are eleven files
+    /// and sixty-six megabytes, they belong to whichever build of the game is
+    /// installed, and nothing but packaging needs them. Packaging takes them
+    /// the first time it runs and again whenever the game has moved on.
+    ///
+    /// Under original\ with the archives, which is where every app in the suite
+    /// keeps them, so the folder means the same thing in each.
+    /// </summary>
+    public static string LanguageDir =>
+        Path.Combine(OriginalsDir, Simplified.Language.LanguageFiles.FolderName);
+
+    /// <summary>
+    /// Where the search through the exe for the language archive is remembered.
+    /// Finding it means reading a 408 MB file, and that is the part worth not
+    /// repeating on every package.
+    /// </summary>
+    public static string CacheDir => Path.Combine(RuntimeDir, "cache");
 }
