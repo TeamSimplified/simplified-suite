@@ -25,6 +25,17 @@ public sealed class Sponsor
 
     public string Bio { get; set; } = "";
 
+    /// <summary>
+    /// The short name of the game decal this one takes the place of, e.g.
+    /// <c>7even_n_da</c>, or empty while nobody has said.
+    ///
+    /// The name rather than the resource identifier: the identifier is a path
+    /// into an archive and would change if the game moved it, where the short
+    /// name is what the catalogue pairs the two archives on and what a project
+    /// has always filed its artwork under.
+    /// </summary>
+    public string Replaces { get; set; } = "";
+
     public List<Variation> Variations { get; set; } =
         Enumerable.Range(0, 6).Select(_ => new Variation()).ToList();
 

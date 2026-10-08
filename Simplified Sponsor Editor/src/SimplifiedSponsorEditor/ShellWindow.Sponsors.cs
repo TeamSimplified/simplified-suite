@@ -77,6 +77,7 @@ public partial class ShellWindow
         {
             Name = SponsorName.Text,
             Bio = SponsorBio.Text,
+            Replaces = ChosenReplacement,
             Variations = [.. _variations],
         };
 
@@ -106,6 +107,7 @@ public partial class ShellWindow
 
         SponsorName.Text = sponsor.Name;
         SponsorBio.Text = sponsor.Bio;
+        ShowReplacement(sponsor.Replaces);
 
         for (var i = 0; i < _variations.Count; i++)
         {
@@ -129,6 +131,7 @@ public partial class ShellWindow
     {
         SponsorName.Text = "";
         SponsorBio.Text = "";
+        ShowReplacement(null);
 
         for (var i = 0; i < _variations.Count; i++)
         {

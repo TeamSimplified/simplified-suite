@@ -32,6 +32,12 @@ public partial class ShellWindow
         Tools.IsHitTestVisible = wanted;
         ProjectTag.IsHitTestVisible = wanted;
 
+        // The tools are the project page and the cross is a page you are
+        // halfway through, so they are never both right. Said here rather than
+        // at each of the ways back, one of which forgot — ticking a sponsor
+        // returned to the project with the cross still sitting over the plus.
+        if (wanted) ShowCancel(false);
+
         // The cross goes back under the name whichever way this is going. Left
         // out, a pointer resting on the tag while the page changed would leave
         // it hanging there over a page that has no project in it.

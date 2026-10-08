@@ -204,7 +204,11 @@ public sealed class ArtworkCanvas
             return;
         }
 
-        foreach (var part in _selected)
+        // Nothing picked paints the lot. A drawing somebody wants one colour
+        // is the common case — a logo recoloured to a team — and making them
+        // pick every piece first to say so was work for nothing. Picking some
+        // still means those only, which is the whole point of picking.
+        foreach (var part in _selected.Count > 0 ? _selected : (IEnumerable<SvgPart>)_parts)
         {
             part.Paint(colour);
 
@@ -240,6 +244,15 @@ public sealed class ArtworkCanvas
 
     /// <summary>Whether Delete would do anything.</summary>
     public bool CanDelete => IsVector && _selected.Count > 0;
+
+    /// <summary>
+    /// Whether there is anything to paint, which is not the same as anything
+    /// being picked — nothing picked paints all of it.
+    /// </summary>
+    public bool CanPaint => IsVector ? _parts.Count > 0 : _bitmap is not null;
+
+    /// <summary>Whether a colour would land on everything rather than on a pick.</summary>
+    public bool PaintsEverything => IsVector && _selected.Count == 0;
 
     /// <summary>
     /// Back to the file as it was imported: every piece returned, every colour
@@ -530,7 +543,13 @@ public sealed class ArtworkCanvas
 
             _pickedMark.Opacity = _selected.Count == 0 ? 0 : 0.45;
 
-            var colours = _selected.Select(p => p.Colour).Distinct().ToList();
+            // What the box shows: the colour of what is picked, or — with
+            // nothing picked, where a colour would land on everything — the
+            // colour the whole drawing already is, when it is one colour. Parts
+            // that disagree leave it blank rather than claiming one of them.
+            var colours = (_selected.Count > 0 ? _selected : (IEnumerable<SvgPart>)_parts)
+                .Select(p => p.Colour).Distinct().ToList();
+
             Shown = colours.Count == 1 ? colours[0] : null;
         }
 

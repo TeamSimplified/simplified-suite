@@ -137,9 +137,6 @@ public static class VariationWindow
             BorderThickness = new Thickness(1),
             Cursor = Cursors.Hand,
             Margin = new Thickness(16, 0, 0, 0),
-            ToolTip = canvas.IsVector
-                ? "Click to change the colour of what is picked"
-                : "Click to lay a colour over the whole picture",
         };
 
         colourBox.SetResourceReference(Control.BorderBrushProperty, "BorderStrong");
@@ -261,7 +258,13 @@ public static class VariationWindow
             remove.IsEnabled = canvas.CanDelete;
             reset.IsEnabled = canvas.CanReset;
 
-            colourBox.IsEnabled = canvas.SelectedCount > 0;
+            colourBox.IsEnabled = canvas.CanPaint;
+
+            colourBox.ToolTip = canvas.IsVector
+                ? canvas.PaintsEverything
+                    ? "Click to colour the whole drawing — pick pieces first to colour only those"
+                    : "Click to change the colour of what is picked"
+                : "Click to lay a colour over the whole picture";
             colourBox.Background = canvas.Shown is { } one
                 ? new SolidColorBrush(one)
                 : ThemeBrush("SurfaceSunken");
@@ -324,7 +327,7 @@ public static class VariationWindow
 
         colourBox.Click += (_, _) =>
         {
-            if (canvas.SelectedCount == 0) return;
+            if (!canvas.CanPaint) return;
 
             var from = canvas.Shown ?? Colors.White;
 

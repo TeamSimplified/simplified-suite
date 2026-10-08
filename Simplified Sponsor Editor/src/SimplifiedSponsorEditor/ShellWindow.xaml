@@ -423,6 +423,7 @@
         <StreamGeometry x:Key="EditGlyph">M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z</StreamGeometry>
         <StreamGeometry x:Key="SaveGlyph">M17,3H5C3.89,3 3,3.9 3,5v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2V7L17,3zM12,19c-1.66,0 -3,-1.34 -3,-3s1.34,-3 3,-3 3,1.34 3,3 -1.34,3 -3,3zM15,9H5V5h10v4z</StreamGeometry>
         <StreamGeometry x:Key="PackageGlyph">M20,2H4C3,2 2,2.9 2,4v3.01C2,7.73 2.43,8.35 3,8.7V20c0,1.1 1.1,2 2,2h14c0.9,0 2,-0.9 2,-2V8.7c0.57,-0.35 1,-0.97 1,-1.69V4C22,2.9 21,2 20,2zM15,14H9v-2h6V14zM20,7H4V4h16V7z</StreamGeometry>
+        <StreamGeometry x:Key="ChevronGlyph">M16.59,8.59L12,13.17 7.41,8.59 6,10l6,6 6,-6z</StreamGeometry>
         <StreamGeometry x:Key="CloseGlyph">M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z</StreamGeometry>
         <StreamGeometry x:Key="SettingsGlyph">M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z</StreamGeometry>
 
@@ -512,6 +513,131 @@
                                        Maximum="{TemplateBinding ScrollableHeight}"
                                        ViewportSize="{TemplateBinding ViewportHeight}"
                                        Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One row of the list. Dark, and lit by the same pad everything else
+             in this window is lit by — a stock ComboBoxItem brings the system
+             blue with it, which is the one colour nothing here uses. -->
+        <Style x:Key="ChooserItem" TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Pad" Background="{StaticResource Ink}"
+                                    Opacity="0" CornerRadius="4"/>
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Pad" Property="Opacity" Value="0.10"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Pad" Property="Opacity" Value="0.16"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The dropdown itself. Closed it is a line of Body with a chevron
+             after it and no box, because nothing on this page has a box — the
+             name and the bio are bare text and this has to read as one more
+             thing you set rather than as a control that wandered in.
+
+             Open it is a panel, because a list needs an edge to be a list.
+
+             IsTextSearchEnabled, and it earns its keep: the game ships hundreds
+             of these, and the alternative to typing the first letters of one is
+             scrolling for it. -->
+        <Style x:Key="Chooser" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="FontFamily" Value="{StaticResource Face}"/>
+            <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTextSearchEnabled" Value="True"/>
+            <Setter Property="MaxDropDownHeight" Value="320"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ChooserItem}"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="Opener"
+                                          Background="Transparent"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay,
+                                                      RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" Padding="0,2">
+                                            <StackPanel Orientation="Horizontal"
+                                                        HorizontalAlignment="Center">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                                <Viewbox Height="14" Margin="6,1,0,0"
+                                                         VerticalAlignment="Center"
+                                                         Stretch="Uniform">
+                                                    <Canvas Width="24" Height="24">
+                                                        <Path Data="{StaticResource ChevronGlyph}"
+                                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+
+                                <!-- 20 on the left, which is exactly what the
+                                     chevron takes on the right: 14 of glyph and
+                                     the 6 before it. Without it the pair is
+                                     centred and the words are not — measured,
+                                     the value sat 10px left of the label over
+                                     it, which on a page where everything else
+                                     shares a middle is the one thing that does
+                                     not. -->
+                                <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  Margin="20,0,0,0"
+                                                  VerticalAlignment="Center"/>
+                            </ToggleButton>
+
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   PopupAnimation="Fade"
+                                   Focusable="False">
+                                <!-- As wide as the box, not merely no narrower.
+                                     Placement Bottom hangs a popup off the left
+                                     edge, so one that grew to fit its widest row
+                                     opened away to the right instead of under
+                                     the thing it belongs to. Matching widths is
+                                     what keeps it centred, and the box is given
+                                     a width for that reason. -->
+                                <Border Width="{TemplateBinding ActualWidth}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Margin="0,6,0,0"
+                                        CornerRadius="8"
+                                        Background="#F21A1A1A"
+                                        BorderBrush="{StaticResource Outline}"
+                                        BorderThickness="1">
+                                    <ScrollViewer Style="{StaticResource Scroller}" Padding="6">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
@@ -1098,6 +1224,25 @@
                     <Button x:Name="Slot4" Style="{StaticResource Slot}" Tag="4" Click="Slot_Click"/>
                     <Button x:Name="Slot5" Style="{StaticResource Slot}" Tag="5" Click="Slot_Click" Margin="0"/>
                 </StackPanel>
+
+                <!-- Which of the game’s own decals this one takes the place of.
+
+                     36 above, not the 26 the text groups use: the squares end
+                     on a hard edge where a line of type ends with the empty
+                     part of its line box, so the same number would read as a
+                     smaller gap. This is the one that measures 40 like the
+                     rest. -->
+                <TextBlock Text="REPLACES"
+                           Style="{StaticResource Highlight}"
+                           HorizontalAlignment="Center"
+                           Margin="0,36,0,4"/>
+
+                <ComboBox x:Name="Replaces"
+                          Style="{StaticResource Chooser}"
+                          HorizontalAlignment="Center"
+                          Width="440"
+                          DisplayMemberPath="Label"
+                          TabIndex="2"/>
 
                 <!-- Whatever comes next goes here, and the section scrolls when
                      there is more of it than there is room. 24 of air under the

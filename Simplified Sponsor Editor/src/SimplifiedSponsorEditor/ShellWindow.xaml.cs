@@ -441,6 +441,10 @@ public partial class ShellWindow : Window
 
             ShowCancel(true);
 
+            // The list is the game's and never changes, so this reads the
+            // archives once and does nothing on every visit after.
+            FillReplaces();
+
             // By the time anybody can see the field they can already type into
             // it. Nothing else on the page takes a keystroke, so there is
             // nothing to take it from.
@@ -736,6 +740,7 @@ public partial class ShellWindow : Window
             // either. Said here rather than left to the caller: every way back
             // to this page should arrive at the same page.
             ShowTools(false);
+            ShowCancel(false);
             Shelf.Visibility = Visibility.Collapsed;
             Shelf.IsHitTestVisible = false;
 

@@ -61,6 +61,9 @@ public static class SponsorFile
 
         [JsonPropertyName("bio")] public string Bio { get; init; } = "";
 
+        /// <summary>The game decal this one stands in for, by short name.</summary>
+        [JsonPropertyName("replaces")] public string Replaces { get; init; } = "";
+
         /// <summary>
         /// Only the slots with something in them, each saying which slot it is.
         ///
@@ -144,6 +147,7 @@ public static class SponsorFile
             {
                 Name = sponsor.Name,
                 Bio = sponsor.Bio,
+                Replaces = sponsor.Replaces,
                 Variations = slots,
             };
 
@@ -222,7 +226,12 @@ public static class SponsorFile
                     is not { } record)
                     continue;
 
-                var sponsor = new Sponsor { Name = record.Name, Bio = record.Bio };
+                var sponsor = new Sponsor
+                {
+                    Name = record.Name,
+                    Bio = record.Bio,
+                    Replaces = record.Replaces,
+                };
 
                 foreach (var slot in record.Variations)
                 {
