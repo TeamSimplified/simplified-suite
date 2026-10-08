@@ -142,6 +142,11 @@ public partial class ShellWindow : Window
 
         // Nothing, then one, then two, and round again.
         _ticker.Tick += (_, _) => Dots((_shown + 1) % 3);
+
+        // The game's text, if it is not already beside the app. At startup
+        // because the rest of the suite does it at startup, and for the reason
+        // they do — see EnsureGameFiles.
+        Loaded += async (_, _) => await EnsureGameFiles();
     }
 
     // ── The two states ────────────────────────────────────────────────
@@ -726,7 +731,7 @@ public partial class ShellWindow : Window
     /// </summary>
     private void ShowLanding()
     {
-        Retitle("START A", "PROJECT", then: () =>
+        Retitle(TitleFor(Stage.Landing).First, TitleFor(Stage.Landing).Second, then: () =>
         {
             // Only reached before the block has ever travelled, so these are
             // still laid out — but said anyway, because the one thing worse than

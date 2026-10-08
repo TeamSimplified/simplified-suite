@@ -40,7 +40,7 @@ public partial class ShellWindow
     /// what somebody has if they are halfway through finding it, so it is kept
     /// either way and the packager asks again if it has to.
     /// </summary>
-    private void GameDir_Done(object sender, RoutedEventArgs e)
+    private async void GameDir_Done(object sender, RoutedEventArgs e)
     {
         var typed = GameDirBox.Text.Trim();
 
@@ -69,7 +69,14 @@ public partial class ShellWindow
                 $"There is no {SponsorPackager.ShaderFolderName} folder in there, so this is not "
                 + "the game's own folder. It is the one F1_25.exe sits in.",
                 "Game directory", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            return;
         }
+
+        // A different game is a different build, so what came out of the last
+        // one is no longer the installed game's. This is also the one way a
+        // first run with no game set ever gets the text at all.
+        await EnsureGameFiles();
     }
 
     private void BrowseGameDir_Click(object sender, RoutedEventArgs e)

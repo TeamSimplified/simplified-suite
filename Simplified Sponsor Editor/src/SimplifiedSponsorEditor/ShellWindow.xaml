@@ -1016,6 +1016,46 @@
                                 </Trigger.ExitActions>
                             </Trigger>
 
+                            <!-- Off, the same quarter the chrome buttons go to,
+                                 so one disabled button in this app looks like
+                                 every other.
+
+                                 On Whole, which nothing else touches. The
+                                 button's own opacity is the window's, for
+                                 fading these two away; Fill, Edge, Light and
+                                 Dark each belong to the hover. Every property
+                                 here has exactly one owner, and this one needed
+                                 a property nobody had claimed. -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Cursor" Value="Arrow"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Whole"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.25" Duration="0:0:0.28">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="Whole"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1" Duration="0:0:0.28">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Fill" Property="Opacity" Value="0.86"/>
                             </Trigger>

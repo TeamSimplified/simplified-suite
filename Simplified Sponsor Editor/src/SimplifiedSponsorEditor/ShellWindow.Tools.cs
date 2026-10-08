@@ -323,7 +323,8 @@ public partial class ShellWindow
 
         Lift();
 
-        Retitle("APP", "SETTINGS", delay: ClearSeconds, then: () =>
+        Retitle(TitleFor(Stage.Settings).First, TitleFor(Stage.Settings).Second,
+                delay: ClearSeconds, then: () =>
         {
             Choices.Visibility = Visibility.Collapsed;
             Naming.Visibility = Visibility.Collapsed;
@@ -421,11 +422,21 @@ public partial class ShellWindow
         FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
     }
 
-    /// <summary>What a page's heading says, for one being returned to.</summary>
+    /// <summary>
+    /// What a page's heading says, for one being returned to.
+    ///
+    /// All five, not only the ones a tick comes back to. Reading the game at
+    /// startup borrows the heading and has to give it back, and the landing's
+    /// own words lived in ShowLanding where nothing else could find them — so
+    /// it gave back the project's heading instead and the start screen offered
+    /// to ADD A SPONSOR.
+    /// </summary>
     private (string First, string Second) TitleFor(Stage stage) => stage switch
     {
+        Stage.Landing => ("START A", "PROJECT"),
         Stage.Naming => ("PROJECT", "DETAILS"),
         Stage.Sponsor => ("EDIT YOUR", "SPONSOR"),
+        Stage.Settings => ("APP", "SETTINGS"),
         _ => ProjectTitle,
     };
 

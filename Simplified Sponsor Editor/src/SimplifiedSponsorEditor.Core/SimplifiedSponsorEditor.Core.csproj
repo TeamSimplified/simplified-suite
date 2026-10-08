@@ -17,18 +17,21 @@
     square decal onto the menu thumbnail's aspect - happens where the artwork is
     chosen, so what reaches here is always a PNG that texconv can take as it is.
   -->
-  <ItemGroup>
-    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
-
-    <!-- Which game build a mod was packaged against, read the one way the whole
-         suite reads it, so two apps' manifests compare equal. -->
-    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
-  </ItemGroup>
+  <!--
+    GameFileGuard and GameVersion were compiled in here from Shared until this
+    started referencing the Team Editor's Core, which compiles the same two and
+    makes them public. Two copies of one public type in one compilation is a
+    warning per use and a coin toss over which one wins, so they come from
+    there now — the same files either way, since both point at Shared.
+  -->
 
   <!-- The two resources the game wants in every mod that ships a shader
        package. One file in Shared, embedded by each packager that needs it;
-       SerpsOverlay reads it back out. LogicalName is pinned so the lookup
-       does not depend on this assembly's namespace. -->
+       SerpsOverlay reads it back out. It stays compiled in here because it is
+       internal, so each assembly that uses it needs its own — and an internal
+       type cannot collide with the Team Editor's copy the way the public two
+       did. LogicalName is pinned so the lookup does not depend on this
+       assembly's namespace. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
     <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />

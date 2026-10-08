@@ -173,20 +173,64 @@ public partial class ShellWindow
     /// ever edits artwork should never pay for them — and the one moment
     /// somebody is already waiting is the one this runs in.
     /// </summary>
-    private async Task<string?> Language(string gameDir, List<string> notes)
-    {
-        var state = LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
-        if (state == LanguageState.Current) return AppPaths.LanguageDir;
+    /// <summary>
+    /// Why the game's text is not beside the app, when it is not. Null when it
+    /// is, or when nobody has tried yet.
+    /// </summary>
+    private string? _languageProblem;
 
-        if (state == LanguageState.NoGame)
+    /// <summary>
+    /// Make sure the game's text is beside the app, fetching it if it is not.
+    ///
+    /// At startup, which is where the rest of the suite does this and the whole
+    /// reason it is here rather than in the package: the files live inside the
+    /// game's exe, getting them out means reading 408 MB, and a person opening
+    /// an app is expecting it to take a moment where a person who has just
+    /// pressed package is expecting a mod.
+    ///
+    /// Run again when the game folder changes, because the answer to "did these
+    /// come out of the installed game" changes with it — and because somebody
+    /// whose first run had no game set would otherwise never get them.
+    /// </summary>
+    private async Task EnsureGameFiles()
+    {
+        string? gameDir;
+        LanguageState state;
+
+        // Asking is as fallible as fetching: a half-written stamp, a folder
+        // somebody has taken away mid-read. This runs from Loaded, which is an
+        // async void handler, so anything that escapes it does not reach a
+        // caller — it reaches the dispatcher, and takes the window with it
+        // before the window has finished opening.
+        try
         {
-            notes.Add("The game isn't where it was, so the sponsors keep their old names in game.");
-            return null;
+            gameDir = KnownGameFolder();
+            state = LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
+        }
+        catch (Exception problem)
+        {
+            _languageProblem = problem.Message;
+            return;
         }
 
-        // Said on the heading rather than done quietly: taking these reads the
-        // game's exe end to end, and a package that sat on one word for a
-        // minute would read as one that had stopped.
+        // Current, or no game to take them from. Headline says which by having
+        // nothing to say.
+        if (LanguageFiles.Headline(state) is null)
+        {
+            _languageProblem = state == LanguageState.Current
+                ? null
+                : "the game folder isn't set";
+
+            return;
+        }
+
+        // Said on the heading rather than done quietly: this is the one thing
+        // the app does that can take half a minute, and an app that sat on one
+        // word for that long would read as one that had not finished opening.
+        //
+        // The door stays open. There is nothing half-written to spoil here, so
+        // there is no reason to keep somebody in while it reads.
+        Occupied(true, theDoorToo: false);
         Retitle("READING", "THE GAME", working: true);
 
         try
@@ -194,18 +238,41 @@ public partial class ShellWindow
             await Task.Run(() =>
                 LanguageFiles.Refresh(gameDir, AppPaths.LanguageDir, AppPaths.CacheDir));
 
-            return AppPaths.LanguageDir;
+            _languageProblem = null;
         }
         catch (Exception problem)
         {
-            // Worth a note, not a failure. The artwork is the mod; the names
-            // are the part of it that can be missing and still leave something
-            // worth installing.
-            notes.Add($"The game's text couldn't be read ({problem.Message}), so the sponsors "
-                + "keep their old names in game.");
-
-            return null;
+            // Not a dialog and not a failure. The app opens and works; what it
+            // cannot do until this is sorted out is name a sponsor in game, and
+            // the package says so itself when it gets there.
+            _languageProblem = problem.Message;
         }
+
+        Occupied(false, theDoorToo: false);
+
+        Retitle(TitleFor(_stage).First, TitleFor(_stage).Second);
+    }
+
+    /// <summary>
+    /// The game's text, or null with the reason in <paramref name="notes"/>.
+    ///
+    /// Only looked at here. Fetching it is startup's job, and a package that
+    /// went and got it would be the slow thing happening at the moment chosen
+    /// to avoid.
+    /// </summary>
+    private string? GameText(List<string> notes)
+    {
+        if (Directory.Exists(AppPaths.LanguageDir)
+            && Directory.EnumerateFiles(AppPaths.LanguageDir, SponsorLanguage.FilePattern).Any())
+        {
+            return AppPaths.LanguageDir;
+        }
+
+        notes.Add(_languageProblem is { } why
+            ? $"The game's text isn't here ({why}), so the sponsors keep their old names in game."
+            : "The game's text isn't here, so the sponsors keep their old names in game.");
+
+        return null;
     }
 
     /// <summary>
@@ -221,12 +288,7 @@ public partial class ShellWindow
         _packaging = true;
         Occupied(true);
 
-        // The text first, because it may have to be fetched out of the game
-        // before there is anything to write, and because the heading says so
-        // while it is.
-        var language = request.Text is { Count: > 0 }
-            ? await Language(request.GameDir, notes)
-            : null;
+        var language = request.Text is { Count: > 0 } ? GameText(notes) : null;
 
         Retitle("PACKAGING", "YOUR MOD", working: true);
 
@@ -295,22 +357,28 @@ public partial class ShellWindow
     /// dim row is an app that is busy. Nothing fades out — the tools leaving and
     /// coming back would read as the project closing and reopening.
     ///
-    /// The close button with them. Closing mid-package is refused anyway, and a
-    /// refusal nobody was warned about is worse than a button that says in
-    /// advance it will not do it.
-    ///
     /// The shelf only stops taking clicks. A card is not a button to look at,
     /// and six dimmed sponsors would say something was wrong with them.
     /// </summary>
-    private void Occupied(bool busy)
+    /// <param name="theDoorToo">
+    /// Whether the close button goes off with the rest. It does while a package
+    /// is being written, where closing is refused anyway and a refusal nobody
+    /// was warned about is worse than a button that says in advance it will not
+    /// do it. It does not while the app is only reading the game at startup:
+    /// there is nothing half-written to spoil, and no reason to keep somebody
+    /// in.
+    /// </param>
+    private void Occupied(bool busy, bool theDoorToo = true)
     {
+        Choices.IsEnabled = !busy;
         Tools.IsEnabled = !busy;
         SettingsButton.IsEnabled = !busy;
         AddButton.IsEnabled = !busy;
-        CloseButton.IsEnabled = !busy;
         ProjectTag.IsEnabled = !busy;
 
         Shelf.IsHitTestVisible = !busy;
+
+        if (theDoorToo) CloseButton.IsEnabled = !busy;
     }
 
     // ── What goes where ─────────────────────────────────────────────────────
@@ -487,15 +555,9 @@ public partial class ShellWindow
     /// </summary>
     private string? GameFolder()
     {
+        if (KnownGameFolder() is { } known) return known;
+
         var config = UserConfig.Load();
-
-        if (Usable(config.GameDir)) return config.GameDir;
-
-        if (GameDirDetector.Detect() is { } found && Usable(found.Path))
-        {
-            Keep(config, found.Path);
-            return found.Path;
-        }
 
         var answer = MessageDialog.Choose(this,
             "Where F1 25 is",
@@ -527,19 +589,43 @@ public partial class ShellWindow
 
         Keep(config, picker.FolderName);
         return picker.FolderName;
+    }
 
-        // Not merely a folder that exists: the shader package is what the mod is
-        // merged into, and its absence is the difference between the game's own
-        // folder and a folder with the game's name.
-        static bool Usable(string? dir) =>
-            !string.IsNullOrWhiteSpace(dir)
-            && Directory.Exists(Path.Combine(dir, SponsorPackager.ShaderFolderName));
+    /// <summary>
+    /// Where F1 25 is, without asking. Looked up, then detected and remembered.
+    ///
+    /// Separate from <see cref="GameFolder"/> because startup needs the answer
+    /// and must not have the question: an app that opened with a folder picker
+    /// in front of it would be asking before it had been given anything to do.
+    /// </summary>
+    private static string? KnownGameFolder()
+    {
+        var config = UserConfig.Load();
 
-        static void Keep(UserConfig config, string dir)
+        if (Usable(config.GameDir)) return config.GameDir;
+
+        if (GameDirDetector.Detect() is { } found && Usable(found.Path))
         {
-            config.GameDir = dir;
-            config.Save();
+            Keep(config, found.Path);
+            return found.Path;
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Not merely a folder that exists: the shader package is what a mod is
+    /// merged into, and its absence is the difference between the game's own
+    /// folder and a folder with the game's name.
+    /// </summary>
+    private static bool Usable(string? dir) =>
+        !string.IsNullOrWhiteSpace(dir)
+        && Directory.Exists(Path.Combine(dir, SponsorPackager.ShaderFolderName));
+
+    private static void Keep(UserConfig config, string dir)
+    {
+        config.GameDir = dir;
+        config.Save();
     }
 
     // ── Where the last one went ─────────────────────────────────────────────
