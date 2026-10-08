@@ -1,7 +1,6 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Threading;
 using SimplifiedSponsorEditor.Core.Project;
 using SimplifiedUi;
 
@@ -12,10 +11,17 @@ namespace SimplifiedSponsorEditor;
 /// </summary>
 public partial class ShellWindow
 {
+    /// <summary>
+    /// Whether anything has happened since the last save.
+    ///
+    /// Only what the file would hold: a sponsor added, changed or deleted, and
+    /// the project\'s own name. What is half-typed on a page nobody has ticked
+    /// is not in the project yet and is not what the question is about.
+    /// </summary>
+    private bool _dirty;
+
     /// <summary>How long SAVED stays up before the word goes back to STATUS.</summary>
     private static readonly TimeSpan Said = TimeSpan.FromSeconds(1.6);
-
-    private DispatcherTimer? _saying;
 
     /// <summary>
     /// Ctrl+S, from anywhere in the window.
@@ -27,6 +33,20 @@ public partial class ShellWindow
     /// </summary>
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
+        // Escape backs out of a page that has a cross on it, and only those:
+        // elsewhere it would be a shortcut for nothing, and a key that does
+        // nothing on most pages is worse than one that is not bound. The
+        // cross\'s own tooltip says Esc, so the two have to agree.
+        if (e.Key == Key.Escape && _stage is Stage.Naming or Stage.Sponsor)
+        {
+            e.Handled = true;
+
+            if (_stage == Stage.Sponsor) CancelSponsor();
+            else CancelNaming();
+
+            return;
+        }
+
         if (e.Key != Key.S || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
 
         e.Handled = true;
@@ -41,9 +61,14 @@ public partial class ShellWindow
     /// an error — Ctrl+S on the landing page should do nothing rather than
     /// complain about a project nobody has started.
     /// </summary>
-    private void SaveProject()
+    /// <param name="announce">
+    /// Whether to say so on the heading. False where the caller is already
+    /// retitling: two retitles at once animate the same property, and the
+    /// second would replace the first outright.
+    /// </param>
+    private bool SaveProject(bool announce = true)
     {
-        if (_project is not { } project) return;
+        if (_project is not { } project) return false;
 
         try
         {
@@ -53,39 +78,74 @@ public partial class ShellWindow
             // sponsor in it.
             SponsorFile.Write(project, _sponsors);
             ProjectStore.Save(project);
-            Say("SAVED");
+
+            _dirty = false;
+            if (announce) Announce();
         }
         catch (Exception problem)
         {
             MessageDialog.Show(this,
                 $"The project couldn't be saved.\n\n{problem.Message}",
                 "Save", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            return false;
         }
+
+        return true;
     }
 
     /// <summary>
-    /// Put a word where STATUS goes, and let it fall back after a moment.
-    ///
-    /// The heading is left alone. It says what the page is for, which has not
-    /// changed because something was saved, and borrowing it would mean the page
-    /// appearing to navigate somewhere on every Ctrl+S.
+    /// Ask about unsaved work before <paramref name="action"/>, and say whether
+    /// to go ahead. The suite\'s question, with the same three answers it asks
+    /// everywhere else \u2014 buttons that say what they do, so the body does not
+    /// have to gloss Yes and No.
     /// </summary>
-    private void Say(string word)
+    private bool ConfirmDiscardChanges(string action)
     {
-        _saying?.Stop();
+        if (_project is not { } project || !_dirty) return true;
 
-        StatusWord.Text = word;
+        var answer = MessageDialog.Choose(this,
+            "Unsaved changes",
+            $"{(string.IsNullOrWhiteSpace(project.Info.Name) ? project.DisplayName : project.Info.Name)} "
+            + "has changes that haven\u2019t been saved.",
+            $"Save writes them into the project first. Discard throws them away. "
+            + $"Either way the app will then {action}.",
+            ("Save", MessageBoxResult.Yes),
+            ("Discard", MessageBoxResult.No),
+            ("Cancel", MessageBoxResult.Cancel));
 
-        _saying = new DispatcherTimer { Interval = Said };
-
-        _saying.Tick += (_, _) =>
+        return answer switch
         {
-            _saying?.Stop();
-            _saying = null;
-            StatusWord.Text = "STATUS";
+            MessageBoxResult.Yes => SaveProject(announce: false),
+            MessageBoxResult.No => true,
+            _ => false,
         };
+    }
 
-        _saying.Start();
+    /// <summary>
+    /// Say it on the heading, and put the heading back after a moment.
+    ///
+    /// The heading is the status — it is what says SETTING UP YOUR PROJECT
+    /// while one is being made. STATUS is the little grey word that labels it,
+    /// and changing a label to SAVED says the heading is now called "saved",
+    /// which is not a thing that happened.
+    ///
+    /// Chained through <c>then</c> rather than scheduled: both retitles animate
+    /// the heading\'s opacity, so a second one on a timer would replace the
+    /// first and the words would never arrive.
+    /// </summary>
+    private void Announce()
+    {
+        // Only where there is a heading to give back. Mid-transition the page
+        // is already retitling itself and this would be a third voice.
+        if (_stage != Stage.Project) return;
+
+        Retitle("PROJECT", "SAVED.", then: () =>
+            After(Said.TotalSeconds, () =>
+            {
+                if (_stage == Stage.Project)
+                    Retitle(ProjectTitle.First, ProjectTitle.Second);
+            }));
     }
 
     /// <summary>
@@ -100,13 +160,16 @@ public partial class ShellWindow
         _sponsors.AddRange(SponsorFile.Read(project));
         Reshelve();
 
+        // Just read off disk, so the window and the file agree.
+        _dirty = false;
+
         if (_sponsors.Count == 0)
         {
             // Nothing to show, so nothing to make room for. A project that was
             // just named left the block at the top; this puts it back.
             Shelf.Visibility = Visibility.Collapsed;
             Shelf.IsHitTestVisible = false;
-            Drop();
+            Lower();
             return;
         }
 

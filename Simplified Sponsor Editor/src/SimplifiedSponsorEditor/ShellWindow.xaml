@@ -634,7 +634,21 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid>
+                        <!-- The whole button grows a little under the pointer.
+                             The fill alone could not answer for both: New is
+                             filled at rest, so "raise whichever is low" had
+                             nothing to raise and it sat there dead while Open
+                             lit up beside it.
+
+                             A render transform, so nothing re-flows — the two
+                             sit in a row and growing one in layout would shove
+                             the other along. From the middle, or it would grow
+                             off to the right. -->
+                        <Grid x:Name="Whole" RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="Swell" ScaleX="1" ScaleY="1"/>
+                            </Grid.RenderTransform>
+
                             <Border x:Name="Fill" Background="#FFFFFF" CornerRadius="10"
                                     Opacity="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
                             <Border x:Name="Edge" CornerRadius="10"
@@ -660,6 +674,25 @@
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
+                                            <!-- 4%. At 46 tall that is under two
+                                                 pixels, which is the point: it
+                                                 should read as the button
+                                                 noticing rather than as the page
+                                                 moving. -->
+                                            <DoubleAnimation Storyboard.TargetName="Swell"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.04" Duration="0:0:0.16">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="Swell"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.04" Duration="0:0:0.16">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
                                             <DoubleAnimation Storyboard.TargetName="Fill"
                                                              Storyboard.TargetProperty="Opacity"
                                                              To="1" Duration="0:0:0.16">
@@ -676,6 +709,25 @@
                                 <Trigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
+                                            <!-- No To, as the two below: an
+                                                 animation without one runs back
+                                                 to the property’s own value,
+                                                 which here is the 1 the setter
+                                                 gave it. -->
+                                            <DoubleAnimation Storyboard.TargetName="Swell"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             Duration="0:0:0.20">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="Swell"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             Duration="0:0:0.20">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
                                             <DoubleAnimation Storyboard.TargetName="Fill"
                                                              Storyboard.TargetProperty="Opacity"
                                                              Duration="0:0:0.20">
@@ -1215,6 +1267,34 @@
             </Button>
         </Grid>
 
+        <!-- The way out of the naming page, over the tick that is the way
+             through it. Escape does the same thing — this is for the hand
+             already on the mouse.
+
+             Over the tick rather than beside it, because they are not a pair
+             of equal choices: one finishes what the page is for and the other
+             abandons it. Side by side at the same size they would read as
+             Yes and No.
+
+             92 from the bottom clears the tick, which spans 40 to 84. -->
+        <Button x:Name="CancelNamingButton"
+                Style="{StaticResource ChromeButton}"
+                Width="22" Height="22"
+                Foreground="#FFFFFF"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,92"
+                Opacity="0"
+                IsHitTestVisible="False"
+                Click="CancelNaming_Click"
+                ToolTip="Cancel (Esc)">
+            <Viewbox Height="14" Stretch="Uniform">
+                <Canvas Width="24" Height="24">
+                    <Path Data="{StaticResource CloseGlyph}"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Canvas>
+            </Viewbox>
+        </Button>
+
         <!-- The bottom row: settings in one corner, the tools in the other, and
              the plus on the centre line of the window between them.
 
@@ -1245,7 +1325,10 @@
             </Grid.ColumnDefinitions>
 
             <!-- Settings, on its own in the far corner. It is not one of the
-                 things you do to a project, so it does not stand with them. -->
+                 things you do to a project, so it does not stand with them —
+                 and it does not come and go with them either: it belongs to the
+                 app rather than to whatever is open, so it is here from the
+                 first frame and never fades. -->
             <Button x:Name="SettingsButton"
                     Grid.Column="0"
                     Style="{StaticResource ChromeButton}"
@@ -1253,8 +1336,6 @@
                     Foreground="#FFFFFF"
                     HorizontalAlignment="Left" VerticalAlignment="Center"
                     Margin="46,0,0,0"
-                    Opacity="0"
-                    IsHitTestVisible="False"
                     Click="Settings_Click"
                     ToolTip="Settings">
                 <Viewbox Height="18" Stretch="Uniform">

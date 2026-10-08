@@ -83,6 +83,8 @@ public partial class ShellWindow
         if (_openAt >= 0 && _openAt < _sponsors.Count) _sponsors[_openAt] = sponsor;
         else _sponsors.Add(sponsor);
 
+        _dirty = true;
+
         _openAt = -1;
         Reshelve();
     }
@@ -165,6 +167,7 @@ public partial class ShellWindow
             if (at < 0 || at >= _sponsors.Count) return;
 
             _sponsors.RemoveAt(at);
+            _dirty = true;
 
             // If the one being edited was behind this on the shelf it has just
             // moved up one, and the page is still pointing at where it used to
@@ -190,7 +193,7 @@ public partial class ShellWindow
             Shelf.IsHitTestVisible = false;
             Fade(Shelf, to: 0, seconds: ClearSeconds);
             After(ClearSeconds, () => Shelf.Visibility = Visibility.Collapsed);
-            Drop();
+            Lower();
         };
 
         return new ContextMenu { Items = { delete } };

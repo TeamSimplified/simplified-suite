@@ -54,7 +54,13 @@ public partial class ShellWindow
     /// </summary>
     private void Reveal(bool wanted)
     {
-        if (ProjectTag.Opacity < 0.5) return;
+        // Hit-testing, not opacity. Opacity was the wrong question twice over:
+        // the tag fades in over PlusIn, so for the first half of that it reads
+        // under a half and the MouseEnter that arrived in the window was thrown
+        // away — and a pointer is only told to enter once, so it never asked
+        // again. This is the flag that actually says whether the tag is live,
+        // and it is true for the whole of the fade.
+        if (!ProjectTag.IsHitTestVisible) return;
 
         var travel = wanted ? -(CloseProjectButton.Width + TagGap) : 0;
 
@@ -68,30 +74,19 @@ public partial class ShellWindow
     /// <summary>
     /// Put the project away and go back to the landing.
     ///
-    /// Saved on the way out. The project has a file — New wrote one before this
-    /// page was ever reached — so saving costs nothing and losing an afternoon
-    /// to a cross in the corner costs a great deal. Anybody who wants the old
-    /// version has it in the file they last saved.
+    /// Asked rather than assumed. This used to save on the way out, which meant
+    /// a cross in the corner silently committed whatever was on the shelf — and
+    /// there was then no way to abandon an afternoon somebody regretted. The
+    /// suite asks this question everywhere else and it asks it here now.
     /// </summary>
     private void CloseProject_Click(object sender, RoutedEventArgs e)
     {
         if (_project is not { } project || _stage != Stage.Project) return;
 
-        try
-        {
-            SponsorFile.Write(project, _sponsors);
-            ProjectStore.Save(project);
-        }
-        catch (Exception problem)
-        {
-            // Said rather than swallowed, and the project stays open: closing it
-            // after failing to save would be the one case where the save
-            // mattered most.
-            SimplifiedUi.MessageDialog.Show(this,
-                $"The project couldn't be saved, so it hasn't been closed.\n\n{problem.Message}",
-                "Close", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        // Save, Discard or Cancel. False is Cancel, or a save that failed —
+        // either way the project stays open, because closing after failing to
+        // save is the one case where the save mattered most.
+        if (!ConfirmDiscardChanges("close the project")) return;
 
         _stage = Stage.Landing;
 
@@ -111,6 +106,7 @@ public partial class ShellWindow
             Shelf.Visibility = Visibility.Collapsed;
             Shelved.Children.Clear();
             _sponsors.Clear();
+            _dirty = false;
 
             ProjectStore.Close(project);
             _project = null;

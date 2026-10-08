@@ -10,6 +10,7 @@ using SimplifiedSponsorEditor.Core.Config;
 using SimplifiedSponsorEditor.Core.Project;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 
 namespace SimplifiedSponsorEditor;
 
@@ -184,20 +185,26 @@ public partial class ShellWindow : Window
         // Lift takes the choices out of the layout, and doing that while the
         // chosen button is still fading would snatch it off the screen instead
         // of letting it go.
-        Retitle("NAME YOUR", "PROJECT", delay: answering, then: () =>
+        Retitle("PROJECT", "DETAILS", delay: answering, then: () =>
         {
             Lift();
 
+            // Behind the slide, not alongside it. Lift takes SlideSeconds to
+            // carry the block up and the fields sit directly under where it
+            // lands — arriving while it was still moving had them appear in a
+            // space the heading had not finished leaving.
             Naming.Visibility = Visibility.Visible;
             Naming.IsHitTestVisible = true;
-            FadeInAfter(Naming, delay: 0, seconds: PlusIn);
+            FadeInAfter(Naming, delay: SlideSeconds, seconds: PlusIn);
 
             ActionGlyph.Data = Geometry.Parse(TickData);
             AddButton.ToolTip = "Create the project";
             AddButton.IsHitTestVisible = true;
-            FadeInAfter(AddButton, delay: 0, seconds: PlusIn);
+            FadeInAfter(AddButton, delay: SlideSeconds, seconds: PlusIn);
 
-            ProjectName.Focus();
+            ShowCancel(true, delay: SlideSeconds);
+
+            FocusWhenShown(ProjectName, SlideSeconds);
         });
     }
 
@@ -238,6 +245,7 @@ public partial class ShellWindow : Window
         Naming.IsHitTestVisible = false;
         Fade(Naming, to: 0, seconds: ClearSeconds);
         Fade(AddButton, to: 0, seconds: ClearSeconds);
+        ShowCancel(false);
 
         const double answering = ClearSeconds + Gap;
 
@@ -255,7 +263,7 @@ public partial class ShellWindow : Window
             // gone, and leaving it up until the project exists would hold the
             // mark and the status at the top through the whole of SETTING UP —
             // on a page that by then has nothing under them.
-            Drop();
+            Lower();
         });
 
         Retitle("SETTING UP", "YOUR PROJECT", working: true, delay: answering,
@@ -409,6 +417,7 @@ public partial class ShellWindow : Window
         // the bottom of a fade.
         Fade(AddButton, to: 0, seconds: ClearSeconds);
         ShowTools(false);
+        ShowCancel(false);
 
         Shelf.IsHitTestVisible = false;
         if (Shelf.Visibility == Visibility.Visible) Fade(Shelf, to: 0, seconds: ClearSeconds);
@@ -430,11 +439,12 @@ public partial class ShellWindow : Window
             Section.IsHitTestVisible = true;
             FadeInAfter(Section, delay: 0, seconds: PlusIn);
 
-            // Focused at the start of the fade, not the end: by the time
-            // anybody can see the field they can already type into it. Nothing
-            // else on the page takes a keystroke, so there is nothing to take
-            // it from.
-            SponsorName.Focus();
+            ShowCancel(true);
+
+            // By the time anybody can see the field they can already type into
+            // it. Nothing else on the page takes a keystroke, so there is
+            // nothing to take it from.
+            FocusWhenShown(SponsorName, 0);
         });
     }
 
@@ -551,6 +561,7 @@ public partial class ShellWindow : Window
         // here first. One left out renders at the top of the window,
         // straight over the mark and the heading.
         Naming.Margin = new Thickness(0, top, 0, Naming.Margin.Bottom);
+        SettingsPage.Margin = new Thickness(0, top, 0, SettingsPage.Margin.Bottom);
         Section.Margin = new Thickness(0, top, 0, Section.Margin.Bottom);
         Shelf.Margin = new Thickness(0, top, 0, Shelf.Margin.Bottom);
     }
@@ -567,7 +578,10 @@ public partial class ShellWindow : Window
     /// For a project with nothing on its shelf. The block is lifted to make room
     /// for a list, and a page with no list has nothing to make room for.
     /// </summary>
-    private void Drop()
+    // Named against Lift rather than Drop: UIElement already has a Drop,
+    // which is the drag-and-drop event, and a method here under that name
+    // hides it.
+    private void Lower()
     {
         var was = Block.TranslatePoint(new Point(0, 0), Root).Y;
 
@@ -666,18 +680,39 @@ public partial class ShellWindow : Window
 
         _project = project;
 
+        // Here rather than in the callers. Create set it and Open did not, so a
+        // project that was opened sat on the project page with the window still
+        // believing it was on the landing — and anything that asked, like
+        // settings asking where to go back to, got the wrong answer. This is the
+        // one place both routes arrive.
+        _stage = Stage.Project;
+
+        // And the choices go for good. Begin only fades them; New happened to
+        // collapse them on the way through Lift, so a project that was opened
+        // rather than made still had 84px of invisible buttons inside the
+        // block — and a block centred around them sits that much too high.
+        //
+        // Before LoadSponsors, which is what centres it.
+        Choices.Visibility = Visibility.Collapsed;
+        Choices.IsHitTestVisible = false;
+
         // Whatever it already holds, before the page that shows it arrives.
         LoadSponsors();
         NameTheProject();
 
         Retitle(ProjectTitle.First, ProjectTitle.Second, then: () =>
         {
-            // After it, not alongside: two things moving at once read as one
-            // event and neither gets looked at, which is exactly why the button
-            // and the first heading are together and this is not.
-            AddButton.IsHitTestVisible = true;
-            FadeInAfter(AddButton, delay: Gap, seconds: PlusIn);
+            // After the heading, not alongside it: two things moving at once
+            // read as one event and neither gets looked at.
+            //
+            // And the corner before the plus, a beat apart. They are not one
+            // thing — the corner is what this project is and what can be done
+            // to it, the plus is the one thing to do next — so they arrive in
+            // that order and the eye finishes with the plus.
             ShowTools(true, delay: Gap);
+
+            AddButton.IsHitTestVisible = true;
+            FadeInAfter(AddButton, delay: Gap + Gap, seconds: PlusIn);
         });
     }
 
@@ -696,7 +731,15 @@ public partial class ShellWindow : Window
             Choices.IsHitTestVisible = true;
             Section.Visibility = Visibility.Collapsed;
             Section.IsHitTestVisible = false;
-            Drop();
+
+            // A landing has no project, so it has none of a project's furniture
+            // either. Said here rather than left to the caller: every way back
+            // to this page should arrive at the same page.
+            ShowTools(false);
+            Shelf.Visibility = Visibility.Collapsed;
+            Shelf.IsHitTestVisible = false;
+
+            Lower();
             Fade(NewButton, to: 1, seconds: ClearSeconds);
             Fade(OpenButton, to: 1, seconds: ClearSeconds);
         });
@@ -803,6 +846,32 @@ public partial class ShellWindow : Window
         timer.Start();
     }
 
+    /// <summary>
+    /// Put the cursor in a box once the box is really there.
+    ///
+    /// Focus on an element that was collapsed a moment ago takes the logical
+    /// focus and not the keyboard’s. Measured: IsFocused comes back true — so
+    /// it draws a caret and looks ready — while Keyboard.FocusedElement is
+    /// nothing at all, and every keystroke goes nowhere. It never recovers on
+    /// its own; clicking the box is what fixes it, which is exactly the
+    /// finickiness this is here to remove.
+    ///
+    /// Two things make it stick. The wait is for the page to arrive, because an
+    /// element that has not been laid out cannot take the keyboard. The inner
+    /// hop to Input priority is for the layout pass itself: it runs below
+    /// Render and Loaded, so by the time it comes round the box has a size.
+    /// </summary>
+    private void FocusWhenShown(TextBox box, double delay, bool selectAll = false)
+    {
+        After(delay, () => Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+        {
+            Keyboard.Focus(box);
+
+            if (selectAll) box.SelectAll();
+            else box.CaretIndex = box.Text.Length;
+        }));
+    }
+
     private static void Fade(UIElement element, double to, double seconds, double delay = 0) =>
         element.BeginAnimation(OpacityProperty, Glide(to, seconds, delay));
 
@@ -862,6 +931,15 @@ public partial class ShellWindow : Window
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         if (_project is null) return;
+
+        // The same question the cross asks, because it is the same question:
+        // there is work in here that is not on disk. Cancel leaves the window
+        // open rather than closing it quietly and hoping nobody minded.
+        if (!ConfirmDiscardChanges("close"))
+        {
+            e.Cancel = true;
+            return;
+        }
 
         ProjectStore.Close(_project);
         _project = null;
