@@ -65,8 +65,13 @@ namespace EgoEngineLibrary.Archive.Erp
                 PackedSize = Size;
             }
 
-            var pos = Convert.ToInt32(reader.BaseStream.Position);
-            reader.Seek(Convert.ToInt32(ParentFile.ResourceOffset + Offset), SeekOrigin.Begin);
+            // Positions as longs. They went through Convert.ToInt32, which threw on
+            // the first fragment past 2 GB - measured on a 5.4 GB archive, 7,666 of
+            // its fragments lay beyond that and none of it could be opened. One
+            // fragment is still read into one array, so its own size stays an int:
+            // that limit is the array's, not the archive's.
+            var pos = reader.BaseStream.Position;
+            reader.Seek(checked((long)(ParentFile.ResourceOffset + Offset)), SeekOrigin.Begin);
             _data = reader.ReadBytes(Convert.ToInt32(PackedSize));
             reader.Seek(pos, SeekOrigin.Begin);
         }

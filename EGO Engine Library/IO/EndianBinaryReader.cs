@@ -149,9 +149,13 @@ namespace MiscUtil.IO
 		/// <summary>
 		/// Seeks within the stream.
 		/// </summary>
-		/// <param name="offset">Offset to seek to.</param>
+		/// <param name="offset">
+		/// Offset to seek to. A long, as the stream's own Seek takes: an int capped
+		/// every reader at 2 GB, and an ERP with embedded mipmaps is past that easily.
+		/// Callers passing an int are unchanged.
+		/// </param>
 		/// <param name="origin">Origin of seek operation.</param>
-		public void Seek (int offset, SeekOrigin origin)
+		public void Seek (long offset, SeekOrigin origin)
 		{
 			CheckDisposed();
 			stream.Seek (offset, origin);
