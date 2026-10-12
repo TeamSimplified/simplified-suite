@@ -62,16 +62,15 @@ public partial class ShellWindow
     }
 
     /// <summary>
-    /// The file, or null if nobody picked one. Two kinds, because they are the
-    /// two the canvas can open: a vector opens as its pieces and a bitmap opens
-    /// whole.
+    /// The file, or null if nobody picked one: a drawing, or a picture in any
+    /// of the formats <see cref="ArtworkFile"/> reads.
     /// </summary>
     private string? Browse()
     {
         var dialog = new OpenFileDialog
         {
             Title = "Choose artwork for this variation",
-            Filter = "Artwork (*.svg;*.png)|*.svg;*.png|Vector (*.svg)|*.svg|Picture (*.png)|*.png",
+            Filter = ArtworkFile.Filter,
             CheckFileExists = true,
         };
 

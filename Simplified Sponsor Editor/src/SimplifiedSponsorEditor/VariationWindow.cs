@@ -119,9 +119,18 @@ public static class VariationWindow
         picked.Children.Add(canvasChip);
         picked.Children.Add(frameChip);
 
-        var count = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+        // The double-click is the one thing about picking nobody would guess,
+        // so it is said where the count is.
+        var count = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Click a part to pick it  ·  Ctrl-click to pick more\n"
+                      + "Double-click to pick every part that colour — all the letters of a word",
+        };
+
         count.SetResourceReference(TextBlock.ForegroundProperty, "TextMuted");
 
+        var background = new Button { Content = "Select background", Padding = new Thickness(12, 0, 12, 0) };
         var remove = new Button { Content = "Delete", Width = 80, IsEnabled = false };
         var reset = new Button { Content = "Reset", Width = 80, IsEnabled = false };
 
@@ -140,20 +149,23 @@ public static class VariationWindow
         };
 
         colourBox.SetResourceReference(Control.BorderBrushProperty, "BorderStrong");
-        remove.Margin = new Thickness(10, 0, 0, 0);
-        remove.ToolTip = "Drop the pieces that are picked";
+
+        // Picks rather than deletes. What was found is shown picked first, so
+        // a background that turned out to take part of the logo with it is seen
+        // before it goes — and Delete, right beside it, is one click further.
+        background.Margin = new Thickness(10, 0, 0, 0);
+        background.ToolTip = canvas.IsVector
+            ? "Pick the shapes behind the logo that cover the whole drawing, ready to delete"
+            : "Pick the background — the colour round the edge of the picture — ready to delete";
+        remove.Margin = new Thickness(8, 0, 0, 0);
+        remove.ToolTip = "Drop the pieces that are picked (Delete)";
         reset.Margin = new Thickness(8, 0, 0, 0);
         reset.ToolTip = "Put the artwork back the way the file has it";
-
-        // A picture has no pieces, so it has nothing to delete. Collapsed
-        // rather than disabled: a button that can never be pressed for this
-        // kind of file is not a state of the button, it is a tool that does not
-        // apply, and leaving it greyed out says the opposite.
-        if (!canvas.IsVector) remove.Visibility = Visibility.Collapsed;
 
         var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         tools.Children.Add(picked);
         tools.Children.Add(colourBox);
+        tools.Children.Add(background);
         tools.Children.Add(remove);
         tools.Children.Add(reset);
 
@@ -242,29 +254,25 @@ public static class VariationWindow
         // click happened to put it right.
         void Settled()
         {
-            // Nothing for a bitmap. It has one piece and it is always the one
-            // picked, so a count would read "1 of 1" forever, and explaining
-            // that there is nothing to pick is a sentence that stops being news
-            // the first time it is read.
-            count.Text = canvas.IsVector
-                ? canvas.SelectedCount switch
-                {
-                    0 => $"{canvas.PartCount} part{(canvas.PartCount == 1 ? "" : "s")}  ·  click one to pick it",
-                    1 => $"1 of {canvas.PartCount} picked",
-                    var many => $"{many} of {canvas.PartCount} picked",
-                }
-                : "";
+            // A drawing and a picture both come apart into pieces now, so
+            // both say how many. Short, because it shares a row with five
+            // buttons and a slider; the rest of how picking works is the
+            // tooltip's.
+            count.Text = canvas.SelectedCount switch
+            {
+                0 => $"{canvas.PartCount} part{(canvas.PartCount == 1 ? "" : "s")}  ·  click one to pick it",
+                1 => $"1 of {canvas.PartCount} picked",
+                var many => $"{many} of {canvas.PartCount} picked",
+            };
 
             remove.IsEnabled = canvas.CanDelete;
             reset.IsEnabled = canvas.CanReset;
 
             colourBox.IsEnabled = canvas.CanPaint;
 
-            colourBox.ToolTip = canvas.IsVector
-                ? canvas.PaintsEverything
-                    ? "Click to colour the whole drawing — pick pieces first to colour only those"
-                    : "Click to change the colour of what is picked"
-                : "Click to lay a colour over the whole picture";
+            colourBox.ToolTip = canvas.PaintsEverything
+                ? "Click to colour the whole logo — pick pieces first to colour only those"
+                : "Click to change the colour of what is picked";
             colourBox.Background = canvas.Shown is { } one
                 ? new SolidColorBrush(one)
                 : ThemeBrush("SurfaceSunken");
@@ -309,7 +317,10 @@ public static class VariationWindow
             Title = $"Edit artwork — {variation.Name}",
             Owner = owner,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Width = 860,
+            // Wider than v1.1's 860 by the button the background tool added
+            // to the bar, so the part count beside it is not the thing that
+            // gets cut off.
+            Width = 960,
             Height = 700,
             MinWidth = 520,
             MinHeight = 420,
@@ -325,6 +336,33 @@ public static class VariationWindow
 
         window.Content = Chrome(window, body);
 
+        background.Click += (_, _) =>
+        {
+            if (canvas.SelectBackground() > 0) return;
+
+            // Said rather than left as a click that did nothing, because the
+            // two reasons there is nothing to pick are both worth knowing.
+            MessageDialog.Show(window,
+                canvas.IsVector
+                    ? "No background to pick.\n\nNothing in this drawing sits behind the logo covering all of it."
+                    : "No background to pick.\n\nThe edge of this picture is already see-through, "
+                      + "or nothing in it stands apart from the colour round the edge.",
+                "Select background", MessageBoxButton.OK, MessageBoxImage.Information);
+        };
+
+        // The key that means delete everywhere else, meaning it here — but only
+        // on the Canvas view, where what is picked can be seen. On Frame it
+        // would drop pieces somebody is not looking at.
+        window.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Delete || !canvas.CanDelete
+                || canvas.Element.Visibility != Visibility.Visible)
+                return;
+
+            canvas.Delete();
+            e.Handled = true;
+        };
+
         colourBox.Click += (_, _) =>
         {
             if (!canvas.CanPaint) return;
@@ -332,7 +370,7 @@ public static class VariationWindow
             var from = canvas.Shown ?? Colors.White;
 
             var chosen = ColourDialog.Show(
-                window, canvas.IsVector ? "Part colour" : "Overlay colour",
+                window, "Part colour",
                 $"#{from.R:X2}{from.G:X2}{from.B:X2}");
 
             if (chosen is null || !Hex.IsMatch(chosen)) return;
@@ -346,7 +384,7 @@ public static class VariationWindow
 
         keep.Click += (_, _) =>
         {
-            if (canvas.IsVector && canvas.PartCount == 0)
+            if (canvas.PartCount == 0)
             {
                 MessageDialog.Show(window,
                     "Everything has been deleted, so there is no artwork left.",
@@ -360,7 +398,12 @@ public static class VariationWindow
         if (window.ShowDialog() != true) return null;
 
         working.Edits = canvas.Result();
-        working.Overlay = canvas.Overlay;
+
+        // An overlay is how 2.0 coloured a whole picture before pictures had
+        // pieces. The canvas read any it was handed as every piece painted, so
+        // the edits now say it, and keeping the overlay as well would say it
+        // twice.
+        working.Overlay = null;
         return working;
     }
 

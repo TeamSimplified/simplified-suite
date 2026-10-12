@@ -12,10 +12,12 @@
     encoding a PNG into one and merging the result into a shader package are all
     EgoEngineLibrary operations this calls with paths.
 
-    No image code either, which is why this is still plain net10.0 rather than
-    net10.0-windows: the one picture operation the app needs - letterboxing a
-    square decal onto the menu thumbnail's aspect - happens where the artwork is
-    chosen, so what reaches here is always a PNG that texconv can take as it is.
+    No image library either, which is why this is still plain net10.0 rather
+    than net10.0-windows: letterboxing a decal onto the menu thumbnail's aspect
+    happens where the artwork is chosen, so what reaches the packager is always
+    a PNG that texconv can take as it is. Artwork/RasterParts works on pixels
+    the app has already read, as plain bytes, which is what lets it be run from
+    a console with nothing on screen.
   -->
   <!--
     GameFileGuard and GameVersion were compiled in here from Shared until this

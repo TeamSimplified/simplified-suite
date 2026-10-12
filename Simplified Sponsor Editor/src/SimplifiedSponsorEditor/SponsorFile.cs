@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Simplified.Shared;
+using SimplifiedSponsorEditor.Core.Artwork;
 using SimplifiedSponsorEditor.Core.Project;
 
 namespace SimplifiedSponsorEditor;
@@ -89,6 +90,13 @@ public static class SponsorFile
 
         [JsonPropertyName("overlay")] public string? Overlay { get; init; }
 
+        /// <summary>
+        /// For a picture with edits, which way of taking pictures apart
+        /// numbered the pieces they name — see <see cref="RasterParts.Version"/>.
+        /// A drawing's pieces are numbered by its file and need no such thing.
+        /// </summary>
+        [JsonPropertyName("parts")] public int? Parts { get; init; }
+
         [JsonPropertyName("car_span")] public double CarSpan { get; init; } = Variation.DefaultSpan;
 
         [JsonPropertyName("menu_span")] public double MenuSpan { get; init; } = Variation.DefaultSpan;
@@ -138,6 +146,7 @@ public static class SponsorFile
                     Removed = variation.Edits.Removed.Count > 0 ? variation.Edits.Removed : null,
                     Colours = variation.Edits.Colours.Count > 0 ? variation.Edits.Colours : null,
                     Overlay = variation.Overlay,
+                    Parts = !variation.IsVector && !variation.Edits.IsEmpty ? RasterParts.Version : null,
                     CarSpan = variation.CarSpan,
                     MenuSpan = variation.MenuSpan,
                 });
@@ -240,7 +249,7 @@ public static class SponsorFile
                     var file = Path.Combine(Artwork(project), slot.File);
                     if (!File.Exists(file)) continue;
 
-                    sponsor.Variations[slot.At] = new Variation
+                    var variation = new Variation
                     {
                         SourcePath = file,
                         // After the path, because setting the path is what
@@ -257,6 +266,18 @@ public static class SponsorFile
                         CarSpan = slot.CarSpan,
                         MenuSpan = slot.MenuSpan,
                     };
+
+                    // A picture's edits name pieces by number, and the numbers
+                    // belong to the version of the app that took the picture
+                    // apart. Read against a different numbering they would
+                    // paint and drop whatever is now called by those numbers,
+                    // so they are let go and the picture opens as its file —
+                    // which is wrong in a way somebody can see and redo, rather
+                    // than in a way that ships.
+                    if (!variation.IsVector && !variation.Edits.IsEmpty && slot.Parts != RasterParts.Version)
+                        variation.Edits = new SvgEdits();
+
+                    sponsor.Variations[slot.At] = variation;
                 }
 
                 sponsors.Add(sponsor);

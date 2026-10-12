@@ -63,15 +63,18 @@ public sealed class Variation
     public string? StoredName { get; set; }
 
     /// <summary>
-    /// Which parts were dropped and which were repainted. Vector only: a PNG
-    /// has no parts to pick, so this stays empty for one.
+    /// Which parts were dropped and which were repainted — a drawing's shapes,
+    /// or the runs of colour a picture comes apart into. Numbered the same way
+    /// every time the same file is opened, which is what lets a number stand
+    /// for a piece.
     /// </summary>
     public SvgEdits Edits { get; set; } = new();
 
     /// <summary>
-    /// A colour laid over the whole picture, as <c>#RRGGBB</c>. Bitmap only —
-    /// where a vector can have one shape repainted, a PNG has nothing to pick,
-    /// so the colour applies to all of it or to none.
+    /// A colour laid over the whole of a picture, as <c>#RRGGBB</c> — how 2.0
+    /// coloured a PNG before pictures had pieces. Still read, as every piece
+    /// painted that colour; never written once the variation has been opened,
+    /// because by then <see cref="Edits"/> says the same thing.
     /// </summary>
     public string? Overlay { get; set; }
 
@@ -83,15 +86,8 @@ public sealed class Variation
 
     public bool IsEmpty => string.IsNullOrWhiteSpace(SourcePath);
 
-    /// <summary>
-    /// Whether this one has parts to pick. Decided by the extension rather than
-    /// by reading the file: the open dialog only offers these two, and a file
-    /// renamed to lie about itself fails at the reader with a clearer complaint
-    /// than it would make here.
-    /// </summary>
-    public bool IsVector =>
-        SourcePath is { } path &&
-        Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Whether this one is a drawing rather than a picture.</summary>
+    public bool IsVector => SourcePath is { } path && ArtworkFile.IsVector(path);
 
     public string Name => SourcePath is { } path ? Path.GetFileName(path) : "";
 
