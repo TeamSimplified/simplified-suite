@@ -183,6 +183,44 @@ namespace EgoEngineLibrary.Archive.Erp
             return _resourceInfoLength;
         }
 
+        /// <summary>
+        /// A copy belonging to <paramref name="parentFile"/>, fragments and hash
+        /// included, so it can be renamed or changed without touching this one.
+        /// </summary>
+        public ErpResource Clone(ErpFile parentFile)
+        {
+            var copy = new ErpResource(parentFile)
+            {
+                Identifier = Identifier,
+                ResourceType = ResourceType,
+                Unknown = Unknown,
+                Unknown2 = Unknown2,
+                Hash = (byte[])Hash.Clone(),
+            };
+            foreach (var fragment in Fragments)
+            {
+                copy.Fragments.Add(fragment.Clone(parentFile));
+            }
+            return copy;
+        }
+
+        /// <summary>
+        /// Recompute <see cref="Hash"/> from the fragments as they are now: the MD5
+        /// of every fragment's decompressed data, in order. Setting a fragment's data
+        /// leaves the old hash in place; the game's own archives, and the editors
+        /// that write them, keep it matching what the resource holds.
+        /// </summary>
+        public void UpdateHash()
+        {
+            using var md5 = System.Security.Cryptography.IncrementalHash.CreateHash(
+                System.Security.Cryptography.HashAlgorithmName.MD5);
+            foreach (var fragment in Fragments)
+            {
+                md5.AppendData(fragment.GetDataArray(true));
+            }
+            Hash = md5.GetHashAndReset();
+        }
+
         public ErpFragment? TryGetFragment(string name, int count)
         {
             foreach (var fragment in Fragments)

@@ -41,6 +41,25 @@ namespace EgoEngineLibrary.Archive.Erp
             _data = Array.Empty<byte>();
         }
 
+        /// <summary>
+        /// A copy belonging to <paramref name="parentFile"/>: the same stored bytes,
+        /// compressed the same way. A fragment made new always starts as zlib, so
+        /// copying through <see cref="SetData"/> would change how it is stored.
+        /// </summary>
+        public ErpFragment Clone(ErpFile parentFile)
+        {
+            return new ErpFragment(parentFile)
+            {
+                Name = Name,
+                Offset = Offset,
+                Size = Size,
+                Flags = Flags,
+                PackedSize = PackedSize,
+                Compression = Compression,
+                _data = (byte[])_data.Clone(),
+            };
+        }
+
         public void Read(ErpBinaryReader reader)
         {
             Name = reader.ReadString(4);
