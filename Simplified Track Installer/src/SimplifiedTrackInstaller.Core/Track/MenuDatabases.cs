@@ -16,15 +16,6 @@ internal static class MenuDatabases
     public const string MinimapId = "eaid://ui_package/databases/minimap.uidb";
     public const string LoadingId = "eaid://ui_package/art/texture_arrays/ui_dynamic_texture_loading.uidta";
 
-    /// <summary>
-    /// The asset group the editor names for the minimap's textures: the slot its
-    /// track ERP goes in. Kept as it wrote it. This package carries the textures
-    /// in the shader archive instead, so this only has to be a group the game can
-    /// load, which a vanilla slot is.
-    /// </summary>
-    public const string MinimapAssetGroup =
-        "asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_4.assetgroup";
-
     /// <summary>The asset group the editor names for the preview and session pictures.</summary>
     public const string PicturesAssetGroup =
         "asset_groups/ui_package/texture_arrays/invitational_events/event_images/invitational_image_2.assetgroup";
@@ -72,7 +63,11 @@ internal static class MenuDatabases
     /// The track's entry in <c>minimap.uidb</c>: a copy of the base track's, or
     /// of the last one, with the zip's numbers and pictures in it.
     /// </summary>
-    public static (int Index, bool Added) AddMinimap(JsonNode minimap, TrackZip track, Action<string>? log)
+    /// <param name="slot">
+    /// The slot the track ERP goes in. The minimap's textures are in that ERP,
+    /// so the entry names the slot's asset group, as the editor's does.
+    /// </param>
+    public static (int Index, bool Added) AddMinimap(JsonNode minimap, TrackZip track, string slot, Action<string>? log)
     {
         var tracks = FindMinimapList(minimap)
                      ?? throw new InvalidDataException("minimap.uidb has no list of tracks.");
@@ -114,7 +109,7 @@ internal static class MenuDatabases
         Value("padding", PkgJson.Fp32(m.Padding));
         Value("dimensions", PkgJson.Fp32(m.Dimensions));
         Value("current_texture_dict", PkgJson.Stri($"hud.minimap.tracks[{index}].textures"));
-        Value("asset_group", PkgJson.Stri(MinimapAssetGroup));
+        Value("asset_group", PkgJson.Stri(TrackSlots.AssetGroup(slot)));
 
         Textures(contents, "textures", m.Textures, log);
         Textures(contents, "textures_om_xm", m.TexturesOmXm, log);

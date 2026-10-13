@@ -26,7 +26,7 @@ public partial class MainWindow : Window
 
     /// <summary>What the zip said about itself when it was picked.</summary>
     private sealed record TrackSummary(string Name, string Code, string Author, string Version,
-                                       string? BuiltOn, string SuggestedFileName, string Carries);
+                                       string? BuiltOn, string Carries);
 
     public MainWindow()
     {
@@ -106,7 +106,6 @@ public partial class MainWindow : Window
             using var zip = TrackZip.Open(path);
             _trackPath = path;
             _track = new TrackSummary(zip.Name, zip.Code, zip.Author, zip.Version, zip.CopyFromTrack,
-                TrackPackager.SuggestedFileName(zip),
                 $"{zip.Erp.Length / 1048576.0:N0} MB of track, {zip.Mipmaps.Count} mip files, {zip.Ers.Count} ERS values");
             Status($"{zip.Name} loaded.");
         }
@@ -170,23 +169,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        var picker = new SaveFileDialog
-        {
-            Title = "Save the mod",
-            Filter = "Zip archives (*.zip)|*.zip",
-            DefaultExt = ".zip",
-            FileName = _track.SuggestedFileName,
-            InitialDirectory = ExistingDir(_config.LastPackageFolder),
-            OverwritePrompt = true,
-        };
+        // Where, zip or folder, and which version — the Grid Editor's dialog.
+        // The version starts as the track's own.
+        var chosen = PackageDialog.Show(this, _track.Name, _track.Version, _config.LastPackageFolder);
+        if (chosen is null) return;
 
-        if (picker.ShowDialog(this) != true) return;
-
-        _config.LastPackageFolder = Path.GetDirectoryName(picker.FileName);
+        _config.LastPackageFolder = Path.GetDirectoryName(chosen.Path);
         _config.Save();
 
-        var request = new TrackPackageRequest(_trackPath, _config.GameDir!, picker.FileName, _databasePath,
-            [TrackPackager.AppId, Util.AppVersion.Display]);
+        var request = new TrackPackageRequest(_trackPath, _config.GameDir!, chosen.Path, _databasePath,
+            [TrackPackager.AppId, Util.AppVersion.Display], chosen.Version, chosen.AsZip);
 
         _running = true;
         Refresh();
@@ -201,9 +193,9 @@ public partial class MainWindow : Window
         {
             var result = await Task.Run(() => TrackPackager.Build(request, say: say, progress: progress));
 
-            Status($"{result.TrackName} packaged — {new FileInfo(result.ZipPath).Length / 1048576.0:N0} MB.");
+            Status($"{result.TrackName} packaged to {result.OutputPath}");
 
-            var lines = new List<string> { $"{result.TrackName} is packaged to\n{result.ZipPath}" };
+            var lines = new List<string> { $"{result.TrackName} is packaged to\n{result.OutputPath}" };
             if (!result.Database)
                 lines.Add("No game database is in it, so the track won't be in the track list until " +
                           "one that names it is installed.");

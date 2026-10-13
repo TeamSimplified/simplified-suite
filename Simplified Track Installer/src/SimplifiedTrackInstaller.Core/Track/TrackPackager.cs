@@ -12,15 +12,20 @@ namespace SimplifiedTrackInstaller.Core.Track;
 /// A game database to ship alongside, e.g. one the track was added to with the
 /// EgoGameDatabasesEditor. Null to leave the game's own alone.
 /// </param>
+/// <param name="OutputPath">The .zip to write, or the folder when <paramref name="AsZip"/> is false.</param>
+/// <param name="ModVersion">What mod.serps says the version is; the track's own by default.</param>
+/// <param name="AsZip">A .zip, or a folder of the same files at the same paths.</param>
 public sealed record TrackPackageRequest(
     string TrackZipPath,
     string GameDir,
-    string OutputZipPath,
+    string OutputPath,
     string? DatabasePath,
-    string[] SimplifiedApp);
+    string[] SimplifiedApp,
+    string? ModVersion = null,
+    bool AsZip = true);
 
 public sealed record TrackPackageResult(
-    string ZipPath,
+    string OutputPath,
     string TrackName,
     int TrackResources,
     int MipFiles,
@@ -36,26 +41,29 @@ public sealed record TrackPackageResult(
 /// mod.serps
 /// F1 25/
 ///   shader_package_2025/
-///     track_info.nefx2.sm51.erp       the game's, with the track merged in
+///     track_info.nefx2.sm51.erp       the game's, with the menu and handling changes merged in
 ///     track_info.nefx2.sm51_amd.erp   the same
+///   2025_asset_groups/ui_package/texture_arrays/invitational_events/event_images/&lt;slot&gt;.erp
+///     the track itself, in the slot the database loads it from (see TrackSlots)
 ///   environment_package/tracks/&lt;code&gt;/mipmaps/
 ///     the track's own mip files
 ///   game_package/gamedatabases/gamedatabases.2025.bin
 ///     only when one was picked
 /// </code>
 ///
-/// What goes into the shader packages is everything the EgoGameDatabasesEditor
+/// What goes in is everything the EgoGameDatabasesEditor
 /// changes when it installs the track, measured by diffing a game before and
 /// after it did:
 /// <list type="bullet">
-/// <item>the track's ERP, whole — every resource under its own id;</item>
+/// <item>the track's ERP, whole, in its slot — never in a shader package, which the game
+///       loads before any track exists and which a whole track in it crashes;</item>
 /// <item>its pictures added to the menu's texture arrays, and named in overrides.uidb;</item>
 /// <item>its entry in minimap.uidb;</item>
 /// <item>its preview and session pictures in ui_dynamic_texture_loading.uidta,
 ///       and the copies of them those point at;</item>
 /// <item>its ERS values in every 2026 car's handling file.</item>
 /// </list>
-/// A shader package replaces by id, so the changed databases, arrays and
+/// Everything but the track goes in the shader packages. They replace by id, so the changed databases, arrays and
 /// handling files ship whole, built from the user's own game.
 ///
 /// Not done here: editing the game database, which is what makes the track
@@ -78,12 +86,17 @@ public static class TrackPackager
     /// <summary>Where the game database sits in the install, and so in a package.</summary>
     public const string DatabasePath = "game_package/gamedatabases/gamedatabases.2025.bin";
 
-    /// <summary>What a package for this track is called by default: <c>Istanbul Park - 2.45.0.zip</c>.</summary>
-    public static string SuggestedFileName(TrackZip zip)
+    /// <summary>
+    /// What the package is called: the mod name, then " - ", then its version,
+    /// the way Studio and the Grid Editor name theirs — <c>Istanbul Park - 2.45.0</c>.
+    /// The version goes on verbatim; whether it reads "1.2" or "v1.2" is the
+    /// author's choice. No extension: a folder package takes the same name.
+    /// </summary>
+    public static string PackageFileName(string modName, string? version)
     {
-        var name = SanitizeName(zip.Name);
-        if (!string.IsNullOrWhiteSpace(zip.Version)) name += " - " + SanitizeName(zip.Version.Trim());
-        return name + ".zip";
+        var name = SafeFileName(modName);
+        var v = version?.Trim() ?? "";
+        return v.Length == 0 ? name : $"{name} - {SafeFileName(v)}";
     }
 
     /// <summary>
@@ -181,6 +194,15 @@ public static class TrackPackager
             Step(Stage.Mips, 1);
             cancel.ThrowIfCancellationRequested();
 
+            // ── Which slot the track goes in ────────────────────────────────
+            var (slot, recorded) = TrackSlots.For(gameDir, zip.Code);
+            log?.Invoke(recorded
+                ? $"Slot: {slot}, where the EgoGameDatabasesEditor installed {zip.Code}."
+                : $"Slot: {slot}.");
+            if (!recorded && !string.IsNullOrWhiteSpace(request.DatabasePath))
+                Warn($"The track goes in {slot}. The database you picked has to load {zip.Code} from that slot, " +
+                     "or the track won't be found.");
+
             // ── The menus ───────────────────────────────────────────────────
             say?.Report("Adding the track to the menus…");
             var game = new GameArchives(gameDir);
@@ -223,7 +245,7 @@ public static class TrackPackager
             log?.Invoke("Minimap...");
             var minimapRes = Game(MenuDatabases.MinimapId);
             var minimap = PkgJson.Read(minimapRes);
-            var (mapIndex, mapAdded) = MenuDatabases.AddMinimap(minimap, zip, log);
+            var (mapIndex, mapAdded) = MenuDatabases.AddMinimap(minimap, zip, slot, log);
             PkgJson.Write(minimapRes, minimap);
             overlay.Add(minimapRes);
             log?.Invoke($"  hud.minimap.tracks[{mapIndex}]{(mapAdded ? "" : " (replaced)")}");
@@ -249,14 +271,26 @@ public static class TrackPackager
             Step(Stage.Handling, 1);
             cancel.ThrowIfCancellationRequested();
 
-            // ── Into both shader packages ───────────────────────────────────
+            // ── The track, in its slot ──────────────────────────────────────
+            // Its own archive, where the editor puts it, rather than in a
+            // shader package: those load before any track exists, and a whole
+            // track in one crashes the game.
+            say?.Report("Writing the track…");
+            log?.Invoke($"Writing the track to {slot}.erp...");
+            var trackCount = track.Resources.Count;
+            var slotPath = Path.Combine(stage, GameFolderName, TrackSlots.ArchivePath(slot).Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(slotPath)!);
+            ErpFileIO.Save(track, slotPath);
+            Step(Stage.Track, 1);
+            cancel.ThrowIfCancellationRequested();
+
+            // ── The menu and handling changes, into both shader packages ────
             foreach (var warning in Simplified.Shared.GameFileGuard.Warnings(gameDir,
                          ShaderArchiveNames.Select(Simplified.Shared.GameFileGuard.ShaderPath)))
                 Warn(warning);
 
             var staged = Path.Combine(stage, GameFolderName, ShaderFolderName);
             Directory.CreateDirectory(staged);
-            var trackResources = track.Resources.ToList();
 
             for (var i = 0; i < ShaderArchiveNames.Length; i++)
             {
@@ -267,11 +301,6 @@ public static class TrackPackager
 
                 var target = ErpFileIO.Load(Path.Combine(shaderFolder, name));
                 Simplified.Shared.SerpsOverlay.AddTo(target);
-
-                // The track first, then what was built on the game: a shared
-                // picture's copy or a handling file wins over anything of the
-                // same name the track carried.
-                MergeInto(target, trackResources);
                 MergeInto(target, overlay);
 
                 target.UpdateOffsets();
@@ -298,17 +327,33 @@ public static class TrackPackager
             }
 
             // ── mod.serps and the zip ───────────────────────────────────────
-            File.WriteAllText(Path.Combine(stage, "mod.serps"), BuildModSerps(zip, gameDir, request.SimplifiedApp));
+            var version = request.ModVersion ?? zip.Version;
+            File.WriteAllText(Path.Combine(stage, "mod.serps"),
+                BuildModSerps(zip.Name, zip.Author, version, gameDir, request.SimplifiedApp));
 
-            say?.Report("Writing your mod file…");
-            log?.Invoke("Zipping...");
-            var zipPath = request.OutputZipPath;
-            if (Path.GetDirectoryName(zipPath) is { Length: > 0 } folder) Directory.CreateDirectory(folder);
-            if (File.Exists(zipPath)) File.Delete(zipPath);
-            ZipDirectory(stage, zipPath, f => Step(Stage.Zip, f), cancel);
+            var output = request.OutputPath;
+            if (Path.GetDirectoryName(output) is { Length: > 0 } parent) Directory.CreateDirectory(parent);
+
+            if (request.AsZip)
+            {
+                say?.Report("Writing your mod file…");
+                log?.Invoke("Zipping...");
+                if (File.Exists(output)) File.Delete(output);
+                ZipDirectory(stage, output, f => Step(Stage.Zip, f), cancel);
+            }
+            else
+            {
+                // The same files at the same paths, for somebody dropping them
+                // into the game themselves. Copied rather than moved: the
+                // staging folder is under %TEMP%, usually another drive.
+                say?.Report("Writing your mod folder…");
+                log?.Invoke("Copying to the folder...");
+                if (Directory.Exists(output)) Directory.Delete(output, recursive: true);
+                CopyDirectory(stage, output, f => Step(Stage.Zip, f), cancel);
+            }
             Step(Stage.Zip, 1);
 
-            return new TrackPackageResult(zipPath, zip.Name, trackResources.Count, used.Count, arrays,
+            return new TrackPackageResult(output, zip.Name, trackCount, used.Count, arrays,
                                           handling.Count, database, warnings);
         }
         finally
@@ -318,7 +363,7 @@ public static class TrackPackager
     }
 
     /// <summary>The steps a package goes through, in order.</summary>
-    private enum Stage { Extract, Read, Mips, Menus, Handling, Merge, Zip }
+    private enum Stage { Extract, Read, Mips, Menus, Handling, Track, Merge, Zip }
 
     /// <summary>
     /// Where each stage starts and ends on the bar: its share of the time,
@@ -332,7 +377,8 @@ public static class TrackPackager
         Stage.Mips => (0.01, 0.04),
         Stage.Menus => (0.04, 0.08),
         Stage.Handling => (0.08, 0.10),
-        Stage.Merge => (0.10, 0.12),
+        Stage.Track => (0.10, 0.11),
+        Stage.Merge => (0.11, 0.12),
         _ => (0.12, 1.00),
     };
 
@@ -382,6 +428,29 @@ public static class TrackPackager
         }
     }
 
+    /// <summary>The staging folder copied to <paramref name="target"/>, saying how much has gone.</summary>
+    private static void CopyDirectory(string folder, string target, Action<double> done, CancellationToken cancel)
+    {
+        var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToList();
+        var total = files.Sum(f => new FileInfo(f).Length);
+        long written = 0;
+
+        foreach (var file in files)
+        {
+            cancel.ThrowIfCancellationRequested();
+            var to = Path.Combine(target, Path.GetRelativePath(folder, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+
+            using var source = File.OpenRead(file);
+            using var destination = File.Create(to);
+            Copy(source, destination, total, _ => { }, n =>
+            {
+                written += n;
+                done(total > 0 ? (double)written / total : 1);
+            });
+        }
+    }
+
     /// <summary>Fold resources into a target archive, replacing anything of the same id.</summary>
     private static void MergeInto(ErpFile target, IEnumerable<ErpResource> resources)
     {
@@ -406,21 +475,23 @@ public static class TrackPackager
     }
 
     /// <summary>The manifest at the root, the shape every app in the suite writes.</summary>
-    private static string BuildModSerps(TrackZip zip, string gameDir, string[] simplifiedApp)
+    private static string BuildModSerps(string name, string author, string? version, string gameDir,
+                                        string[] simplifiedApp)
     {
-        var manifest = new Dictionary<string, object> { ["mod_name"] = zip.Name.Trim() };
-        if (!string.IsNullOrWhiteSpace(zip.Author)) manifest["author"] = zip.Author.Trim();
-        if (!string.IsNullOrWhiteSpace(zip.Version)) manifest["version"] = zip.Version.Trim();
+        var manifest = new Dictionary<string, object> { ["mod_name"] = name.Trim() };
+        if (!string.IsNullOrWhiteSpace(author)) manifest["author"] = author.Trim();
+        if (!string.IsNullOrWhiteSpace(version)) manifest["version"] = version.Trim();
         manifest["game"] = Simplified.Shared.GameVersion.ReadName(gameDir) ?? "";
         manifest["game_version"] = Simplified.Shared.GameVersion.Read(gameDir) ?? "";
         manifest["simplified_app"] = simplifiedApp;
         return JsonSerializer.Serialize(manifest, SerpsJson);
     }
 
-    private static string SanitizeName(string name)
+    /// <summary>A name as a file name, with what the filesystem refuses taken out — as the Grid Editor does it.</summary>
+    private static string SafeFileName(string name)
     {
         var invalid = Path.GetInvalidFileNameChars();
-        var s = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim().Trim('.', ' ');
-        return s.Length == 0 ? "track" : s;
+        var cleaned = new string(name.Select(c => invalid.Contains(c) ? '-' : c).ToArray()).Trim().Trim('.');
+        return cleaned.Length == 0 ? "track" : cleaned;
     }
 }
