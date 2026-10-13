@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -200,6 +200,17 @@ $Apps = @(
         # runtime\fonts with everything else the app needs and nobody should be
         # poking at, so runtime\* already covers it.
         Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'TrackInstaller'; Folder = 'Simplified Track Installer'
+        Project = 'src\SimplifiedTrackInstaller\SimplifiedTrackInstaller.csproj'
+        Exe = 'Simplified Track Installer'; Package = 'Simplified Track Installer'
+        Tag = 'trackinstaller-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
+        # Held back from a suite release: a packaged track does not reach the
+        # track list until the game database names it, which this does not do
+        # yet. -App TrackInstaller still packages it.
+        InAll = $false
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedTrackInstaller.Core</RootNamespace>
+    <AssemblyName>SimplifiedTrackInstaller.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    Everything a track package becomes is archive work - reading the track's ERP,
+    the game's UI databases and handling files, and merging the lot into a shader
+    package - so this is the EgoEngineLibrary and nothing else. Plain net10.0, so
+    it can be driven from a console with nothing on screen.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+  <!-- The two resources the game wants in every mod that ships a shader
+       package, embedded the way every packager in the suite embeds them, and
+       the two readers that say what game a package was built against and
+       whether the archives it was built from were the game's own. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
+    <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
+    <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
+    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
+  </ItemGroup>
+
+</Project>

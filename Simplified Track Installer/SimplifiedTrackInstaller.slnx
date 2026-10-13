@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedTrackInstaller/SimplifiedTrackInstaller.csproj" />
+  <Project Path="src/SimplifiedTrackInstaller.Core/SimplifiedTrackInstaller.Core.csproj" />
+</Solution>
