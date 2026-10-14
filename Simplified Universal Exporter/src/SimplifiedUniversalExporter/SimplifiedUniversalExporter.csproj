@@ -55,8 +55,8 @@
   </ItemGroup>
 
   <!-- After publish the only loose .dlls are the natives the single file
-       can't carry: Assimp's, and ZstdNet's libzstd, which it drops under x64\
-       and x86\. This is an x64 app, so the x64 one is kept and the rest go. -->
+       can't carry - WPF's own and Assimp's. Anything a package drops under
+       x64\ is kept; x86\ is an architecture this app never runs as. -->
   <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
     <ItemGroup>
       <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>

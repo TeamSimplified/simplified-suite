@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
-using System.Reflection;
 using System.Text;
-using ZstdNet;
 
 namespace SimplifiedUniversalExporter.Core
 {
@@ -24,6 +21,9 @@ namespace SimplifiedUniversalExporter.Core
         public int Flags;
         public int CompressionType;
         public long CompressedSize;
+
+        /// <summary>The library's description of this fragment, which reads it.</summary>
+        public EgoEngineLibrary.Archive.Erp.ErpIndexFragment Fragment;
     }
 
     internal sealed class ErpResource
@@ -70,30 +70,13 @@ namespace SimplifiedUniversalExporter.Core
         public int TotalResources;
         public int TotalSections;
         public List<ErpResource> Resources = new List<ErpResource>();
+
+        /// <summary>The library's table, which fragments are read through.</summary>
+        public EgoEngineLibrary.Archive.Erp.ErpIndexResult Index;
     }
 
     internal static class ErpContainerReader
     {
-        /// <summary>
-        /// Maximum container version we accept. EgoEngineLibrary
-        /// likewise pins this to 4 (it rejects anything higher). When
-        /// a future game bumps this, the rejection here is the signal
-        /// to extend the reader.
-        /// </summary>
-        private const int SupportedVersion = 4;
-
-        /// <summary>
-        /// Compression bytes the format defines. EgoEngineLibrary uses
-        /// an enum with these exact values. Anything outside this set
-        /// is rejected at read time so silent passthroughs can't mask
-        /// real corruption (the previous reader used a
-        /// "compressedSize==dataSize" heuristic which would happily
-        /// accept a corrupt compressed blob whose size coincidentally
-        /// matched the declared uncompressed size).
-        /// </summary>
-        private static readonly HashSet<byte> KnownCompressionBytes =
-            new HashSet<byte> { 0x00, 0x01, 0x03, 0x10, 0x11, 0x81, 0x90, 0x91 };
-
         private static readonly object _logLock = new object();
         private static string _logPath;
 
@@ -162,6 +145,12 @@ namespace SimplifiedUniversalExporter.Core
             return GetTempFallbackLogPath();
         }
 
+        /// <summary>
+        /// The archive's resource table, from <see cref="EgoEngineLibrary.Archive.Erp.ErpIndex"/>:
+        /// the table only, with each fragment's place, so an ERP of any size is opened
+        /// without its payloads. This used to be a parser of its own, with its own
+        /// compression dispatch and ZstdNet; the format lives in the shared library now.
+        /// </summary>
         public static ErpContainer Read(string erpPath)
         {
             LogReset(erpPath);
@@ -171,171 +160,63 @@ namespace SimplifiedUniversalExporter.Core
             if (string.IsNullOrWhiteSpace(erpPath))
                 throw new ArgumentException(nameof(erpPath));
 
-            using var fs = File.OpenRead(erpPath);
-            using var br = new BinaryReader(fs, Encoding.UTF8, leaveOpen: true);
+            EgoEngineLibrary.Archive.Erp.ErpIndexResult index;
+            try
+            {
+                index = EgoEngineLibrary.Archive.Erp.ErpIndex.Read(erpPath);
+            }
+            catch (Exception ex) when (ex is FileFormatException or NotSupportedException)
+            {
+                // Callers catch InvalidDataException for "not an archive I can read".
+                throw new InvalidDataException(ex.Message, ex);
+            }
 
-            Log("ERP Length: " + fs.Length);
-
-            if (fs.Length < 64)
-                throw new InvalidDataException("ERP too small.");
-
-            uint formatId = br.ReadUInt32();
-            Log("Magic u32: 0x" + formatId.ToString("X8"));
-            if (formatId != 0x4B505245)
-                throw new InvalidDataException("Not an ERPK container.");
-
-            // EgoEngineLibrary reads Version as a single int32 (NOT
-            // two u16s). The previous split into MajorVersion +
-            // MinorVersion was structurally wrong; reject any version
-            // outside the supported range up front so corruption
-            // can't masquerade as a high minor number.
-            int version = br.ReadInt32();
-            Log($"Version: {version}");
-            if (version < 0 || version > SupportedVersion)
-                throw new InvalidDataException(
-                    $"Unsupported ERP version {version} (this reader knows 0..{SupportedVersion}).");
-
-            ulong unk0 = br.ReadUInt64();
-            ulong tocOffset = br.ReadUInt64();
-            ulong tocSize = br.ReadUInt64();
-            ulong resourceDataOffset = br.ReadUInt64();
-            ulong unk1 = br.ReadUInt64();
-
-            Log($"Header unk0=0x{unk0:X} unk1=0x{unk1:X}");
-            Log($"TOC offset=0x{tocOffset:X} size=0x{tocSize:X} ({tocSize})");
-            Log($"ResourceDataOffset=0x{resourceDataOffset:X} ({resourceDataOffset})");
-
-            if (tocOffset >= (ulong)fs.Length)
-                throw new InvalidDataException("Invalid TOC offset.");
-            if (resourceDataOffset >= (ulong)fs.Length)
-                throw new InvalidDataException("Invalid resource data offset.");
-
-            fs.Position = (long)tocOffset;
-
-            int totalResources = br.ReadInt32();
-            int totalSections = br.ReadInt32();
-            Log($"TOC: totalResources={totalResources} totalSections={totalSections}");
-
-            if (totalResources <= 0 || totalResources > 5_000_000)
-                throw new InvalidDataException($"Unreasonable resource count: {totalResources}");
+            Log($"Version: {index.Version}");
+            Log($"ResourceDataOffset=0x{index.ResourceOffset:X} ({index.ResourceOffset})");
 
             var container = new ErpContainer
             {
-                Version = version,
-                TocOffset = (long)tocOffset,
-                TocSize = (long)tocSize,
-                ResourceDataOffset = (long)resourceDataOffset,
-                TotalResources = totalResources,
-                TotalSections = totalSections
+                Version = index.Version,
+                ResourceDataOffset = (long)index.ResourceOffset,
+                TotalResources = index.Resources.Count,
+                Index = index,
             };
 
-            int maxVerboseLog = Math.Min(totalResources, 50);
+            int maxVerboseLog = Math.Min(index.Resources.Count, 50);
             Log($"Verbose log for first {maxVerboseLog} resources; compact (type+name) line for the rest.");
 
-            for (int i = 0; i < totalResources; i++)
+            for (int i = 0; i < index.Resources.Count; i++)
             {
-                if (fs.Position + 7 >= (long)tocOffset + (long)tocSize && tocSize > 0)
-                {
-                    Log($"WARNING: Reached end of TOC early at resource {i}. fs.Position=0x{fs.Position:X}");
-                    break;
-                }
-
-                uint resourceSize = br.ReadUInt32();
-
-                // resourceSize describes the bytes AFTER this size
-                // field (it doesn't include itself). Capturing
-                // entryStart here -- AFTER the read -- means
-                // `fs.Position - entryStart` at end-of-resource
-                // matches resourceSize exactly.
-                long entryStart = fs.Position;
-
-                // EgoEngineLibrary reads the identifier length as a
-                // SIGNED short (negative values are nonsensical but
-                // valid encodings); we match that and validate.
-                short idStringSize = br.ReadInt16();
-                if (idStringSize <= 0)
-                    throw new InvalidDataException($"Bad idStringSize {idStringSize} at resource {i}");
-
-                byte[] idBytes = br.ReadBytes(idStringSize);
-                if (idBytes.Length != idStringSize)
-                    throw new EndOfStreamException();
-
-                string name = DecodeIdString(idBytes);
-
-                string type = ReadFixedString(br, 16);
-
-                int formatVersion = br.ReadInt32();
-
-                // EgoEngineLibrary reads `Unknown2 (i16)` only when
-                // the CONTAINER version >= 4. Same here.
-                if (version >= 4)
-                    br.ReadInt16();
-
-                byte sectionCount = br.ReadByte();
-
+                var entry = index.Resources[i];
                 var res = new ErpResource
                 {
                     Index = i,
-                    Name = name,
-                    Type = type,
-                    FormatVersion = formatVersion
+                    Name = entry.Identifier,
+                    Type = entry.ResourceType,
+                    FormatVersion = entry.Unknown,
+                    TrailerBytes = entry.Hash.Length > 0 ? entry.Hash : null,
                 };
 
-                for (int s = 0; s < sectionCount; s++)
+                foreach (var f in entry.Fragments)
                 {
-                    string sid = ReadFixedString(br, 4);
-
-                    long fileOffset = (long)br.ReadUInt64();
-                    long dataSize = (long)br.ReadUInt64();
-
-                    // Flags is ALWAYS read as i32 (EgoEngineLibrary
-                    // reads it unconditionally). The previous code
-                    // skipped this for version < 2 and desynced by
-                    // 4 bytes per fragment on those ERPs.
-                    int flags = br.ReadInt32();
-
-                    // Compression byte + PackedSize only exist on
-                    // version > 2. For older containers, treat as
-                    // raw (compressionType=0, compressedSize=dataSize)
-                    // without consuming any extra bytes.
-                    int compressionType;
-                    long compressedSize;
-                    if (version > 2)
-                    {
-                        compressionType = br.ReadByte();
-                        if (!KnownCompressionBytes.Contains((byte)compressionType))
-                            throw new InvalidDataException(
-                                $"Unknown compression byte 0x{compressionType:X2} " +
-                                $"at resource {i} section {s}");
-                        compressedSize = (long)br.ReadUInt64();
-                    }
-                    else
-                    {
-                        compressionType = 0;
-                        compressedSize = dataSize;
-                    }
-
                     res.Sections.Add(new ErpSection
                     {
-                        Id = sid,
-                        FileOffset = fileOffset,
-                        DataSize = dataSize,
-                        Flags = flags,
-                        CompressionType = compressionType,
-                        CompressedSize = compressedSize
+                        Id = f.Name,
+                        FileOffset = (long)f.Offset,
+                        DataSize = (long)f.Size,
+                        Flags = f.Flags,
+                        CompressionType = (int)f.Compression,
+                        CompressedSize = (long)f.PackedSize,
+                        Fragment = f,
                     });
                 }
-
-                // 16-byte trailer hash is present only on version > 2.
-                if (version > 2)
-                    res.TrailerBytes = br.ReadBytes(16);
-
+                container.TotalSections += res.Sections.Count;
                 container.Resources.Add(res);
 
                 if (i < maxVerboseLog)
                 {
-                    Log($"R[{i}] size={resourceSize} nameLen={idStringSize} type='{type}' fmtVer={formatVersion} secCount={sectionCount}");
-                    Log($"     name='{Trunc(name, 200)}'");
+                    Log($"R[{i}] type='{res.Type}' fmtVer={res.FormatVersion} secCount={res.Sections.Count}");
+                    Log($"     name='{Trunc(res.Name, 200)}'");
                     for (int s = 0; s < res.Sections.Count; s++)
                     {
                         var sec = res.Sections[s];
@@ -344,22 +225,7 @@ namespace SimplifiedUniversalExporter.Core
                 }
                 else
                 {
-                    Log($"R[{i}] type='{type}' name='{Trunc(name, 200)}' secCount={sectionCount}");
-                }
-
-                // Self-consistency: bytes consumed for THIS resource
-                // must equal the declared resourceSize. EgoEngineLibrary
-                // throws on mismatch; we do the same. Previously we
-                // silently re-seeked to `entryStart + resourceSize`,
-                // which papered over Version-parsing bugs and Flags-
-                // skipping bugs by hiding the desync.
-                long consumed = fs.Position - entryStart;
-                if (consumed != resourceSize)
-                {
-                    throw new InvalidDataException(
-                        $"Resource {i} declared size {resourceSize} but the parser " +
-                        $"consumed {consumed} bytes (delta {consumed - resourceSize}). " +
-                        $"Indicates a header-parsing bug or a malformed ERP.");
+                    Log($"R[{i}] type='{res.Type}' name='{Trunc(res.Name, 200)}' secCount={res.Sections.Count}");
                 }
             }
 
@@ -372,10 +238,7 @@ namespace SimplifiedUniversalExporter.Core
             foreach (var r in container.Resources)
             {
                 string key = string.IsNullOrEmpty(r.Type) ? "(empty)" : r.Type;
-                if (typeHistogram.TryGetValue(key, out int count))
-                    typeHistogram[key] = count + 1;
-                else
-                    typeHistogram[key] = 1;
+                typeHistogram[key] = typeHistogram.TryGetValue(key, out int count) ? count + 1 : 1;
             }
 
             var sortedTypes = new List<KeyValuePair<string, int>>(typeHistogram);
@@ -395,134 +258,16 @@ namespace SimplifiedUniversalExporter.Core
             return container;
         }
 
+        /// <summary>One fragment's bytes, decompressed, read on demand by the library.</summary>
         public static byte[] ReadSectionBytes(string erpPath, ErpContainer container, ErpSection section)
         {
             if (container == null) throw new ArgumentNullException(nameof(container));
             if (section == null) throw new ArgumentNullException(nameof(section));
 
-            long abs = container.ResourceDataOffset + section.FileOffset;
-            long readLen = section.CompressionType == 0 ? section.DataSize : section.CompressedSize;
-
-            Log($"ReadSectionBytes: secId='{section.Id}' abs=0x{abs:X} readLen={readLen} dataSize={section.DataSize} compType=0x{section.CompressionType:X}");
-
-            if (abs < 0) throw new InvalidDataException("Negative section offset.");
-            if (readLen < 0) throw new InvalidDataException("Negative section size.");
-
-            using var fs = File.OpenRead(erpPath);
-            if (abs > fs.Length) throw new EndOfStreamException("Section offset beyond EOF.");
-            if (abs + readLen > fs.Length) throw new EndOfStreamException("Section exceeds EOF.");
-
-            fs.Position = abs;
-            byte[] buf = new byte[checked((int)readLen)];
-            int got = 0;
-            while (got < buf.Length)
-            {
-                int r = fs.Read(buf, got, buf.Length - got);
-                if (r <= 0) throw new EndOfStreamException();
-                got += r;
-            }
-
-            Log($"ReadSectionBytes: got={buf.Length} first4={Hex4(buf)}");
-
-            // Explicit enum dispatch, matching EgoEngineLibrary's
-            // ErpCompressionAlgorithm enum:
-            //   None (0x00), None2 (0x81), None3 (0x90), None4 (0x91)
-            //                    -> raw passthrough
-            //   Zlib (0x01)      -> Zlib inflate
-            //   Zstd (0x10), ZStandard2 (0x03), ZStandard3 (0x11)
-            //                    -> Zstandard decompress
-            // Previously a "compressedSize==dataSize" heuristic was
-            // used to treat 0x90/0x91 as raw. That heuristic also
-            // happily accepted any corrupt compressed blob whose
-            // packed length coincidentally matched the uncompressed
-            // length. Explicit cases close that hole.
-            switch (section.CompressionType)
-            {
-                case 0x00:
-                case 0x81:
-                case 0x90:
-                case 0x91:
-                    return buf;
-
-                case 0x01:
-                {
-                    var plain = DecompressZlib(buf, checked((int)section.DataSize));
-                    Log($"Zlib OK: out={plain.Length} first4={Hex4(plain)}");
-                    return plain;
-                }
-
-                case 0x03:
-                case 0x10:
-                case 0x11:
-                {
-                    var plain = DecompressZstd(buf, checked((int)section.DataSize));
-                    Log($"Zstd OK (compType=0x{section.CompressionType:X}): out={plain.Length} first4={Hex4(plain)}");
-                    return plain;
-                }
-
-                default:
-                    throw new NotSupportedException(
-                        $"Unsupported ERP compression type: 0x{section.CompressionType:X}");
-            }
-        }
-
-        private static byte[] DecompressZstd(byte[] compressed, int expectedSize)
-        {
-            Log($"DecompressZstd: in={compressed.Length} expectedOut={expectedSize} magic={Hex4(compressed)}");
-
-            try
-            {
-                using (var d = new Decompressor())
-                {
-                    var t = d.GetType();
-
-                    var m1 = t.GetMethod("Unwrap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(byte[]) }, null);
-                    if (m1 != null)
-                    {
-                        var obj = m1.Invoke(d, new object[] { compressed });
-                        var outBytes = (byte[])obj;
-                        Log($"DecompressZstd: Unwrap(byte[]) OK out={outBytes.Length} first4={Hex4(outBytes)}");
-                        return outBytes;
-                    }
-
-                    var m2 = t.GetMethod("Unwrap", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(byte[]), typeof(int) }, null);
-                    if (m2 != null)
-                    {
-                        var obj = m2.Invoke(d, new object[] { compressed, expectedSize });
-                        var outBytes = (byte[])obj;
-                        Log($"DecompressZstd: Unwrap(byte[],int) OK out={outBytes.Length} first4={Hex4(outBytes)}");
-                        return outBytes;
-                    }
-
-                    throw new MissingMethodException("ZstdNet.Decompressor has no Unwrap overload we can call.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log("DecompressZstd FAILED: " + ex.GetType().FullName + " - " + ex.Message);
-                if (ex is TargetInvocationException tie && tie.InnerException != null)
-                    Log("DecompressZstd Inner: " + tie.InnerException.GetType().FullName + " - " + tie.InnerException.Message);
-                throw;
-            }
-        }
-
-        private static byte[] DecompressZlib(byte[] compressed, int expectedSize)
-        {
-            Log($"DecompressZlib: in={compressed.Length} expectedOut={expectedSize} magic={Hex4(compressed)}");
-            using var src = new MemoryStream(compressed, writable: false);
-            using var zs = new ZLibStream(src, CompressionMode.Decompress);
-            using var dst = new MemoryStream(expectedSize > 0 ? expectedSize : 0);
-
-            zs.CopyTo(dst);
-
-            byte[] outBytes = dst.ToArray();
-            if (expectedSize > 0 && outBytes.Length != expectedSize)
-            {
-                if (outBytes.Length > expectedSize)
-                    Array.Resize(ref outBytes, expectedSize);
-            }
-
-            return outBytes;
+            Log($"ReadSectionBytes: secId='{section.Id}' off=0x{container.ResourceDataOffset + section.FileOffset:X} dataSize={section.DataSize} compType=0x{section.CompressionType:X}");
+            var plain = EgoEngineLibrary.Archive.Erp.ErpIndex.ReadFragment(erpPath, container.Index, section.Fragment);
+            Log($"ReadSectionBytes: out={plain.Length} first4={Hex4(plain)}");
+            return plain;
         }
 
         private static string DecodeIdString(byte[] idBytes)

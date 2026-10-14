@@ -20,9 +20,13 @@
     its year, the external mip files, and the material, paint and naming
     rules. The model loaders and the FBX writer stay in the app for now -
     they are built on WPF's 3D types.
+
+    No archive code of its own: the resource table and every fragment are read
+    through EgoEngineLibrary's ErpIndex, one fragment at a time, so a track
+    archive of several gigabytes is never held in memory.
   -->
   <ItemGroup>
-    <PackageReference Include="ZstdNet" />
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
   </ItemGroup>
 
   <!-- The engine's classes are internal, as they were in the one-project app;

@@ -7,11 +7,34 @@ using System.Text;
 
 namespace EgoEngineLibrary.Archive.Erp
 {
+    /// <summary>
+    /// Where one fragment's bytes are, as the table describes them.
+    /// <paramref name="Offset"/> is relative to <see cref="ErpIndexResult.ResourceOffset"/>;
+    /// <paramref name="PackedSize"/> is what is stored, <paramref name="Size"/> what
+    /// it decompresses to.
+    /// </summary>
+    public readonly record struct ErpIndexFragment(
+        string Name, ulong Offset, ulong Size, int Flags, ErpCompressionAlgorithm Compression, ulong PackedSize);
+
     /// <summary>One resource, as much of it as reading the table alone can tell.</summary>
-    public readonly record struct ErpIndexEntry(string Identifier, string ResourceType);
+    public readonly record struct ErpIndexEntry(string Identifier, string ResourceType)
+    {
+        /// <summary>The resource's own version field (<see cref="ErpResource.Unknown"/>).</summary>
+        public int Unknown { get; init; }
+
+        /// <summary>Where each fragment is, in order.</summary>
+        public IReadOnlyList<ErpIndexFragment> Fragments { get; init; } = Array.Empty<ErpIndexFragment>();
+
+        /// <summary>The 16-byte content hash (version 3 and up), or empty.</summary>
+        public byte[] Hash { get; init; } = Array.Empty<byte>();
+    }
 
     /// <summary>What an archive holds, without its contents.</summary>
-    public sealed record ErpIndexResult(int Version, IReadOnlyList<ErpIndexEntry> Resources);
+    public sealed record ErpIndexResult(int Version, IReadOnlyList<ErpIndexEntry> Resources)
+    {
+        /// <summary>Where the payloads begin: every fragment offset counts from here.</summary>
+        public ulong ResourceOffset { get; init; }
+    }
 
     /// <summary>
     /// What is in an archive, read from its resource table and nothing else.
@@ -25,8 +48,10 @@ namespace EgoEngineLibrary.Archive.Erp
     ///
     /// So this reads the header, then the resource table in one sequential read,
     /// and stops at <see cref="ErpFile.ResourceOffset"/> where the payloads
-    /// begin. What comes back is identifiers and types. Anything more than that
-    /// means opening the archive properly.
+    /// begin. What comes back is identifiers, types and where each fragment is;
+    /// <see cref="ReadFragment"/> then fetches one fragment's bytes on demand,
+    /// which is how a multi-gigabyte track archive is read without holding it in
+    /// memory.
     /// </summary>
     public static class ErpIndex
     {
@@ -87,7 +112,7 @@ namespace EgoEngineLibrary.Archive.Erp
             var resourceOffset = BinaryPrimitives.ReadUInt64LittleEndian(header[32..]);
             var count = BinaryPrimitives.ReadInt32LittleEndian(header[48..]);
 
-            if (count == 0) return new ErpIndexResult(version, Array.Empty<ErpIndexEntry>());
+            if (count == 0) return new ErpIndexResult(version, Array.Empty<ErpIndexEntry>()) { ResourceOffset = resourceOffset };
 
             if (count < 0 || resourceOffset < TableStart || resourceOffset > int.MaxValue)
             {
@@ -101,7 +126,7 @@ namespace EgoEngineLibrary.Archive.Erp
             {
                 var table = buffer.AsSpan(0, tableLength);
                 stream.ReadExactly(table);
-                return new ErpIndexResult(version, ParseTable(table, version, count));
+                return new ErpIndexResult(version, ParseTable(table, version, count)) { ResourceOffset = resourceOffset };
             }
             finally
             {
@@ -113,8 +138,11 @@ namespace EgoEngineLibrary.Archive.Erp
         {
             // Sizes taken from the read path rather than from ErpResource.UpdateOffsets:
             // the two disagree for version 2 and below, and what a file actually
-            // contains is what ErpFragment.Read consumes.
-            var fragmentSize = version > 2 ? 33 : 16;
+            // contains is what ErpFragment.Read consumes - name 4, offset 8, size 8,
+            // flags 4, then compression 1 and stored size 8 from version 3. (This
+            // said 16 for version 2 and below until the fragments were read field
+            // by field; the per-resource length check would have refused them.)
+            var fragmentSize = version > 2 ? 33 : 24;
             var hashSize = version > 2 ? 16 : 0;
             var unknown2Size = version >= 4 ? 2 : 0;
 
@@ -134,10 +162,36 @@ namespace EgoEngineLibrary.Archive.Erp
                 var identifier = ReadString(table, ref pos, ReadUInt16(table, ref pos));
                 var resourceType = ReadString(table, ref pos, 16);
 
-                pos += 4 + unknown2Size; // unknown, unknown2
+                var unknown = (int)ReadUInt32(table, ref pos);
+                pos += unknown2Size;
 
-                var fragments = ReadByte(table, ref pos);
-                pos += fragments * fragmentSize + hashSize;
+                var fragmentCount = ReadByte(table, ref pos);
+                if (pos + fragmentCount * fragmentSize + hashSize > table.Length)
+                {
+                    throw new FileFormatException($"Resource {i} runs past the end of the table.");
+                }
+
+                // As ErpFragment.Read takes them: name, offset, size, flags, then
+                // from version 3 the compression and the stored size.
+                var fragments = new ErpIndexFragment[fragmentCount];
+                for (var f = 0; f < fragmentCount; ++f)
+                {
+                    var name = ReadString(table, ref pos, 4);
+                    var offset = ReadUInt64(table, ref pos);
+                    var size = ReadUInt64(table, ref pos);
+                    var flags = (int)ReadUInt32(table, ref pos);
+                    var compression = ErpCompressionAlgorithm.None;
+                    var packed = size;
+                    if (version > 2)
+                    {
+                        compression = (ErpCompressionAlgorithm)ReadByte(table, ref pos);
+                        packed = ReadUInt64(table, ref pos);
+                    }
+                    fragments[f] = new ErpIndexFragment(name, offset, size, flags, compression, packed);
+                }
+
+                var hash = hashSize > 0 ? table.Slice(pos, hashSize).ToArray() : Array.Empty<byte>();
+                pos += hashSize;
 
                 if (pos - bodyStart != declared || pos > table.Length)
                 {
@@ -145,7 +199,7 @@ namespace EgoEngineLibrary.Archive.Erp
                         $"Resource {i} says it is {declared} bytes but reads as {pos - bodyStart}.");
                 }
 
-                entries.Add(new ErpIndexEntry(identifier, resourceType));
+                entries.Add(new ErpIndexEntry(identifier, resourceType) { Unknown = unknown, Fragments = fragments, Hash = hash });
             }
 
             return entries;
@@ -156,6 +210,39 @@ namespace EgoEngineLibrary.Archive.Erp
             var value = BinaryPrimitives.ReadUInt32LittleEndian(span[pos..]);
             pos += 4;
             return value;
+        }
+
+        private static ulong ReadUInt64(ReadOnlySpan<byte> span, ref int pos)
+        {
+            var value = BinaryPrimitives.ReadUInt64LittleEndian(span[pos..]);
+            pos += 8;
+            return value;
+        }
+
+        /// <summary>
+        /// One fragment's bytes, decompressed, read straight from the archive at
+        /// <paramref name="path"/> without loading anything else.
+        /// </summary>
+        public static byte[] ReadFragment(string path, ErpIndexResult index, ErpIndexFragment fragment)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1);
+            return ReadFragment(stream, index, fragment);
+        }
+
+        /// <summary>One fragment's bytes, decompressed, from an archive already open.</summary>
+        public static byte[] ReadFragment(Stream stream, ErpIndexResult index, ErpIndexFragment fragment)
+        {
+            var start = checked((long)(index.ResourceOffset + fragment.Offset));
+            var packed = checked((int)fragment.PackedSize);
+            if (start < 0 || start + packed > stream.Length)
+            {
+                throw new EndOfStreamException($"Fragment '{fragment.Name}' runs past the end of the archive.");
+            }
+
+            var data = new byte[packed];
+            stream.Seek(start, SeekOrigin.Begin);
+            stream.ReadExactly(data);
+            return ErpFragment.Decompress(data, fragment.Compression, fragment.Size);
         }
 
         private static int ReadUInt16(ReadOnlySpan<byte> span, ref int pos)

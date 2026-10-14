@@ -181,6 +181,35 @@ namespace EgoEngineLibrary.Archive.Erp
             }
         }
 
+        /// <summary>
+        /// Stored fragment bytes as they decompress, for a fragment read without an
+        /// <see cref="ErpFile"/> around it (see <see cref="ErpIndex.ReadFragment(string, ErpIndexResult, ErpIndexFragment)"/>).
+        /// </summary>
+        public static byte[] Decompress(byte[] data, ErpCompressionAlgorithm compression, ulong size)
+        {
+            Stream stream = compression switch
+            {
+                ErpCompressionAlgorithm.None or
+                    ErpCompressionAlgorithm.None2 or
+                    ErpCompressionAlgorithm.None3 or
+                    ErpCompressionAlgorithm.None4 => null!,
+                ErpCompressionAlgorithm.Zlib => new ZLibStream(data.AsMemory().AsStream(), CompressionMode.Decompress),
+                ErpCompressionAlgorithm.ZStandard or
+                    ErpCompressionAlgorithm.ZStandard2 or
+                    ErpCompressionAlgorithm.ZStandard3 => new DecompressionStream(data.AsMemory().AsStream()),
+                _ => throw new NotSupportedException(
+                    $"{nameof(ErpFragment)} compression type {compression} is not supported!"),
+            };
+            if (stream is null) return data;
+
+            using (stream)
+            {
+                using var bufferWriter = new ArrayPoolBufferWriter<byte>(Math.Max(1, Convert.ToInt32(size)));
+                stream.CopyTo(bufferWriter.AsStream());
+                return bufferWriter.WrittenSpan.ToArray();
+            }
+        }
+
         public void SetData(byte[] data, bool compress = true)
         {
             if (compress && IsCompressed)
