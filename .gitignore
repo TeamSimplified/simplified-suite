@@ -19,5 +19,6 @@ config.json
 /Simplified Sponsor Editor/original/*.erp
 /Simplified Team Editor/original/*.bin
 /Simplified Team Editor/original/*.lng
+!/Simplified Team Editor/original/2026_team_keys.lng
 /Simplified Team Editor/original/ui/
 /Simplified Team Editor/original/localisation/

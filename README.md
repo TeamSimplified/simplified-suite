@@ -27,7 +27,6 @@ them from your own copy of F1® 25:
 | App | Expects | Taken from the game |
 |---|---|---|
 | Team Editor, Grid Editor | `Simplified Team Editor/original/gamedatabases.2025.bin` | the game's `gamedatabases.2025.bin` |
-| Team Editor, Grid Editor | `Simplified Team Editor/original/2026_team_keys.lng` | the 2026 team-name keys |
 | Team Editor, Grid Editor | `Simplified Team Editor/original/ui/ui_texarrays_team_branding.erp` | the game's UI texture arrays |
 | Sponsor Editor | `Simplified Sponsor Editor/original/sponsors.erp`, `sponsors_ui.erp` | the game's sponsor archives |
 | Grid, Sponsor, Team Editors, Studio, Track Installer | `Shared/serps.erp` | the shader-package surface descriptor and vehicle shadow material every mod's shader package carries |
