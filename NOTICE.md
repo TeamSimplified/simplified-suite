@@ -27,8 +27,8 @@ available to everyone it is distributed to) and must carry the credit above.
 ## Game files are not included
 
 This repository contains no files from the game. The F1® 25 files some apps
-read at runtime - the game database, language files, UI and sponsor texture
-archives and the shader-package surface descriptor - are the property of
+read at runtime - the game database, language files, and the UI and sponsor
+texture archives - are the property of
 their owners and are not distributed here. See [README.md](README.md) for
 where each app expects them.
 

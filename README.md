@@ -29,14 +29,13 @@ them from your own copy of F1® 25:
 | Team Editor, Grid Editor | `Simplified Team Editor/original/gamedatabases.2025.bin` | the game's `gamedatabases.2025.bin` |
 | Team Editor, Grid Editor | `Simplified Team Editor/original/ui/ui_texarrays_team_branding.erp` | the game's UI texture arrays |
 | Sponsor Editor | `Simplified Sponsor Editor/original/sponsors.erp`, `sponsors_ui.erp` | the game's sponsor archives |
-| Grid, Sponsor, Team Editors, Studio, Track Installer | `Shared/serps.erp` | the shader-package surface descriptor and vehicle shadow material every mod's shader package carries |
 
 Language files are not needed in the repository: the apps take them out of
 the game's own executable on first run.
 
 These paths are ignored by git, so a copy you place there stays local.
-Without them those apps still build (the surface descriptor is embedded only
-when present), but the features that read them will not work.
+Without them those apps still build, but the features that read them will
+not work.
 
 F1® 25 is a trademark of its owners. This is an unofficial, fan-made project,
 not affiliated with or endorsed by Electronic Arts, Codemasters, Formula 1 or

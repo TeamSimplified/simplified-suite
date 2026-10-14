@@ -15,7 +15,6 @@ config.json
 
 # Files from the game. They are never committed: each developer takes them
 # from their own install (see README.md, "Game files are not included").
-/Shared/serps.erp
 /Simplified Sponsor Editor/original/*.erp
 /Simplified Team Editor/original/*.bin
 /Simplified Team Editor/original/*.lng
