@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimplifiedUniversalExporter</RootNamespace>
+    <AssemblyName>Simplified Universal Exporter</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!-- As in the Core: the ported code has neither, and spells its usings. -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- Off deliberately. Turning it on embeds the native libraries in the
+         single file, and the host then extracts them to %TEMP%\.net at startup:
+         once per build, never cleaned up, and outside the app folder — which
+         this app does not do. -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimplifiedUniversalExporter.Core\SimplifiedUniversalExporter.Core.csproj" />
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
+  </ItemGroup>
+
+  <!-- The 3D views (Helix's WPF viewport for the analysis modes, its DirectX
+       one for the showroom) and Assimp, which writes the FBX. -->
+  <ItemGroup>
+    <PackageReference Include="HelixToolkit.Wpf" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" />
+    <PackageReference Include="AssimpNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
+    <Compile Include="..\..\..\Shared\GameDirDetector.cs" Link="GameDirDetector.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\icon.ico" Link="runtime\icon.ico"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true"/>
+  </ItemGroup>
+
+  <!-- After publish the only loose .dlls are the natives the single file
+       can't carry: Assimp's, and ZstdNet's libzstd, which it drops under x64\
+       and x86\. This is an x64 app, so the x64 one is kept and the rest go. -->
+  <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
+      <PublishedNativeLibrary Include="$(PublishDir)x64\*.dll"/>
+      <UnusedArchitectureNative Include="$(PublishDir)x86\**\*"/>
+    </ItemGroup>
+    <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
+    <Delete Files="@(UnusedArchitectureNative)"/>
+    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86"/>
+  </Target>
+
+</Project>

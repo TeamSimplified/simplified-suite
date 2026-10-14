@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedUniversalExporter/SimplifiedUniversalExporter.csproj" />
+  <Project Path="src/SimplifiedUniversalExporter.Core/SimplifiedUniversalExporter.Core.csproj" />
+</Solution>

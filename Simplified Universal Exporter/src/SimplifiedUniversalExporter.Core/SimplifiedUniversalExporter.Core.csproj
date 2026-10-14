@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedUniversalExporter.Core</RootNamespace>
+    <AssemblyName>SimplifiedUniversalExporter.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+
+    <!-- The exporter's engine predates the suite and was written without
+         nullable annotations or implicit usings; it spells out every using,
+         and with implicit ones on, names like Path become ambiguous. Both
+         stay off here rather than burying the port in thousands of warnings. -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    The parts of the exporter that need no window: reading an ERP into a
+    folder laid out like the game's install, finding the game's packages and
+    its year, the external mip files, and the material, paint and naming
+    rules. The model loaders and the FBX writer stay in the app for now -
+    they are built on WPF's 3D types.
+  -->
+  <ItemGroup>
+    <PackageReference Include="ZstdNet" />
+  </ItemGroup>
+
+  <!-- The engine's classes are internal, as they were in the one-project app;
+       the app is the only thing that uses them. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Simplified Universal Exporter" />
+  </ItemGroup>
+
+</Project>

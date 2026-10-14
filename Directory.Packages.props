@@ -25,6 +25,18 @@
          Shared\SvgPicture.cs, so the rest of the suite does not carry it. -->
     <PackageVersion Include="SharpVectors.Reloaded" Version="1.8.6" />
 
+    <!-- The Universal Exporter's, at the versions it shipped with on its own:
+         Helix's WPF and DirectX viewports, and Assimp for writing FBX.
+         HelixToolkit.Wpf only ships .NET Framework builds and restores with
+         NU1701; it has run that way in the exporter since 1.0. -->
+    <PackageVersion Include="HelixToolkit.Wpf" Version="2.25.0" />
+    <PackageVersion Include="HelixToolkit.Wpf.SharpDX" Version="3.1.2" />
+    <PackageVersion Include="AssimpNet" Version="5.0.0-beta1" />
+
+    <!-- The exporter's own ERP reader decompresses through this. On its way
+         out: the suite reads ERPs through EgoEngineLibrary and ZstdSharp. -->
+    <PackageVersion Include="ZstdNet" Version="1.4.5" />
+
     <!-- NefsLib's own, at the versions it pins. It reads the NeFS archive
          inside the game exe, which is where the language files live. -->
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.1" />

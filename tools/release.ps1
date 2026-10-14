@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -211,6 +211,13 @@ $Apps = @(
         # track list until the game database names it, which this does not do
         # yet. -App TrackInstaller still packages it.
         InAll = $false
+    }
+    [pscustomobject]@{
+        Short = 'UniversalExporter'; Folder = 'Simplified Universal Exporter'
+        Project = 'src\SimplifiedUniversalExporter\SimplifiedUniversalExporter.csproj'
+        Exe = 'Simplified Universal Exporter'; Package = 'Simplified Universal Exporter'
+        Tag = 'universalexporter-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
         Short = 'Driver'; Folder = 'Simplified Driver Swapper'
