@@ -120,10 +120,15 @@ namespace SimplifiedUniversalExporter.Core
 
         /// <summary>
         /// Try to read and parse a <c>temp002.image</c> file. Returns
-        /// <c>null</c> on any error (file missing, short read, corrupt
-        /// layout, self-consistency check fails) so the caller can fall
-        /// back to an inference-based path unchanged. The log sink is
-        /// called with a single diagnostic line on unexpected failure.
+        /// <c>null</c> on any error (file missing, short read, a layout the
+        /// library refuses, sizes that make no sense) so the caller can fall
+        /// back to its inference-based path unchanged. The log sink is called
+        /// with a single diagnostic line on unexpected failure.
+        ///
+        /// The format itself is read by EgoEngineLibrary's ErpGfxSurfaceRes2,
+        /// the same reader that embeds mips when a mod is built; this only adds
+        /// the checks the exporter has always made before trusting a
+        /// descriptor.
         /// </summary>
         public static Result TryRead(string temp002Path, Action<string> log = null)
         {
@@ -140,89 +145,44 @@ namespace SimplifiedUniversalExporter.Core
                 return null;
             }
 
-            // Try F1 22-and-earlier base layout first. F1 22 is the most
-            // common case today; try it first so the typical path is
-            // zero-retry. F1 23 try happens only if Base rejects.
-            if (TryParse(data, Layout.Base, out var r))
+            var result = TryParse(data);
+            if (result is null)
             {
-                r.DescriptorFileSize = data.Length;
-                return r;
+                log($"  temp002: {Path.GetFileName(temp002Path)} ({data.Length} bytes) " +
+                    $"didn't match Base or F1_23 layout -- skipping");
+                return null;
             }
 
-            if (TryParse(data, Layout.F1_23, out r))
-            {
-                r.DescriptorFileSize = data.Length;
-                return r;
-            }
-
-            log($"  temp002: {Path.GetFileName(temp002Path)} ({data.Length} bytes) " +
-                $"didn't match Base or F1_23 layout -- skipping");
-            return null;
+            result.DescriptorFileSize = data.Length;
+            return result;
         }
 
-        /// <summary>
-        /// Parse <paramref name="data"/> under the given layout. Returns
-        /// <c>true</c> only when EVERY byte is consumed (the self-
-        /// consistency check): the computed end offset must equal
-        /// <c>data.Length</c>. A layout that "almost fits" but leaves
-        /// slack or overflows is rejected -- both are signs the layout
-        /// guess was wrong.
-        /// </summary>
-        private static bool TryParse(byte[] data, Layout layout, out Result result)
+        private static Result TryParse(byte[] data)
         {
-            result = null;
-            if (data == null || data.Length < 6) return false;
+            if (data == null || data.Length < 6) return null;
 
-            int pos = 0;
+            EgoEngineLibrary.Archive.Erp.Data.ErpGfxSurfaceRes2 descriptor;
+            try { descriptor = EgoEngineLibrary.Archive.Erp.Data.ErpGfxSurfaceRes2.FromBytes(data); }
+            catch { return null; }
 
-            // pathStringLen + path
-            int strLen = data[pos]; pos += 1;
-            if (pos + strLen > data.Length) return false;
-            string pathStr;
-            try { pathStr = Encoding.ASCII.GetString(data, pos, strLen); }
-            catch { return false; }
-            pos += strLen;
+            // Sanity: mipCount should be small (1..16). Anything else is a
+            // corrupt file or a layout the reader got wrong; reject.
+            if (descriptor.Mips.Count <= 0 || descriptor.Mips.Count > 16) return null;
 
-            // F1 23 adds one byte here
-            if (layout == Layout.F1_23)
+            var mips = new List<MipEntry>(descriptor.Mips.Count);
+            foreach (var m in descriptor.Mips)
             {
-                if (pos + 1 > data.Length) return false;
-                pos += 1; // unknown4, discarded
-            }
-
-            // mipCount
-            if (pos + 4 > data.Length) return false;
-            int mipCount = BitConverter.ToInt32(data, pos);
-            pos += 4;
-
-            // Sanity: mipCount should be small (1..16). Anything else is
-            // either a corrupt file or a layout mismatch; reject.
-            if (mipCount <= 0 || mipCount > 16) return false;
-
-            // Per-mip descriptors
-            int perMipBytes = (layout == Layout.F1_23 ? 1 : 0) + 1 + 8 + 8 + 8;
-            if (pos + mipCount * perMipBytes > data.Length) return false;
-
-            var mips = new List<MipEntry>(mipCount);
-            for (int i = 0; i < mipCount; i++)
-            {
-                if (layout == Layout.F1_23)
-                {
-                    pos += 1; // per-mip unknown, discarded
-                }
-                byte compression = data[pos]; pos += 1;
-                long offset       = BitConverter.ToInt64(data, pos); pos += 8;
-                long packedSize   = BitConverter.ToInt64(data, pos); pos += 8;
-                long uncompSize   = BitConverter.ToInt64(data, pos); pos += 8;
+                long offset = (long)m.Offset, packedSize = (long)m.PackedSize, uncompSize = (long)m.Size;
+                byte compression = (byte)m.Compression;
 
                 // Cheap sanity checks on each mip to catch layout drift.
-                if (offset < 0 || packedSize < 0 || uncompSize <= 0) return false;
+                if (offset < 0 || packedSize < 0 || uncompSize <= 0) return null;
                 if (packedSize > uncompSize + 1024 && compression == CompressionCode.Raw)
                 {
                     // If the descriptor says "raw" but packed exceeds
                     // uncompressed by more than alignment slack, the
-                    // layout guess is almost certainly wrong.
-                    return false;
+                    // layout was almost certainly read wrong.
+                    return null;
                 }
 
                 mips.Add(new MipEntry
@@ -234,27 +194,13 @@ namespace SimplifiedUniversalExporter.Core
                 });
             }
 
-            // Trailing bytes (unknown3 for GRID Legends + floats for
-            // F1 2017+). We don't need these values but we DO use their
-            // consumed-byte count as the self-consistency check: a correct
-            // layout guess leaves exactly 8 bytes of trailing floats
-            // (F1 2017 layout) or 9 bytes (GRID Legends = 1 + 8). Any
-            // other remainder means the layout guess was wrong.
-            int remaining = data.Length - pos;
-            if (remaining != 8 && remaining != 9) return false;
-
-            // Floats at tail are not stored -- they're streaming hints
-            // the game uses, not something the preview needs. Consuming
-            // the count is what matters for layout validation.
-
-            result = new Result
+            return new Result
             {
-                Path = pathStr,
-                MipCount = mipCount,
+                Path = descriptor.MipMapFileName,
+                MipCount = mips.Count,
                 Mips = mips,
-                DetectedLayout = layout,
+                DetectedLayout = descriptor.HasF123Layout ? Layout.F1_23 : Layout.Base,
             };
-            return true;
         }
     }
 }

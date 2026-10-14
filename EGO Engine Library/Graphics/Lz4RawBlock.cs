@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace SimplifiedUniversalExporter.Core
+namespace EgoEngineLibrary.Graphics
 {
     /// <summary>
     /// Decoder for raw LZ4 block streams -- the stream format used in
@@ -31,8 +31,13 @@ namespace SimplifiedUniversalExporter.Core
     /// This was reverse-engineered against mclaren_driver_1_tif.mipmaps
     /// (25563 bytes, 4 mips 1024x512 -> 128x64 BC3) and validated to
     /// consume the full file with zero remainder.
+    ///
+    /// Beside K4os' LZ4Codec, which GraphicsExtensions uses, rather than
+    /// instead of it: that needs each block's stored size, which a texture
+    /// without its descriptor doesn't give. This walks blocks laid end to end
+    /// and says how far it read. From the Universal Exporter.
     /// </summary>
-    internal static class Lz4RawDecoder
+    public static class Lz4RawBlock
     {
         /// <summary>
         /// Decode one LZ4 raw block into <paramref name="dst"/>.

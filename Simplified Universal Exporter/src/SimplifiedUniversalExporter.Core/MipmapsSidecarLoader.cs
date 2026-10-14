@@ -320,7 +320,7 @@ namespace SimplifiedUniversalExporter.Core
                 int consumed;
                 try
                 {
-                    consumed = Lz4RawDecoder.Decode(fileBytes, cursor, mip);
+                    consumed = EgoEngineLibrary.Graphics.Lz4RawBlock.Decode(fileBytes, cursor, mip);
                 }
                 catch (Exception ex)
                 {

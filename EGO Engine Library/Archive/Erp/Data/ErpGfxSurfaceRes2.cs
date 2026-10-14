@@ -56,9 +56,33 @@ namespace EgoEngineLibrary.Archive.Erp.Data
             Unknown2 = 1;
         }
 
+        /// <summary>
+        /// The F1 23 layout: one more byte after the file name, and one more per
+        /// mip (F1 23 through F1 25). Decided by length, which cannot be
+        /// ambiguous: the two layouts' sizes never coincide for any mip count.
+        /// </summary>
+        public bool HasF123Layout => _hasF123Data;
+
+        /// <summary>
+        /// Read a descriptor from its bytes, for one that has been extracted from
+        /// its archive (the third fragment of a GfxSurfaceRes).
+        /// </summary>
+        public static ErpGfxSurfaceRes2 FromBytes(byte[] data)
+        {
+            var descriptor = new ErpGfxSurfaceRes2();
+            using var stream = new MemoryStream(data, writable: false);
+            descriptor.Read(stream);
+            return descriptor;
+        }
+
         public override void FromFragment(ErpFragment fragment)
         {
-            using (var memData = fragment.GetDataStream(true))
+            using var memData = fragment.GetDataStream(true);
+            Read(memData);
+        }
+
+        private void Read(Stream memData)
+        {
             using (ErpBinaryReader reader = new ErpBinaryReader(memData))
             {
                 var fileNameLength = reader.ReadByte();
