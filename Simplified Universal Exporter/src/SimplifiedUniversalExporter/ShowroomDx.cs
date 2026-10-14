@@ -312,6 +312,8 @@ namespace SimplifiedUniversalExporter
             }
             if (hxMesh == null) return;
 
+            var seeThrough = FindSeeThrough(gm.Material);
+
             var element = new MeshGeometryModel3D
             {
                 Geometry = hxMesh,
@@ -334,6 +336,9 @@ namespace SimplifiedUniversalExporter
             // car parts have no decal-named base slots.
             if (F1ModelLoader.IsDecalLikeSlotName(
                     MeshSubmeshRegistry.GetSubmeshName(wpfMesh)))
+                element.IsTransparent = true;
+            // Visors, tear-offs and the clear plastic parts blend.
+            if (seeThrough != null)
                 element.IsTransparent = true;
             _convertedNodes.Add(new ConvertedNode { Node = element, Source = gm.Material });
             outList.Add(element);
@@ -485,7 +490,26 @@ namespace SimplifiedUniversalExporter
                 pbr.AlbedoColor = new Color4(
                     sb.Color.R / 255f, sb.Color.G / 255f, sb.Color.B / 255f, 1f);
             }
+
+            // See-through character materials: the game's opacity (the
+            // albedo alpha, which the transparent pass blends by), its
+            // smoothness and its index of refraction.
+            var seeThrough = FindSeeThrough(mat);
+            if (seeThrough != null)
+            {
+                var a = pbr.AlbedoColor;
+                pbr.AlbedoColor = new Color4(a.Red, a.Green, a.Blue, seeThrough.Opacity);
+                pbr.RoughnessFactor = Math.Max(0.05, seeThrough.Roughness);
+                pbr.ReflectanceFactor = IorToReflectance(seeThrough.Ior);
+            }
             return pbr;
+        }
+
+        private static SeeThroughMaterial FindSeeThrough(Media3D.Material mat)
+        {
+            if (GameMaterialCatalog.TryGetSeeThrough(mat, out var st)) return st;
+            var dm = FindFirstDiffuse(mat);
+            return dm != null && GameMaterialCatalog.TryGetSeeThrough(dm, out st) ? st : null;
         }
 
         private static Media3D.DiffuseMaterial FindFirstDiffuse(Media3D.Material mat)

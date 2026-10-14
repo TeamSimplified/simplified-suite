@@ -3796,9 +3796,12 @@ namespace SimplifiedUniversalExporter
             catch { return 1.0f; }
             if (mat == null || mat.Parameters == null) return 1.0f;
 
-            // me_alpha is the canonical name on char_visor_skinned. Other
-            // shaders that ship a scalar opacity (none observed yet, but
-            // the 105-file corpus is small) can be added here.
+            // The see-through character shaders (visor, tear-off, the
+            // helmet's clear plastic) say how they look in game; the preview
+            // reads the same rule.
+            var seeThrough = SeeThroughMaterial.For(mat);
+            if (seeThrough != null) return seeThrough.Opacity;
+
             float? a = mat.GetFloat("me_alpha");
             if (a.HasValue && a.Value >= 0f && a.Value <= 1f)
                 return a.Value;

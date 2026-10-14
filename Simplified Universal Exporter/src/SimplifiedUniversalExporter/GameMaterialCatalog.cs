@@ -211,6 +211,27 @@ namespace SimplifiedUniversalExporter
             return material != null && _tags.TryGetValue(material, out info);
         }
 
+        private static readonly ConditionalWeakTable<Media3D.Material, SeeThroughMaterial> _seeThrough =
+            new ConditionalWeakTable<Media3D.Material, SeeThroughMaterial>();
+
+        /// <summary>
+        /// Mark a WPF material as one of the game's see-through character
+        /// materials (visor, tear-off, clear plastic), so the DX showroom
+        /// blends it the way the game does. Set beside <see cref="Tag"/>.
+        /// </summary>
+        public static void TagSeeThrough(Media3D.Material material, SeeThroughMaterial seeThrough)
+        {
+            if (material == null || seeThrough == null) return;
+            try { _seeThrough.AddOrUpdate(material, seeThrough); }
+            catch { }
+        }
+
+        public static bool TryGetSeeThrough(Media3D.Material material, out SeeThroughMaterial seeThrough)
+        {
+            seeThrough = null;
+            return material != null && _seeThrough.TryGetValue(material, out seeThrough);
+        }
+
         public static GameMaterialInfo Find(string materialEaidOrName)
         {
             if (string.IsNullOrEmpty(materialEaidOrName)) return null;

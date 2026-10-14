@@ -4222,6 +4222,7 @@ namespace SimplifiedUniversalExporter
                 // on the wrong geometry: compare the per-submesh line to
                 // where that submesh sits in 3D space.
                 Material material = null;
+                SeeThroughMaterial seeThrough = null;
                 string logSlot = sm.MaterialSlot ?? "?";
                 string logMat = "-";
                 string logPick = "-";
@@ -4305,11 +4306,25 @@ namespace SimplifiedUniversalExporter
                         var diffuseBrush = HighResBrushProvider.WrapBrush(
                             res.TextureEaid, res.Brush, _textureCache, Log);
 
+                        // See-through character materials (visor, tear-off,
+                        // clear plastic) are blended at the game's own opacity
+                        // instead of drawn solid; the brush is a copy, since
+                        // the cache shares one per texture (blank_d.tif backs
+                        // opaque slots too).
+                        seeThrough = SeeThroughMaterial.For(_textureCache.GetMaterial(materialEaid));
+                        if (seeThrough != null && diffuseBrush != null)
+                        {
+                            diffuseBrush = diffuseBrush.CloneCurrentValue();
+                            diffuseBrush.Opacity = seeThrough.Opacity;
+                            diffuseBrush.Freeze();
+                        }
+
                         material = new DiffuseMaterial(diffuseBrush);
                         // v17.0: associate this WPF material with its decoded
                         // GfxMaterialRes so the DX showroom can apply the
                         // game's own paint/carbon/rubber/glass response.
                         GameMaterialCatalog.Tag(material, materialEaid);
+                        GameMaterialCatalog.TagSeeThrough(material, seeThrough);
                         // Record the BASE texture EAID for the exporter.
                         // Classic and Legacy always did this; the modern
                         // loader only recorded OVERLAY texture EAIDs, so
@@ -4318,7 +4333,8 @@ namespace SimplifiedUniversalExporter
                         if (!string.IsNullOrEmpty(res.TextureEaid))
                             MeshSubmeshRegistry.SetTextureEaid(mesh, res.TextureEaid);
                         texturedCount++;
-                        logStatus = "OK";
+                        logStatus = seeThrough == null ? "OK"
+                            : $"OK see-through {seeThrough.Kind} opacity={seeThrough.Opacity:0.###}";
                     }
                     else
                     {
@@ -4355,7 +4371,7 @@ namespace SimplifiedUniversalExporter
                 {
                     BackMaterial = material,
                 };
-                if (IsGlassSubmesh(sm.MaterialSlot ?? sm.Name, materialEaid))
+                if (seeThrough != null || IsGlassSubmesh(sm.MaterialSlot ?? sm.Name, materialEaid))
                     SetIsTransparentBase(model, true);
 
                 group.Children.Add(model);
