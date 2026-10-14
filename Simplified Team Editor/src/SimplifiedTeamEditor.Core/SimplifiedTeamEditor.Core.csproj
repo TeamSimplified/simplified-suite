@@ -17,7 +17,7 @@
        SerpsOverlay reads it back out. LogicalName is pinned so the lookup
        does not depend on this assembly's namespace. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
+    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" Condition="Exists('..\..\..\Shared\serps.erp')" />
     <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
   </ItemGroup>
 

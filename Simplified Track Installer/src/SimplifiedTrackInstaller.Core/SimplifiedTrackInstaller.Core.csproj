@@ -22,7 +22,7 @@
        the two readers that say what game a package was built against and
        whether the archives it was built from were the game's own. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" />
+    <EmbeddedResource Include="..\..\..\Shared\serps.erp" LogicalName="serps.erp" Condition="Exists('..\..\..\Shared\serps.erp')" />
     <Compile Include="..\..\..\Shared\SerpsOverlay.cs" Link="SerpsOverlay.cs" />
     <Compile Include="..\..\..\Shared\GameFileGuard.cs" Link="GameFileGuard.cs" />
     <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
