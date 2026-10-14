@@ -226,6 +226,51 @@ namespace SimplifiedUniversalExporter
             catch { }
         }
 
+        /// <summary>
+        /// A material as the texture cache's parser read it (the F1 25
+        /// layout, which this catalog's own decode predates): its shader
+        /// family, its float parameters and its texture bindings. Null when
+        /// there is no material or no shader.
+        /// </summary>
+        public static GameMaterialInfo FromMaterialFile(MaterialFile material)
+        {
+            if (material == null || string.IsNullOrEmpty(material.ShaderEaid)) return null;
+            var info = new GameMaterialInfo
+            {
+                ShaderEaid = material.ShaderEaid,
+                Kind = Classify(material.ShaderEaid),
+            };
+            if (material.Parameters != null)
+                foreach (var kv in material.Parameters)
+                    if (kv.Value?.Floats != null && kv.Value.Floats.Length > 0)
+                        info.Params[kv.Key] = kv.Value.Floats;
+            if (material.BindingsBySlot != null)
+                foreach (var kv in material.BindingsBySlot)
+                    if (!string.IsNullOrEmpty(kv.Value)) info.Bindings[kv.Key] = kv.Value;
+            return info;
+        }
+
+        private static readonly ConditionalWeakTable<Media3D.Material, string> _materialEaids =
+            new ConditionalWeakTable<Media3D.Material, string>();
+
+        /// <summary>
+        /// Remember which game material a WPF material was built from, so
+        /// the DX showroom can read that material's own normal and surface
+        /// bindings through the texture cache's parser.
+        /// </summary>
+        public static void TagMaterialEaid(Media3D.Material material, string materialEaid)
+        {
+            if (material == null || string.IsNullOrEmpty(materialEaid)) return;
+            try { _materialEaids.AddOrUpdate(material, materialEaid); }
+            catch { }
+        }
+
+        public static bool TryGetMaterialEaid(Media3D.Material material, out string materialEaid)
+        {
+            materialEaid = null;
+            return material != null && _materialEaids.TryGetValue(material, out materialEaid);
+        }
+
         public static bool TryGetSeeThrough(Media3D.Material material, out SeeThroughMaterial seeThrough)
         {
             seeThrough = null;

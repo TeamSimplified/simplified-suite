@@ -248,7 +248,9 @@ namespace SimplifiedUniversalExporter
                 {
                     _envDebounce.Stop();
                     if (_envRef != null)
-                        _envRef.Texture = BuildEnvironmentCubemap(_lastTint, Brightness, Reflection);
+                        _envRef.Texture = _studioEnv
+                            ? BuildStudioEnvironmentCubemap(Brightness, Reflection)
+                            : BuildEnvironmentCubemap(_lastTint, Brightness, Reflection);
                     try { _vpLive?.InvalidateRender(); } catch { }
                 };
             }
@@ -413,6 +415,17 @@ namespace SimplifiedUniversalExporter
                 mesh.TextureCoordinates = new Vector2Collection(src.TextureCoordinates.Count);
                 foreach (var t in src.TextureCoordinates)
                     mesh.TextureCoordinates.Add(new Vector2((float)t.X, (float)t.Y));
+
+                // Tangents, which normal maps are read along.
+                try
+                {
+                    HelixToolkit.Geometry.MeshBuilder.ComputeTangents(
+                        mesh.Positions, mesh.Normals, mesh.TextureCoordinates, mesh.Indices,
+                        out var tangents, out var bitangents);
+                    mesh.Tangents = new Vector3Collection(tangents);
+                    mesh.BiTangents = new Vector3Collection(bitangents);
+                }
+                catch { }
             }
             return mesh;
         }
@@ -471,9 +484,15 @@ namespace SimplifiedUniversalExporter
             // is present the guessed constants above are replaced with
             // the game's own numbers per family (see ApplyGameMaterial).
             GameMaterialInfo gm = null;
-            if (EnableGameMaterials &&
-                !GameMaterialCatalog.TryGet(mat, out gm) && dm != null)
-                GameMaterialCatalog.TryGet(dm, out gm);
+            if (EnableGameMaterials)
+            {
+                // The material as the texture cache's parser reads it
+                // (the F1 25 layout) comes first; the catalog's own
+                // decode is the older layout and misreads F1 25 files.
+                gm = GameMaterialCatalog.FromMaterialFile(FindMaterialFile(mat, out _));
+                if (gm == null && !GameMaterialCatalog.TryGet(mat, out gm) && dm != null)
+                    GameMaterialCatalog.TryGet(dm, out gm);
+            }
             if (gm != null) ApplyGameMaterial(pbr, gm, texCache);
 
             if (dm?.Brush is ImageBrush ib && ib.ImageSource is BitmapSource bs)
@@ -502,7 +521,125 @@ namespace SimplifiedUniversalExporter
                 pbr.RoughnessFactor = Math.Max(0.05, seeThrough.Roughness);
                 pbr.ReflectanceFactor = IorToReflectance(seeThrough.Ior);
             }
+            if (EnableMaterialMaps) ApplyMaterialMaps(pbr, mat);
             return pbr;
+        }
+
+        // ---------------------------------------------------------------
+        // The material's own normal (_n) and surface (_s) maps, read from
+        // its bindings through the texture cache's parser (the F1 25
+        // layout, characters and cars alike). The surface map's channels
+        // are the game's finish: G roughness, B metallic - the layout the
+        // suite's Blender add-on wires and Helix's RoughnessMetallicMap
+        // reads, so it goes in as is, with the factors at 1 so the map
+        // alone sets the finish. A map the shader tiles is left alone -
+        // one untiled cell smeared across a car is worse than none: the
+        // normal map when the material has me_normalTile (paint flake),
+        // both maps when it has me_carbonTile (the weave). A paint's own
+        // surface map (me_paintSurfaceMap) is laid out like its albedo
+        // atlas and goes in. BC5 surface maps carry only R and G, no
+        // metallic; they are left alone rather than read as half a finish.
+        // ---------------------------------------------------------------
+        private const bool EnableMaterialMaps = true;
+
+        /// <summary>How much of a normal map's tilt is kept: 1 = as authored. Chosen by eye.</summary>
+        private const double NormalStrength = 0.5;
+
+        private static readonly string[] NormalSlots = { "me_normalTex", "me_normalMap" };
+        private static readonly string[] SurfaceSlots = { "me_surfaceTex", "me_surfaceMap", "me_paintSurfaceMap" };
+
+        private static MaterialFile FindMaterialFile(Media3D.Material mat, out TextureCache cache)
+        {
+            cache = F1ModelLoader.ActiveTextureCache
+                    ?? F1ModelLoaderClassic.ActiveTextureCache
+                    ?? F1ModelLoaderLegacy.ActiveTextureCache;
+            if (cache == null) return null;
+            if (!GameMaterialCatalog.TryGetMaterialEaid(mat, out var eaid))
+            {
+                var dm = FindFirstDiffuse(mat);
+                if (dm == null || !GameMaterialCatalog.TryGetMaterialEaid(dm, out eaid)) return null;
+            }
+            try { return cache.GetMaterial(eaid); }
+            catch { return null; }
+        }
+
+        private static bool HasParameter(MaterialFile material, string name) =>
+            material.Parameters != null && material.Parameters.ContainsKey(name);
+
+        private static void ApplyMaterialMaps(PBRMaterial pbr, Media3D.Material mat)
+        {
+            try
+            {
+                var material = FindMaterialFile(mat, out var cache);
+                if (material?.BindingsBySlot == null) return;
+                if (HasParameter(material, "me_carbonTile")) return;
+
+                if (!HasParameter(material, "me_normalTile"))
+                {
+                    var normal = MapTexture(cache, Binding(material, NormalSlots), asNormal: true);
+                    if (normal != null) pbr.NormalMap = normal;
+                }
+
+                var surface = MapTexture(cache, Binding(material, SurfaceSlots), asNormal: false);
+                if (surface != null)
+                {
+                    pbr.RoughnessMetallicMap = surface;
+                    pbr.RoughnessFactor = 1.0;
+                    pbr.MetallicFactor = 1.0;
+                }
+            }
+            catch { }
+        }
+
+        private static string Binding(MaterialFile material, string[] slots)
+        {
+            foreach (var slot in slots)
+                if (material.BindingsBySlot.TryGetValue(slot, out var eaid) && !string.IsNullOrEmpty(eaid))
+                    return eaid;
+            return null;
+        }
+
+        private static TextureModel MapTexture(TextureCache cache, string textureEaid, bool asNormal)
+        {
+            if (string.IsNullOrEmpty(textureEaid)) return null;
+            string key = (asNormal ? "n|" : "s|") + textureEaid;
+            if (_auxTexCache.TryGetValue(key, out var cached)) return cached;
+
+            TextureModel tex = null;
+            var decoded = asNormal
+                ? TextureDecodeLadder.Normal(textureEaid, cache, _ => { }, out _)
+                : TextureDecodeLadder.Best(textureEaid, cache, _ => { }, out _);
+            bool usable = decoded?.Bgra != null && decoded.Width > 0 && decoded.Height > 0 &&
+                          (asNormal || decoded.FormatName == null ||
+                           !decoded.FormatName.StartsWith("BC5", StringComparison.OrdinalIgnoreCase));
+            if (usable)
+            {
+                // The game's normal maps point green the other way from
+                // the convention Helix's shader reads, and Helix applies
+                // them at full strength with no scale of its own, which
+                // reads harsher than in game: the tilt is scaled by
+                // NormalStrength and Z rebuilt so each texel stays unit.
+                if (asNormal)
+                {
+                    var soft = (byte[])decoded.Bgra.Clone();
+                    for (int i = 0; i + 3 < soft.Length; i += 4)
+                    {
+                        double nx = (soft[i + 2] / 127.5 - 1.0) * NormalStrength;
+                        double ny = -(soft[i + 1] / 127.5 - 1.0) * NormalStrength;
+                        double nz = Math.Sqrt(Math.Max(0.0, 1.0 - nx * nx - ny * ny));
+                        soft[i + 2] = ClampB((nx + 1.0) * 127.5);
+                        soft[i + 1] = ClampB((ny + 1.0) * 127.5);
+                        soft[i + 0] = ClampB((nz + 1.0) * 127.5);
+                    }
+                    decoded = new DecodedTexture { Bgra = soft, Width = decoded.Width, Height = decoded.Height, FormatName = decoded.FormatName };
+                }
+                var bmp = BitmapSource.Create(decoded.Width, decoded.Height, 96, 96,
+                    PixelFormats.Bgra32, null, decoded.Bgra, decoded.Width * 4);
+                bmp.Freeze();
+                tex = ToTextureModel(bmp);
+            }
+            _auxTexCache[key] = tex;   // nulls too: don't retry per mesh
+            return tex;
         }
 
         private static SeeThroughMaterial FindSeeThrough(Media3D.Material mat)
@@ -905,6 +1042,70 @@ namespace SimplifiedUniversalExporter
             });
             var dds = BuildRgbaCubemapDds(EnvSize, faces, withMips: true);
             return new TextureModel(new MemoryStream(dds));
+        }
+
+        // ---------------------------------------------------------------
+        // The neutral view's reflections: a white studio rather than the
+        // dark cove around the papaya reference. Its backdrop is never
+        // drawn (the viewport stays black), so the map only decides what
+        // shiny surfaces mirror - and a mirror-smooth metal (chrome on a
+        // helmet, the metallic share of a paint) shows little else. In
+        // the dark cove such metal mirrored 20-70 grey and read as black.
+        // Here: a floor that stays dark, walls rising to a bright ceiling,
+        // a large overhead softbox and two tall strip lights, so chrome
+        // reads bright with defined highlights and dielectrics (F0 ~0.04)
+        // gain only a faint sheen. The softboxes follow the Reflection
+        // slider and everything follows Light, like the cove's emitter.
+        // ---------------------------------------------------------------
+        private const int StudioEnvSize = 256;
+        private static bool _studioEnv;
+
+        private static TextureModel BuildStudioEnvironmentCubemap(double brightness, double reflection)
+        {
+            double bf = Math.Min(2.0, brightness / CalBrightness);
+            double rf = Math.Min(2.2, Math.Max(0.0, reflection / CalReflection));
+            byte[][] faces = new byte[6][];
+            Parallel.For(0, 6, f =>
+            {
+                var face = new byte[StudioEnvSize * StudioEnvSize * 4];
+                for (int y = 0; y < StudioEnvSize; y++)
+                {
+                    double v = y / (double)(StudioEnvSize - 1);
+                    for (int x = 0; x < StudioEnvSize; x++)
+                    {
+                        double u = x / (double)(StudioEnvSize - 1);
+                        FaceDir(f, u, v, out double dX, out double dY, out double dZ);
+
+                        // floor 0.10, horizon ~0.35, ceiling 0.70
+                        double L = 0.10 + 0.25 * SmoothStep01((dY + 0.15) / 0.30)
+                                        + 0.35 * SmoothStep01((dY - 0.10) / 0.80);
+                        // overhead softbox
+                        double box = SmoothStep01((dY - 0.80) / 0.08);
+                        // two tall strips, front-left and back-right
+                        double az = Math.Atan2(dZ, dX);
+                        double strip = Math.Max(Strip(az, 2.2), Strip(az, -0.9))
+                                       * SmoothStep01((dY + 0.05) / 0.10) * (1.0 - SmoothStep01((dY - 0.65) / 0.10));
+                        L += rf * (0.55 * box + 0.60 * strip);
+
+                        byte c = ClampB(255.0 * Math.Min(1.0, L * bf));
+                        int o = (y * StudioEnvSize + x) * 4;
+                        face[o + 0] = c;
+                        face[o + 1] = c;
+                        face[o + 2] = c;
+                        face[o + 3] = 255;
+                    }
+                }
+                faces[f] = face;
+            });
+            var dds = BuildRgbaCubemapDds(StudioEnvSize, faces, withMips: true);
+            return new TextureModel(new MemoryStream(dds));
+        }
+
+        /// <summary>1 inside a strip ~17 degrees wide centred on azimuth <paramref name="centre"/>, soft-edged.</summary>
+        private static double Strip(double az, double centre)
+        {
+            double d = Math.Abs(Math.IEEERemainder(az - centre, 2 * Math.PI));
+            return 1.0 - SmoothStep01((d - 0.12) / 0.06);
         }
 
         /// <summary>
@@ -1410,6 +1611,7 @@ namespace SimplifiedUniversalExporter
                     vp.EffectsManager = new DefaultEffectsManager();
 
                 _lastTint = tint;
+                _studioEnv = false;
                 _vpLive = vp;
 
                 // v16.0: irradiance FIRST -- ConvertMaterial hands it to
@@ -1608,9 +1810,10 @@ namespace SimplifiedUniversalExporter
 
                 var tint = Color.FromRgb(0x48, 0x48, 0x48);
                 _irrTex = BuildIrradianceCubemap(tint, Brightness, Reflection);
+                _studioEnv = true;
                 _envRef = new EnvironmentMap3D
                 {
-                    Texture = BuildEnvironmentCubemap(tint, Brightness, Reflection),
+                    Texture = BuildStudioEnvironmentCubemap(Brightness, Reflection),
                     // The cubemap feeds the PBR reflections but its
                     // skybox draw is skipped -- the backdrop stays the
                     // viewport's own black.

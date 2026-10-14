@@ -4325,6 +4325,7 @@ namespace SimplifiedUniversalExporter
                         // game's own paint/carbon/rubber/glass response.
                         GameMaterialCatalog.Tag(material, materialEaid);
                         GameMaterialCatalog.TagSeeThrough(material, seeThrough);
+                        GameMaterialCatalog.TagMaterialEaid(material, materialEaid);
                         // Record the BASE texture EAID for the exporter.
                         // Classic and Legacy always did this; the modern
                         // loader only recorded OVERLAY texture EAIDs, so
