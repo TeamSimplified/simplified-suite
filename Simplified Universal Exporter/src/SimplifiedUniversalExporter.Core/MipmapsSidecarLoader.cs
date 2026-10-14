@@ -351,7 +351,7 @@ namespace SimplifiedUniversalExporter.Core
             byte[] bgra;
             try
             {
-                bgra = BlockCompressionDecoder.DecodeBC3(topBc3, topW, topH);
+                bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC3(topBc3, topW, topH);
             }
             catch (Exception ex)
             {

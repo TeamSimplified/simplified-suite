@@ -646,9 +646,9 @@ namespace SimplifiedUniversalExporter.Core
         private static byte[] DecodeByFormat(ImageDescriptor tail, byte[] data, int w, int h,
                                              BC5DecodeMode bc5Mode)
         {
-            if (tail.IsBC1) return BlockCompressionDecoder.DecodeBC1(data, w, h);
-            if (tail.IsBC2) return BlockCompressionDecoder.DecodeBC2(data, w, h);
-            if (tail.IsBC3) return BlockCompressionDecoder.DecodeBC3(data, w, h);
+            if (tail.IsBC1) return EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC1(data, w, h);
+            if (tail.IsBC2) return EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC2(data, w, h);
+            if (tail.IsBC3) return EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC3(data, w, h);
             // BC5: same block format, different interpretation. Callers
             // requesting normal-map output get (R=X, G=Y, B=Z); everyone
             // else gets the R channel as grayscale (used for mask
@@ -669,10 +669,10 @@ namespace SimplifiedUniversalExporter.Core
                 // dark grey under the clamping decoder; the raw decoder
                 // preserves the full range.
                 return bc5Mode == BC5DecodeMode.NormalMap
-                    ? BlockCompressionDecoder.DecodeBC5AsNormalMap(data, w, h)
-                    : BlockCompressionDecoder.DecodeBC5AsRawR(data, w, h);
+                    ? EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsNormalMap(data, w, h)
+                    : EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsRawR(data, w, h);
             }
-            if (tail.IsBC7) return BlockCompressionDecoder.DecodeBC7(data, w, h);
+            if (tail.IsBC7) return EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC7(data, w, h);
             throw new NotSupportedException($"format {tail.FormatCode}");
         }
 

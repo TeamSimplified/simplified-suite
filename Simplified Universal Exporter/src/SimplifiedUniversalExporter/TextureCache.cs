@@ -655,17 +655,17 @@ namespace SimplifiedUniversalExporter
                 string decoderName;
                 if (desc.IsBC1)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC1(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC1(payload, desc.Width, desc.Height);
                     decoderName = "BC1";
                 }
                 else if (desc.IsBC3)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC3(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC3(payload, desc.Width, desc.Height);
                     decoderName = "BC3";
                 }
                 else if (desc.IsBC7)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC7(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC7(payload, desc.Width, desc.Height);
                     decoderName = "BC7";
                 }
                 else if (desc.IsBC5)
@@ -706,7 +706,7 @@ namespace SimplifiedUniversalExporter
                     // channel, identical in layout to BC3's alpha block.
                     // We extract R from that block and discard the second
                     // 8 bytes (the G-channel BC4 block) for this preview.
-                    bgra = BlockCompressionDecoder.DecodeBC5AsGrayscaleR(
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsGrayscaleR(
                         payload, desc.Width, desc.Height);
                     decoderName = "BC5/grayscale-R";
                 }
@@ -736,7 +736,7 @@ namespace SimplifiedUniversalExporter
                     // game's shader brightens the weave under its lacquer
                     // pass. The alpha channel is forced opaque (the BC2 alpha
                     // is anisotropy mask data, not transparency).
-                    bgra = BlockCompressionDecoder.DecodeBC2(
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC2(
                         payload, desc.Width, desc.Height);
                     for (int i = 0; i + 3 < bgra.Length; i += 4)
                     {
@@ -1055,15 +1055,15 @@ namespace SimplifiedUniversalExporter
                 byte[] bgra;
                 if (fourCC == "DXT5")
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC3(payload, width, height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC3(payload, width, height);
                 }
                 else if (fourCC == "DXT1")
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC1(payload, width, height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC1(payload, width, height);
                 }
                 else if (fourCC == "DXT3")
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC2(payload, width, height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC2(payload, width, height);
                 }
                 else
                 {
@@ -1396,17 +1396,17 @@ namespace SimplifiedUniversalExporter
                 string fmt;
                 if (desc.IsBC1)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC1(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC1(payload, desc.Width, desc.Height);
                     fmt = "BC1";
                 }
                 else if (desc.IsBC3)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC3(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC3(payload, desc.Width, desc.Height);
                     fmt = "BC3";
                 }
                 else if (desc.IsBC7)
                 {
-                    bgra = BlockCompressionDecoder.DecodeBC7(payload, desc.Width, desc.Height);
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC7(payload, desc.Width, desc.Height);
                     fmt = "BC7";
                 }
                 else if (desc.IsBC5)
@@ -1415,7 +1415,7 @@ namespace SimplifiedUniversalExporter
                     // GetBrushForTexture path -- see the long comment
                     // there. Used for tread diffuse atlases and any
                     // other BC5-stored content the compositor asks for.
-                    bgra = BlockCompressionDecoder.DecodeBC5AsGrayscaleR(
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsGrayscaleR(
                         payload, desc.Width, desc.Height);
                     fmt = "BC5/grayscale-R";
                 }
@@ -1426,7 +1426,7 @@ namespace SimplifiedUniversalExporter
                     // preview-hack grayscale. If a future code path needs
                     // the carbon-preview variant it can call
                     // GetBrushForTexture which applies the remap.
-                    bgra = BlockCompressionDecoder.DecodeBC2(
+                    bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC2(
                         payload, desc.Width, desc.Height);
                     fmt = "BC2";
                 }

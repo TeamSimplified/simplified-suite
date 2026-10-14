@@ -2706,7 +2706,7 @@ namespace SimplifiedUniversalExporter
 
                 byte[] bc7 = new byte[topMipBytes];
                 Array.Copy(payload, 0, bc7, 0, topMipBytes);
-                px = BlockCompressionDecoder.DecodeBC7(bc7, w, h);   // BGRA32
+                px = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC7(bc7, w, h);   // BGRA32
                 if (px == null) return;
 
                 double lr = 1, lg = 1, lb = 1;

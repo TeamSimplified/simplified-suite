@@ -4035,7 +4035,7 @@ namespace SimplifiedUniversalExporter
         // decoder (which is what TextureCache.GetPixelsForTexture uses) --
         // that collapses the Y channel and produces a near-black PNG.
         // Instead this path re-reads the raw block-compressed bytes off
-        // disk and decodes them via BlockCompressionDecoder.DecodeBC5As-
+        // disk and decodes them via EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5As-
         // NormalMap so the output PNG has the canonical (R=X, G=Y, B=Z)
         // tangent-space encoding Blender's principled BSDF expects.
         private static string EnsureTexturePng(string textureEaid, string workDir,
@@ -4159,7 +4159,7 @@ namespace SimplifiedUniversalExporter
                                 byte[] payload = File.ReadAllBytes(payloadPath);
                                 if (payload.Length > 0)
                                 {
-                                    byte[] bgra = BlockCompressionDecoder.DecodeBC5AsRawR(
+                                    byte[] bgra = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsRawR(
                                         payload, desc.Width, desc.Height);
                                     if (bgra != null && bgra.Length > 0)
                                     {
@@ -4344,7 +4344,7 @@ namespace SimplifiedUniversalExporter
                     byte[] payload = File.ReadAllBytes(payloadPath);
                     if (payload.Length == 0) return null;
 
-                    byte[] bgraTail = BlockCompressionDecoder.DecodeBC5AsNormalMap(
+                    byte[] bgraTail = EgoEngineLibrary.Graphics.BlockCompressionDecoder.DecodeBC5AsNormalMap(
                         payload, desc.Width, desc.Height);
                     if (bgraTail == null || bgraTail.Length == 0) return null;
 
