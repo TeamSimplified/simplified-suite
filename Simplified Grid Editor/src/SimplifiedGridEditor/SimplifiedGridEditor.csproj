@@ -66,15 +66,18 @@
              ExcludeFromSingleFile="true"/>
   </ItemGroup>
 
-  <!-- The pristine game files every project is created from: the team database,
-       the eleven language files, and the team-branding texarrays.
+  <!-- The Team Editor's own files beside the originals: the 2026 team-name keys
+       and their list. Taken from that project rather than a second copy of our
+       own; this app already references it, so the dependency is not a new one.
 
-       Taken from the Team Editor's copy rather than a second one of our own.
-       They are 90 MB, they are the same bytes, and two copies in the repository
-       is two things to keep in step. This app already references that project,
-       so the dependency is not a new one. -->
+       The game's files a project is created from - the team database, the
+       eleven language files and the team-branding texarrays - are not shipped:
+       the app takes them out of the installed game into runtime\original on
+       first run and after each patch (GameOriginals, LanguageFiles). A copy
+       kept locally in the Team Editor's original\ is left out of the build. -->
   <ItemGroup>
     <Content Include="..\..\..\Simplified Team Editor\original\**\*"
+             Exclude="..\..\..\Simplified Team Editor\original\gamedatabases.2025.bin;..\..\..\Simplified Team Editor\original\ui\**;..\..\..\Simplified Team Editor\original\localisation\**;..\..\..\Simplified Team Editor\original\originals.json;..\..\..\Simplified Team Editor\original\.incoming\**"
              Link="runtime\original\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"

@@ -53,18 +53,17 @@ public partial class MainWindow : Window
         VersionLabel.Text = AppVersion.Display;
         ApplyWindowIcon();
 
-        // The teams are read out of the game's language files, which the app
-        // keeps beside itself and takes out of the game's exe when they are
-        // missing or from a build the game has since patched past. On all but
-        // the first run of a build there is nothing to take, so the list is
+        // The teams are read out of the game's language files and database,
+        // which the app keeps beside itself and takes out of the game when they
+        // are missing or from a build the game has since patched past. On all
+        // but the first run of a build there is nothing to take, so the list is
         // built here as it always was — before the first paint, so the window
         // opens with teams in it.
         //
         // When there is something to take it waits for ContentRendered instead:
         // that is half a minute of reading, it wants a progress window over the
         // top, and a dialog cannot be given an owner that has not been shown.
-        if (Simplified.Language.LanguageFiles.Check(GameDir, AppPaths.LanguageDir)
-            == Simplified.Language.LanguageState.Current)
+        if (GameFilesCurrent(GameDir))
             LoadTeams();
         else
             ContentRendered += (_, _) => { EnsureGameFiles(); LoadTeams(); };
@@ -105,25 +104,57 @@ public partial class MainWindow : Window
         UserConfig.Load().GameDir ?? GameDirDetector.Detect()?.Path;
 
     /// <summary>
+    /// Whether the language files and the base files (database, team logos)
+    /// both came from the installed build - or there is no game to compare with.
+    /// </summary>
+    private static bool GameFilesCurrent(string? gameDir) =>
+        Simplified.Language.LanguageFiles.Check(gameDir, AppPaths.LanguageDir)
+            is Simplified.Language.LanguageState.Current or Simplified.Language.LanguageState.NoGame
+        && GameOriginals.Check(gameDir, AppPaths.OriginalsDir)
+            is OriginalsState.Current or OriginalsState.NoGame;
+
+    /// <summary>
     /// Make sure the game files the app works from are the installed game's.
     ///
-    /// The language files are the ones that need fetching: the game ships none
-    /// on disk, they live inside its exe, and getting them out the first time on
-    /// a build means reading 408 MB — half a minute, once. Behind a progress
-    /// window, because a window that sits there not repainting for that long is
-    /// indistinguishable from one that has died.
+    /// None of them ship with the app. The language files live inside the
+    /// game's exe, and getting them out the first time on a build means reading
+    /// 408 MB — half a minute, once. The database is a loose file and the team
+    /// logos are texture arrays in the game's UI archives (see GameOriginals),
+    /// a few seconds more. Behind a progress window, because a window that sits
+    /// there not repainting for that long is indistinguishable from one that
+    /// has died.
     /// </summary>
     private void EnsureGameFiles()
     {
         var gameDir = GameDir;
-        var state = Simplified.Language.LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
-        if (Simplified.Language.LanguageFiles.Headline(state) is not { } headline) return;
+        var languages = Simplified.Language.LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
+        var originals = GameOriginals.Check(gameDir, AppPaths.OriginalsDir);
+        var takeLanguages = Simplified.Language.LanguageFiles.Headline(languages) is not null;
+        var takeOriginals = originals is OriginalsState.FirstTime or OriginalsState.GameUpdated;
+        if (!takeLanguages && !takeOriginals) return;
 
+        // Nothing comes out of the game until the person has been told it will
+        // be the base of their mod and has had the chance to verify it first.
+        if (!SimplifiedUi.GameFilesNotice.Confirm(this))
+        {
+            StatusLine.Text = "The game's files weren't extracted. Open Settings and save to be asked again.";
+            return;
+        }
+
+        IReadOnlyList<string> notes = [];
         try
         {
-            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLine, headline, progress =>
-                Simplified.Language.LanguageFiles.Refresh(
-                    gameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
+            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLine, "Updating game files", progress =>
+            {
+                if (takeLanguages)
+                    Simplified.Language.LanguageFiles.Refresh(
+                        gameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress);
+                if (takeOriginals)
+                    notes = GameOriginals.Refresh(gameDir, AppPaths.OriginalsDir, progress);
+            });
+            if (notes.Count > 0)
+                SimplifiedUi.MessageDialog.Show(this, string.Join("\n\n", notes), "Game files",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
@@ -547,10 +578,9 @@ public partial class MainWindow : Window
         TeamSettings.Show(this, UserConfig.Load());
 
         // A game folder that has just been set or changed is the other moment
-        // the language files can go from missing to gettable — without this the
-        // fix would be to set the folder and then restart the app.
-        if (Simplified.Language.LanguageFiles.Check(GameDir, AppPaths.LanguageDir)
-            != Simplified.Language.LanguageState.Current)
+        // the game files can go from missing to gettable — without this the fix
+        // would be to set the folder and then restart the app.
+        if (!GameFilesCurrent(GameDir))
         {
             EnsureGameFiles();
             LoadTeams();

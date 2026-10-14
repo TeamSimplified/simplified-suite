@@ -95,7 +95,7 @@ public static class ProjectStore
     {
         if (!Directory.Exists(originalsDir))
             throw new DirectoryNotFoundException(
-                "The base game files are missing from this build, so a new project can't be started. " +
+                "The base game files haven't been taken from your game yet, so a new project can't be started. " +
                 $"Expected them at {originalsDir}.");
 
         var project = new GridProject

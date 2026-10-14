@@ -65,13 +65,14 @@ public static class GameDirDetector
     /// Every app in the suite needs a game folder and every one of them used to
     /// open with the field empty, so the first thing anyone did was go to
     /// Settings and press Detect. This runs the same search at startup and only
-    /// when there is nothing saved — a folder the user chose is never
-    /// second-guessed, and Detect stays where it was for the times the guess is
-    /// wrong or the game moves.
+    /// when there is nothing saved, or what is saved is no longer there (a
+    /// reinstall, a drive that has moved) — a folder the user chose that still
+    /// exists is never second-guessed, and Detect stays where it was for the
+    /// times the guess is wrong or the game moves.
     /// </summary>
     public static string? DetectIfUnset(string? current)
     {
-        if (!string.IsNullOrWhiteSpace(current)) return null;
+        if (!string.IsNullOrWhiteSpace(current) && System.IO.Directory.Exists(current)) return null;
 
         try { return Detect()?.Path; }
         catch { return null; }   // a search that fails is not a reason not to start

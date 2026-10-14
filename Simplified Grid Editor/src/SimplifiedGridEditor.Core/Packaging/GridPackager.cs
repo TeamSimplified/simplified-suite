@@ -434,7 +434,7 @@ public static class GridPackager
         var branding = ProjectStore.PristineBrandingPath(originalsDir);
         if (!File.Exists(branding))
         {
-            warnings.Add("The game's team-branding archive is missing from this build — logos were left out.");
+            warnings.Add("The team-branding archive hasn't been taken from your game yet — logos were left out.");
             return 0;
         }
 

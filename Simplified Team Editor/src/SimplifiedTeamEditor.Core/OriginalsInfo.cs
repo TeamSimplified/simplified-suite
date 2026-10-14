@@ -4,17 +4,18 @@ using System.Text.Json.Serialization;
 namespace SimplifiedTeamEditor.Core;
 
 /// <summary>
-/// Which build of the game the bundled original files came from.
+/// Which build of the game the original files came from.
 ///
-/// The apps ship their own copies of the database, the language files and the
-/// team-branding archive, and a new project is built from those rather than from
-/// whatever is installed. That is deliberate — a shared package then carries the
-/// user's edits and nothing else their game happens to have in it — but it means
-/// the copies go stale silently when the game updates. Nothing in the files
-/// themselves says which build they are, so it is written down beside them.
+/// A new project is built from the app's own copies of the database, the
+/// language files and the team-branding archive rather than from whatever is
+/// installed, so a shared package carries the user's edits and nothing else
+/// their game happens to have in it. Those copies are taken out of the game -
+/// see <see cref="GameOriginals"/> - and nothing in the files themselves says
+/// which build they are, so the app writes it down beside them when it takes
+/// them, and compares it with the install when it starts.
 ///
 /// The F2 26 update is why this exists. It moved an entrant list, so every grid
-/// after it shifted by one, and the bundled files said nothing about being from
+/// after it shifted by one, and the copies then said nothing about being from
 /// before that.
 /// </summary>
 public sealed class OriginalsInfo
@@ -37,6 +38,14 @@ public sealed class OriginalsInfo
     /// <summary>What was notable about that build, in a sentence.</summary>
     [JsonPropertyName("note")]
     public string Note { get; init; } = "";
+
+    /// <summary>
+    /// The build exactly: its version and its exe's length, which is what
+    /// <see cref="GameOriginals.Check"/> compares. Empty in notes written before
+    /// the app took these files itself.
+    /// </summary>
+    [JsonPropertyName("build")]
+    public string Build { get; init; } = "";
 
     /// <summary>How it reads in a sentence — "F1® 25 1.0.141.2878".</summary>
     public string Describe() =>
@@ -62,6 +71,21 @@ public sealed class OriginalsInfo
         {
             return null;
         }
+    }
+
+    /// <summary>Write the note, after the files beside it have been taken from <paramref name="game"/> at <paramref name="version"/>.</summary>
+    public static void Write(string originalsDir, string game, string version, string build)
+    {
+        var info = new OriginalsInfo
+        {
+            Game = game,
+            GameVersion = version,
+            Taken = DateTime.Now.ToString("yyyy-MM-dd"),
+            Note = "Taken from the installed game by the app. Read at startup to notice a game update.",
+            Build = build,
+        };
+        File.WriteAllText(Path.Combine(originalsDir, FileName),
+            JsonSerializer.Serialize(info, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     /// <summary>

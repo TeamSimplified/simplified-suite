@@ -224,6 +224,14 @@ public partial class ShellWindow
             return;
         }
 
+        // Nothing comes out of the game until the person has been told it will
+        // be the base of their mod and has had the chance to verify it first.
+        if (!SimplifiedUi.GameFilesNotice.Confirm(this))
+        {
+            _languageProblem = "the game's files weren't extracted";
+            return;
+        }
+
         // Said on the heading rather than done quietly: this is the one thing
         // the app does that can take half a minute, and an app that sat on one
         // word for that long would read as one that had not finished opening.

@@ -21,3 +21,5 @@ config.json
 !/Simplified Team Editor/original/2026_team_keys.lng
 /Simplified Team Editor/original/ui/
 /Simplified Team Editor/original/localisation/
+/Simplified Team Editor/original/originals.json
+/Simplified Team Editor/original/.incoming/

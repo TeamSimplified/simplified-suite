@@ -96,25 +96,48 @@ public partial class MainWindow : Window
     /// <summary>
     /// Make sure the game files the app works from are the installed game's.
     ///
-    /// The language files are the ones that need fetching: the game ships none
-    /// on disk, they live inside its exe, and getting them out the first time on
-    /// a build means reading 408 MB — half a minute, once. It happens here, at
-    /// startup, rather than when a project is started, for two reasons. A person
-    /// opening an app is expecting it to take a moment; a person who has just
-    /// named a mod and pressed Create is expecting a project. And the check that
-    /// decides whether to do it at all is the same one either way: whether what
-    /// is on disk came out of the exe that is installed now.
+    /// None of them ship with the app. The language files live inside the
+    /// game's exe, and getting them out the first time on a build means reading
+    /// 408 MB — half a minute, once; the database is a loose file and the team
+    /// logos are texture arrays in the game's UI archives (see the Team Editor's
+    /// GameOriginals), a few seconds more. It happens here, at startup, rather
+    /// than when a project is started, for two reasons. A person opening an app
+    /// is expecting it to take a moment; a person who has just named a mod and
+    /// pressed Create is expecting a project. And the check that decides whether
+    /// to do it at all is the same one either way: whether what is on disk came
+    /// out of the game that is installed now.
     /// </summary>
     private void EnsureGameFiles()
     {
-        var state = Simplified.Language.LanguageFiles.Check(_config.GameDir, AppPaths.LanguageDir);
-        if (Simplified.Language.LanguageFiles.Headline(state) is not { } headline) return;
+        var gameDir = _config.GameDir;
+        var languages = Simplified.Language.LanguageFiles.Check(gameDir, AppPaths.LanguageDir);
+        var originals = SimplifiedTeamEditor.Core.GameOriginals.Check(gameDir, AppPaths.OriginalsDir);
+        var takeLanguages = Simplified.Language.LanguageFiles.Headline(languages) is not null;
+        var takeOriginals = originals is SimplifiedTeamEditor.Core.OriginalsState.FirstTime
+                                      or SimplifiedTeamEditor.Core.OriginalsState.GameUpdated;
+        if (!takeLanguages && !takeOriginals) return;
 
+        // Nothing comes out of the game until the person has been told it will
+        // be the base of their mod and has had the chance to verify it first.
+        if (!SimplifiedUi.GameFilesNotice.Confirm(this))
+        {
+            SetStatus("The game's files weren't extracted, so a new project can't be started yet. " +
+                      "Open Settings and save to be asked again.", ErrorBrush);
+            return;
+        }
+
+        IReadOnlyList<string> notes = [];
         try
         {
-            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, headline, progress =>
-                Simplified.Language.LanguageFiles.Refresh(
-                    _config.GameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress));
+            SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, "Updating game files", progress =>
+            {
+                if (takeLanguages)
+                    Simplified.Language.LanguageFiles.Refresh(
+                        gameDir, AppPaths.LanguageDir, AppPaths.LanguageCacheDir, progress);
+                if (takeOriginals)
+                    notes = SimplifiedTeamEditor.Core.GameOriginals.Refresh(gameDir, AppPaths.OriginalsDir, progress);
+            });
+            if (notes.Count > 0) SetStatus(string.Join(" ", notes), ErrorBrush);
         }
         catch (Exception ex)
         {
@@ -518,8 +541,8 @@ public partial class MainWindow : Window
         ApplyAdvancedSwapping(_config.EnableAdvancedSwapping);
 
         // A game folder that has just been set or changed is the other moment
-        // the language files can go from missing to gettable — without this the
-        // fix would be to set the folder and then restart the app.
+        // the game files can go from missing to gettable — without this the fix
+        // would be to set the folder and then restart the app.
         EnsureGameFiles();
     }
 

@@ -66,12 +66,16 @@
              ExcludeFromSingleFile="true"/>
   </ItemGroup>
 
-  <!-- The pristine game files every package is built from: the team database,
-       the eleven language files, and the team-branding texarrays. Bundled
-       rather than read from the install, so a package carries only the user's
-       team edits and never whatever else their game happens to have in it. -->
+  <!-- The app's own files beside the originals: the 2026 team-name keys and
+       their list. The game's files a package is built from - the team database,
+       the eleven language files and the team-branding texarrays - are not
+       shipped: the app takes them out of the installed game into
+       runtime\original on first run and after each patch (GameOriginals,
+       LanguageFiles), and writes originals.json saying which build. A copy kept
+       locally in original\ for development is left out of the build. -->
   <ItemGroup>
     <Content Include="..\..\original\**\*"
+             Exclude="..\..\original\gamedatabases.2025.bin;..\..\original\ui\**;..\..\original\localisation\**;..\..\original\originals.json;..\..\original\.incoming\**"
              Link="runtime\original\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"

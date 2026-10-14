@@ -106,7 +106,7 @@ public static class GridSettings
 
         if (info is null || info.Describe().Length == 0)
         {
-            SimplifiedUi.SettingsDialog.Say(status, "This build doesn't record which game version its base files are.");
+            SimplifiedUi.SettingsDialog.Say(status, "The base files haven't been taken from your game yet.");
             return;
         }
 

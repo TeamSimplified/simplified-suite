@@ -89,6 +89,10 @@ public partial class MainWindow : Window
     {
         if (_running || _exePath is null || _outputDir is null) return;
 
+        // Asked before anything is read out of the game, as every app in the
+        // suite does: these files go on to be edited and packaged.
+        if (!SimplifiedUi.GameFilesNotice.Confirm(this)) return;
+
         _running = true;
         Refresh();
         Log("");

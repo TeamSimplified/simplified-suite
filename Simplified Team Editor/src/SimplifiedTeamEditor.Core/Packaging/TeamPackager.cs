@@ -218,7 +218,7 @@ public static class TeamPackager
         var directory = languageDir;
         if (!Directory.Exists(directory))
         {
-            warnings.Add("The bundled language files are missing, so no names can be packaged.");
+            warnings.Add("The language files haven't been taken from your game yet, so no names can be packaged.");
             return 0;
         }
 
@@ -281,7 +281,7 @@ public static class TeamPackager
         var branding = Path.Combine(assetsDir, "ui", "ui_texarrays_team_branding.erp");
         if (!File.Exists(branding))
         {
-            warnings.Add("The bundled team-branding archive is missing — logos were left out.");
+            warnings.Add("The team-branding archive hasn't been taken from your game yet — logos were left out.");
             return 0;
         }
 

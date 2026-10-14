@@ -24,6 +24,10 @@ public sealed record GameDatabaseChoice(string Path, bool FromInstall, string? N
 /// become the base of a package — that is the whole reason the bundle existed —
 /// and an install patched past what this release knows cannot be told apart from
 /// one, so both fall back to the bundle and say so.
+///
+/// The "bundle" is no longer shipped: it is the copy the app takes out of the
+/// game itself (SimplifiedTeamEditor.Core.GameOriginals), on first run and after
+/// each patch, which is never older than the build last opened.
 /// </summary>
 public static class GameDatabaseSource
 {
@@ -36,7 +40,7 @@ public static class GameDatabaseSource
     {
         if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
             return new GameDatabaseChoice(bundledPath, false,
-                "The game folder isn't set, so the bundled database was used. Set it in Settings to " +
+                "The game folder isn't set, so the copy taken from your game earlier was used. Set it in Settings to " +
                 "build on your installed game's own.");
 
         var check = GameFileGuard.Check(gameDir, GameFileGuard.DatabasePath);
@@ -48,14 +52,14 @@ public static class GameDatabaseSource
 
             GameFileVerdict.Unrecognised =>
                 new GameDatabaseChoice(bundledPath, false,
-                    "Your game's database doesn't match any build this app has on record, so the bundled " +
-                    "one was used instead. Either the game has updated since this release, or something " +
+                    "Your game's database doesn't match any build this app has on record, so the copy taken " +
+                    "from your game earlier was used instead. Either the game has updated since this release, or something " +
                     "has changed that file — a database mod already installed would otherwise have been " +
                     "built into your package."),
 
             GameFileVerdict.Missing =>
                 new GameDatabaseChoice(bundledPath, false,
-                    "There's no database under the game folder, so the bundled one was used. Is that the " +
+                    "There's no database under the game folder, so the copy taken earlier was used. Is that the " +
                     "install root?"),
 
             // No manifest shipped with this build. Nothing can be verified, so

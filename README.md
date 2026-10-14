@@ -20,22 +20,22 @@ laid out is described in [SUITE-CONVENTIONS.md](SUITE-CONVENTIONS.md);
 
 ## Game files are not included
 
-This repository distributes no files from the game. A few apps need some at
-runtime, and look for them where a full build of the suite keeps them. Take
-them from your own copy of F1® 25:
+This repository distributes no files from the game. Most of what the apps
+need from it they take out of your install themselves, on first run and again
+after each game update, into `runtime\original` beside the app:
 
-| App | Expects | Taken from the game |
-|---|---|---|
-| Team Editor, Grid Editor | `Simplified Team Editor/original/gamedatabases.2025.bin` | the game's `gamedatabases.2025.bin` |
-| Team Editor, Grid Editor | `Simplified Team Editor/original/ui/ui_texarrays_team_branding.erp` | the game's UI texture arrays |
-| Sponsor Editor | `Simplified Sponsor Editor/original/sponsors.erp`, `sponsors_ui.erp` | the game's sponsor archives |
+- the language files, out of the game's own executable;
+- the team database, `game_package/gamedatabases/gamedatabases.2025.bin`;
+- the team-branding texture arrays, out of the game's UI archives, rebuilt
+  into `ui_texarrays_team_branding.erp`.
 
-Language files are not needed in the repository: the apps take them out of
-the game's own executable on first run.
+Set the game folder in the app's Settings and it does the rest.
 
-These paths are ignored by git, so a copy you place there stays local.
-Without them those apps still build, but the features that read them will
-not work.
+One set is still not taken automatically - the Sponsor Editor's sponsor
+archives. It expects `Simplified Sponsor Editor/original/sponsors.erp` and
+`sponsors_ui.erp`; that path is ignored by git, so a copy you place there
+stays local. Without them the app still builds, but its sponsor features
+will not work.
 
 F1® 25 is a trademark of its owners. This is an unofficial, fan-made project,
 not affiliated with or endorsed by Electronic Arts, Codemasters, Formula 1 or
