@@ -9,7 +9,7 @@
     <!-- What the app reports for its version, alongside the commit it was
          built from, so a release tag can be checked against the binary. 3.0:
          the first build as part of the suite, after 2.2 on its own. -->
-    <Version>3.1</Version>
+    <Version>3.2</Version>
 
     <!-- The two the root sets differently. Declared after the import, so these
          win. -->
