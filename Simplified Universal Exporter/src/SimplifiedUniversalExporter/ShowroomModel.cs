@@ -18,6 +18,13 @@ namespace SimplifiedUniversalExporter
     /// </summary>
     internal static class ShowroomModel
     {
+        /// <summary>
+        /// One caller at a time into the live texture cache: its material and
+        /// brush dictionaries aren't safe for two threads, and the scene reads
+        /// them from the window's thread here and off it while it builds.
+        /// </summary>
+        public static readonly object CacheLock = new object();
+
         public static List<ShowroomMesh> Extract(Media3D.Model3DGroup root)
         {
             var list = new List<ShowroomMesh>();
@@ -130,7 +137,8 @@ namespace SimplifiedUniversalExporter
             var cache = F1ModelLoader.ActiveTextureCache ?? F1ModelLoaderClassic.ActiveTextureCache ?? F1ModelLoaderLegacy.ActiveTextureCache;
             try
             {
-                var shader = cache?.GetMaterial(materialEaid)?.ShaderEaid;
+                string shader;
+                lock (CacheLock) shader = cache?.GetMaterial(materialEaid)?.ShaderEaid;
                 return shader != null && shader.IndexOf("/char_logo", StringComparison.OrdinalIgnoreCase) >= 0;
             }
             catch

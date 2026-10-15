@@ -28,7 +28,6 @@ namespace SimplifiedUniversalExporter
         private ShowroomSceneData _rmScene;
         private Stopwatch _rmClock;
         private bool _rmStarting;
-        private readonly object _rmCacheLock = new object();
 
         /// <summary>WebView2 couldn't start here; the DirectX view stands in for the rest of the session.</summary>
         private bool _rmUnavailable;
@@ -136,12 +135,12 @@ namespace SimplifiedUniversalExporter
                 Material = eaid =>
                 {
                     if (cache == null) return null;
-                    lock (_rmCacheLock) return cache.GetMaterial(eaid);
+                    lock (ShowroomModel.CacheLock) return cache.GetMaterial(eaid);
                 },
                 Decode = (eaid, normal) =>
                 {
                     if (cache == null) return null;
-                    lock (_rmCacheLock)
+                    lock (ShowroomModel.CacheLock)
                         return normal ? TextureDecodeLadder.Normal(eaid, cache, _ => { }, out _)
                                       : TextureDecodeLadder.Best(eaid, cache, _ => { }, out _);
                 },
@@ -190,7 +189,11 @@ namespace SimplifiedUniversalExporter
             {
                 var dir = Path.Combine(AppPaths.TempRoot, "logs");
                 Directory.CreateDirectory(dir);
-                File.AppendAllText(Path.Combine(dir, "rm-renderer.log"), $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+                var path = Path.Combine(dir, "rm-renderer.log");
+                // every model opened adds its texture list; past a megabyte it starts over
+                var info = new FileInfo(path);
+                if (info.Exists && info.Length > 1024 * 1024) info.Delete();
+                File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
             }
             catch { }
         }
