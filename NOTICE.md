@@ -77,6 +77,6 @@ change:
   and Helmet Swappers and used here with their permission.
 - **RM Designs** - the Universal Exporter's web 3D renderer (the RM Renderer),
   adapted from the 3D preview of their Steering Wheel Swapper v1.7.1 (GPL-3.0).
-- **Jefry** - the showroom lighting in the Universal Exporter, from Jefry's
-  Model Handler.
+- **Jefry** - 3D model importing and exporting, and reading the game's 3D
+  format, from Jefry's Model Handler.
 - **Petar Tasev (ryder25)** - EgoEngineLibrary, the foundation of the ERP code.

@@ -14,7 +14,7 @@
     <!-- The two the root sets differently. Declared after the import, so these
          win. -->
     <Company>Simplified Studio</Company>
-    <Copyright>Portions ported from EgoEngineLibrary (MIT) - (c) ryder25; showroom lighting from Jefry's Model Handler</Copyright>
+    <Copyright>Portions ported from EgoEngineLibrary (MIT) - (c) ryder25; 3D model importing and exporting and reading the game's 3D format from Jefry's Model Handler</Copyright>
   </PropertyGroup>
 
 </Project>
