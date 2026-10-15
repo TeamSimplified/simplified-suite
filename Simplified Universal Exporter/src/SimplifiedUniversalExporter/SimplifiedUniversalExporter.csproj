@@ -24,6 +24,9 @@
          once per build, never cleaned up, and outside the app folder — which
          this app does not do. -->
     <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <!-- WebView2's API docs (Microsoft.Web.WebView2.*.xml) would otherwise land
+         loose beside the exe and fail release.ps1's file check. -->
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>embedded</DebugType>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -61,8 +64,11 @@
   </ItemGroup>
 
   <!-- After publish the only loose .dlls are the natives the single file
-       can't carry - WPF's own and Assimp's. Anything a package drops under
-       x64\ is kept; x86\ is an architecture this app never runs as. -->
+       can't carry - WPF's own, Assimp's and WebView2's loader. Anything a
+       package drops under x64\ is kept; x86\ is an architecture this app
+       never runs as. WebView2 also leaves a second copy of its loader under
+       runtimes\win-x64\native\; the one moved into runtime\ is the one the
+       app loads (NativeLibraryFolder), so that folder goes. -->
   <Target Name="MoveNativesIntoRuntimeFolder" AfterTargets="Publish">
     <ItemGroup>
       <PublishedNativeLibrary Include="$(PublishDir)*.dll"/>
@@ -71,7 +77,7 @@
     </ItemGroup>
     <Move SourceFiles="@(PublishedNativeLibrary)" DestinationFolder="$(PublishDir)runtime"/>
     <Delete Files="@(UnusedArchitectureNative)"/>
-    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86"/>
+    <RemoveDir Directories="$(PublishDir)x64;$(PublishDir)x86;$(PublishDir)runtimes"/>
   </Target>
 
 </Project>
