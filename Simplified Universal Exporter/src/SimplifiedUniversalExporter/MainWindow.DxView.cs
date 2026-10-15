@@ -29,6 +29,14 @@ namespace SimplifiedUniversalExporter
         /// nothing is loaded, or DX fails (fall back to WPF).</summary>
         private void RefreshDxView()
         {
+            // The RM Renderer, when it is switched on, takes the newly loaded
+            // model instead.
+            if (RmRendererWanted && !_is2DMode && _currentModel?.Content is Model3DGroup)
+            {
+                _ = ShowRmRenderer();
+                return;
+            }
+
             // 2D mode owns the main area: keep the flat view fronted and
             // refresh its selector/image against the (possibly new)
             // scene; the DX scene is rebuilt when 3D mode returns.

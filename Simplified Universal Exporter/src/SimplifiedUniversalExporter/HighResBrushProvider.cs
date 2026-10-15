@@ -104,6 +104,20 @@ namespace SimplifiedUniversalExporter
         private static readonly ImageBrush _tombstone = new ImageBrush();
 
         /// <summary>
+        /// Whether <paramref name="source"/> is this provider's own decode of
+        /// <paramref name="textureEaid"/>, unchanged - so the texture's block
+        /// data shows exactly the same picture (the RM Renderer's test before
+        /// sending a texture compressed instead of as pixels).
+        /// </summary>
+        internal static bool Holds(string textureEaid, ImageSource source)
+        {
+            if (string.IsNullOrEmpty(textureEaid) || source == null) return false;
+            lock (_cacheLock)
+                return _hiResCache.TryGetValue(textureEaid, out var b) && !ReferenceEquals(b, _tombstone) &&
+                       ReferenceEquals(b?.ImageSource, source);
+        }
+
+        /// <summary>
         /// Drop-in replacement for <c>textureCache.GetBrushForTexture(eaid)</c>
         /// when the caller wants high-res preview if available.
         ///

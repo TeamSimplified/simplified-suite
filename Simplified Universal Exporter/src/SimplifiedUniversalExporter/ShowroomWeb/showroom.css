@@ -1,0 +1,37 @@
+/* Adapted from RM Designs' Steering Wheel Swapper v1.7.1 (WheelPreview.cs), GPL-3.0. */
+.page{margin:0;background:#F9F9F9;color:#111;font:14px/1.5 "Presicav","Segoe UI",system-ui,sans-serif}
+.page .band{background:#4300AD}
+.page .band-in{max-width:1180px;margin:0 auto;padding:16px 20px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between;color:#F9F9F9}
+.page .band b{font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:13px}
+.page .band span{font:700 12.5px "Roboto Mono",Consolas,monospace}
+.page main{max-width:1180px;margin:0 auto;padding:18px 20px 30px}
+.note{font:700 12px "Roboto Mono",Consolas,monospace;color:#4300AD;margin:10px 0 0}
+.pv{position:relative;background:#111111;border:1px solid #2b2140}
+.pv-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px;background:#1C0040}
+.pv-seg{display:flex}
+.pv button,.pv select{font:700 10.5px "Presicav","Segoe UI",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#E9E2FF;
+  background:transparent;border:1px solid #4b3a74;padding:7px 11px;cursor:pointer}
+.pv select{text-transform:none;letter-spacing:.04em}
+.pv-seg button+button{border-left:0}
+.pv button.on{background:#4300AD;border-color:#4300AD;color:#fff}
+.pv-canvas{display:block;width:100%;height:min(70vh,640px);cursor:grab;touch-action:none}
+.pv-canvas:active{cursor:grabbing}
+.pv-help{margin-left:auto;position:relative}
+.pv-help .pv-tip{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:5;background:#1C0040;border:1px solid #4300AD;
+  padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.35);font:700 11.5px/1.9 "Roboto Mono",Consolas,monospace;color:#E9E2FF;white-space:nowrap}
+.pv-help:hover .pv-tip,.pv-help:focus-within .pv-tip{display:block}
+.pv-tip div{display:flex;gap:14px}.pv-tip b{min-width:118px;color:#fff;font-family:"Presicav","Segoe UI",sans-serif;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase}
+.pv-msg{position:absolute;left:12px;bottom:10px;font:700 12px "Roboto Mono",Consolas,monospace;color:#bfb2ea;pointer-events:none}
+html,body{margin:0;height:100%;background:#111;overflow:hidden}
+.pv{height:100%;border:0;display:flex;flex-direction:column}
+.pv-canvas{flex:1;height:auto}
+/* the toolbar follows the studio: RM Designs' purple, a neutral grey, or white */
+.pv[data-theme=grey] .pv-bar{background:#1b1b1b}
+.pv[data-theme=grey] button,.pv[data-theme=grey] select{color:#e6e6e6;border-color:#3a3a3a}
+.pv[data-theme=grey] button.on{background:#4a4a4a;border-color:#4a4a4a;color:#fff}
+.pv[data-theme=grey] .pv-tip{background:#1b1b1b;border-color:#4a4a4a;color:#e6e6e6}
+.pv[data-theme=white] .pv-bar{background:#e4e4e4}
+.pv[data-theme=white] button,.pv[data-theme=white] select{color:#222;border-color:#c4c4c4}
+.pv[data-theme=white] button.on{background:#4300AD;border-color:#4300AD;color:#fff}
+.pv[data-theme=white] .pv-tip{background:#f2f2f2;border-color:#c4c4c4;color:#222}
+.pv[data-theme=white] .pv-tip b{color:#111}

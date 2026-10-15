@@ -1252,5 +1252,115 @@ namespace SimplifiedUniversalExporter.Core
         private static readonly Dictionary<string, string> _pathCache
             = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static readonly object _cacheLock = new object();
+
+        // ---------------------------------------------------------------------
+        // COMPRESSED CHAIN (for the RM Renderer, which uploads block data as is)
+        // ---------------------------------------------------------------------
+
+        /// <summary>
+        /// A texture's whole mip chain in its block format, top level first:
+        /// the levels streamed in its .mipmaps file followed by the ones the
+        /// ERP itself holds, down to 4x4. Only the first slice of an array.
+        /// <see cref="Format"/> is the WebGL name: bc1, bc2, bc3, bc5 or bc7.
+        /// </summary>
+        public sealed class CompressedChain
+        {
+            public string Format;
+            public int Width;
+            public int Height;
+            public List<byte[]> Levels = new List<byte[]>();
+            public long Bytes { get { long n = 0; foreach (var l in Levels) n += l.Length; return n; } }
+        }
+
+        /// <summary>
+        /// The texture as block data, or null when it isn't a format this
+        /// reads (the caller then decodes it to pixels instead).
+        ///
+        /// The same sources as <see cref="TryLoadTopMip"/> - the extracted
+        /// temp000 / temp001 / temp002 and the .mipmaps file the temp002
+        /// descriptor names - but nothing is decoded: the streamed levels are
+        /// decompressed (raw or LZ4) to their blocks and the ERP's tail levels
+        /// are sliced out of temp001. A texture with a streamed file that can't
+        /// be read here returns null rather than a chain missing its top
+        /// levels, so the caller's full-resolution decode wins.
+        /// </summary>
+        public static CompressedChain TryLoadCompressedChain(string textureEaid, string extractedPackageRoot, Action<string> log)
+        {
+            log = log ?? (_ => { });
+            var (_, metaPath, payloadPath) = EaidPathResolver.ResolveTexturePaths(textureEaid, extractedPackageRoot);
+            if (metaPath == null || !File.Exists(metaPath) || payloadPath == null || !File.Exists(payloadPath))
+                return null;
+
+            ImageDescriptor tail;
+            try { tail = ImageDescriptor.FromFile(metaPath); }
+            catch { return null; }
+            if (tail.Width <= 0 || tail.Height <= 0) return null;
+
+            string format; int bpb;
+            if (tail.IsBC1) { format = "bc1"; bpb = 8; }
+            else if (tail.IsBC2) { format = "bc2"; bpb = 16; }
+            else if (tail.IsBC3) { format = "bc3"; bpb = 16; }
+            else if (tail.IsBC5) { format = "bc5"; bpb = 16; }
+            else if (tail.IsBC7) { format = "bc7"; bpb = 16; }
+            else return null;
+
+            var chain = new CompressedChain { Format = format };
+
+            // ----- the streamed levels, when the texture has any
+            string rel = EaidPathResolver.StripEaidPrefix(textureEaid);
+            if (rel == null) return null;
+            int lastSlash = Math.Max(rel.LastIndexOf('/'), rel.LastIndexOf('\\'));
+            string dir = lastSlash >= 0 ? rel.Substring(0, lastSlash) : "";
+            string leaf = lastSlash >= 0 ? rel.Substring(lastSlash + 1) : rel;
+            string temp002Path = Path.Combine(extractedPackageRoot, dir.Replace('/', Path.DirectorySeparatorChar), $"{leaf}!!!temp002.image");
+            var desc = File.Exists(temp002Path) ? Temp002Descriptor.TryRead(temp002Path, log) : null;
+            if (desc?.Mips != null && desc.Mips.Count > 0)
+            {
+                var located = F1PackageLocator.Last;
+                if (located == null) return null;
+                string mipPath = TryLocateViaTemp002Descriptor(textureEaid, extractedPackageRoot, located, log);
+                if (mipPath == null) return null;
+
+                byte[] file;
+                try { file = File.ReadAllBytes(mipPath); }
+                catch { return null; }
+
+                int n = desc.MipCount;
+                for (int i = 0; i < desc.Mips.Count; i++)
+                {
+                    var mip = desc.Mips[i];
+                    int w = Math.Max(1, tail.Width << (n - i)), h = Math.Max(1, tail.Height << (n - i));
+                    int sliceBytes = BlockBytes(w, h, bpb);
+                    if (mip.Offset < 0 || mip.PackedSize <= 0 || mip.Offset + mip.PackedSize > file.Length) return null;
+                    var blocks = new byte[mip.UncompressedSize];
+                    if (mip.Compression == Temp002Descriptor.CompressionCode.Raw)
+                        Buffer.BlockCopy(file, (int)mip.Offset, blocks, 0, Math.Min(blocks.Length, (int)mip.PackedSize));
+                    else if (mip.Compression == Temp002Descriptor.CompressionCode.Lz4)
+                    {
+                        try { EgoEngineLibrary.Graphics.Lz4RawBlock.Decode(file, (int)mip.Offset, blocks); }
+                        catch { return null; }
+                    }
+                    else return null;
+                    if (blocks.Length < sliceBytes) return null;
+                    if (chain.Levels.Count == 0) { chain.Width = w; chain.Height = h; }
+                    chain.Levels.Add(blocks.Length == sliceBytes ? blocks : blocks.AsSpan(0, sliceBytes).ToArray());
+                }
+            }
+
+            // ----- the ERP's own levels, from the tail size down to 4x4
+            byte[] payload;
+            try { payload = File.ReadAllBytes(payloadPath); }
+            catch { return null; }
+            int off = 0;
+            for (int lw = tail.Width, lh = tail.Height; lw >= 4 && lh >= 4; lw >>= 1, lh >>= 1)
+            {
+                int size = BlockBytes(lw, lh, bpb);
+                if (off + size > payload.Length) break;
+                if (chain.Levels.Count == 0) { chain.Width = lw; chain.Height = lh; }
+                chain.Levels.Add(payload.AsSpan(off, size).ToArray());
+                off += size;
+            }
+            return chain.Levels.Count > 0 ? chain : null;
+        }
     }
 }

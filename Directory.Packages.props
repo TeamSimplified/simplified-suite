@@ -32,6 +32,7 @@
     <PackageVersion Include="HelixToolkit.Wpf" Version="2.25.0" />
     <PackageVersion Include="HelixToolkit.Wpf.SharpDX" Version="3.1.2" />
     <PackageVersion Include="AssimpNet" Version="5.0.0-beta1" />
+    <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
 
     <!-- NefsLib's own, at the versions it pins. It reads the NeFS archive
          inside the game exe, which is where the language files live. -->

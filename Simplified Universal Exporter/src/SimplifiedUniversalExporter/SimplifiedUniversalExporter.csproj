@@ -40,6 +40,12 @@
     <PackageReference Include="HelixToolkit.Wpf" />
     <PackageReference Include="HelixToolkit.Wpf.SharpDX" />
     <PackageReference Include="AssimpNet" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+  </ItemGroup>
+
+  <!-- The RM Renderer's page, served to WebView2 from memory. -->
+  <ItemGroup>
+    <EmbeddedResource Include="ShowroomWeb\*" LogicalName="ShowroomWeb.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

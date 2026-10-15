@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- The RM Renderer's page. The renderer is adapted from RM Designs' Steering
+     Wheel Swapper (GPL-3.0) - see showroom.js. The scene is served by the
+     exporter from memory: scene.json, and scene.bin that it points into. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RM Renderer</title>
+<link rel="stylesheet" href="showroom.css">
+</head>
+<body>
+<div class="pv" id="pv">
+  <div class="pv-bar">
+    <div class="pv-seg pv-themes"><button data-theme="purple">Purple</button><button data-theme="grey">Grey</button><button data-theme="white">White</button></div>
+    <div class="pv-seg pv-views"></div>
+    <div class="pv-help" tabindex="0"><button type="button">Controls</button>
+      <div class="pv-tip">
+        <div><b>Left-drag</b><span>turn the camera</span></div>
+        <div><b>Right-drag</b><span>move (hand tool) · or Shift + drag</span></div>
+        <div><b>Scroll</b><span>zoom in / out</span></div>
+        <div><b>Double-click</b><span>back to the selected view</span></div>
+      </div></div>
+  </div>
+  <canvas class="pv-canvas"></canvas>
+  <div class="pv-msg"></div>
+</div>
+<script src="showroom.js"></script>
+<script>
+  const msg = document.querySelector('.pv-msg');
+  msg.textContent = 'Loading the scene…';
+  Promise.all([
+      fetch('https://showroom.local/scene.json').then(r => r.json()),
+      fetch('https://showroom.local/scene.bin').then(r => r.arrayBuffer()),
+    ])
+    .then(([data, bin]) => WheelPreviewInit(document.getElementById('pv'), data, new Uint8Array(bin)))
+    .catch(e => { msg.textContent = 'The scene could not be loaded: ' + e; });
+</script>
+</body>
+</html>

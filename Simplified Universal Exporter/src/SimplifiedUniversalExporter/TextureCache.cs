@@ -30,6 +30,14 @@ namespace SimplifiedUniversalExporter
         private readonly Dictionary<string, ImageBrush> _brushCache
             = new Dictionary<string, ImageBrush>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Whether <paramref name="source"/> is this cache's own decode of
+        /// <paramref name="textureEaid"/> (see HighResBrushProvider.Holds).
+        /// </summary>
+        internal bool Holds(string textureEaid, ImageSource source) =>
+            !string.IsNullOrEmpty(textureEaid) && source != null &&
+            _brushCache.TryGetValue(textureEaid, out var b) && ReferenceEquals(b?.ImageSource, source);
+
         private readonly Dictionary<string, MaterialFile> _materialCache
             = new Dictionary<string, MaterialFile>(StringComparer.OrdinalIgnoreCase);
 
