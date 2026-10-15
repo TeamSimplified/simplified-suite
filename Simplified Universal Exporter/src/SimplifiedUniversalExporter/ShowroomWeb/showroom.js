@@ -265,5 +265,5 @@ Promise.all([...data.tex.map(async t=>{t.l=await Promise.all(t.l.map(inflate));}
   .then(()=>{ready=true;new ResizeObserver(draw).observe(canvas);setTheme(theme);setMode(mode);
     const dbg=gl.getExtension('WEBGL_debug_renderer_info');
     window.chrome?.webview?.postMessage({ready:performance.now(),ext:{s3tc:!!ext.s3tc,rgtc:!!ext.rgtc,bptc:!!ext.bptc},
-      renderer:dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):'',missing:[...missing]});})
+      renderer:dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):'',missing:[...missing],box:B0,dist:cam.dist,target:target});})
   .catch(e=>{msg.textContent='3D preview could not load its data: '+e;});}

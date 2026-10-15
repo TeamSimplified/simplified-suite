@@ -28,6 +28,8 @@ namespace SimplifiedUniversalExporter
         private ShowroomSceneData _rmScene;
         private Stopwatch _rmClock;
         private bool _rmStarting;
+        /// <summary>A model arrived while a scene was still being built; show it when that one is done.</summary>
+        private bool _rmPending;
 
         /// <summary>WebView2 couldn't start here; the DirectX view stands in for the rest of the session.</summary>
         private bool _rmUnavailable;
@@ -62,7 +64,14 @@ namespace SimplifiedUniversalExporter
 
         private async Task ShowRmRenderer()
         {
-            if (_rmStarting) return;
+            if (_rmStarting)
+            {
+                // Dropping it left the page on the previous model and its camera
+                // (a helmet opened straight after a car); run again once the
+                // build in hand has finished.
+                _rmPending = true;
+                return;
+            }
             if (_currentModel?.Content is not Model3DGroup root || root.Children.Count == 0)
             {
                 RmLog("RM Renderer: load a model first.");
@@ -122,6 +131,11 @@ namespace SimplifiedUniversalExporter
             finally
             {
                 _rmStarting = false;
+                if (_rmPending)
+                {
+                    _rmPending = false;
+                    if (RmRendererWanted && !_is2DMode && !InAnalysisMode) _ = ShowRmRenderer();
+                }
             }
         }
 
@@ -253,6 +267,11 @@ namespace SimplifiedUniversalExporter
                       $"BC4/5 {(ext.GetProperty("rgtc").GetBoolean() ? "yes" : "no")}, BC7 {(ext.GetProperty("bptc").GetBoolean() ? "yes" : "no")}" +
                       (missing.Length > 0 ? $" (can't show: {missing})" : "") +
                       $". Browser processes: {memory / 1048576.0:0} MB private memory.");
+                // the framing: the model's bounding box, and where the camera opened
+                if (r.TryGetProperty("box", out var box))
+                    RmLogFile($"RM Renderer framing: box [{string.Join(", ", box.EnumerateArray().Select(x => x.GetDouble().ToString("0.000")))}], " +
+                              $"target [{string.Join(", ", r.GetProperty("target").EnumerateArray().Select(x => x.GetDouble().ToString("0.000")))}], " +
+                              $"camera distance {r.GetProperty("dist").GetDouble():0.000}");
                 // the page has its copies; the app doesn't need to hold the scene too
                 _rmScene = null;
             }
