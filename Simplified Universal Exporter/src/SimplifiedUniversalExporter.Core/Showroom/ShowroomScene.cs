@@ -140,7 +140,9 @@ namespace SimplifiedUniversalExporter.Core.Showroom
             if (shader == "vehicle_lcd_screen") return KScreen;
             if (shader.Contains("mirror")) return KMirror;
             if (shader.StartsWith("tyre_")) return KTyre;
-            if (shader.Contains("revs") || shader.Contains("indicator") || shader.Contains("rear_light")) return KLight;
+            // RM's three, and the safety car's light bar (vehicle_safetycar_lights)
+            if (shader.Contains("revs") || shader.Contains("indicator") || shader.Contains("rear_light") ||
+                shader.Contains("safetycar_lights")) return KLight;
             return KGeneric;
         }
 
@@ -290,7 +292,7 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                 var tex = Slots(
                     d: mesh.Colour != null ? Image(mesh.Colour, paint || tyre ? PaintSize : ColourSize)
                                            : Texture(B("me_albedoMap", "me_diffuseMap", "me_diffuseTex"), paint || tyre ? PaintSize : ColourSize, false),
-                    n: paint ? -1 : Texture(B("me_normalMap", "me_normalTex"), tyre ? ColourSize : DetailSize, true),
+                    n: paint ? -1 : Texture(B("me_normalMap", "me_normalTex", "me_baseNormalTex"), tyre ? ColourSize : DetailSize, true),
                     s: Texture(paint ? B("me_paintSurfaceMap") : B("me_surfaceMap", "me_surfaceTex"), paint || tyre ? ColourSize : DetailSize, false),
                     l: tyre ? Texture(B("me_logoSurfaceMap"), ColourSize, false) : Texture(B("me_logoMap"), paint ? PaintSize : ColourSize, false),
                     c: paint ? Texture(B("me_metallicMap"), ColourSize, false) : -1,

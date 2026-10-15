@@ -76,7 +76,9 @@ namespace SimplifiedUniversalExporter
             {
                 Slot = name,
                 MaterialEaid = eaid,
-                Overlay = F1ModelLoader.GetIsOverlay(gm) || name.EndsWith("_overlay", StringComparison.OrdinalIgnoreCase),
+                // decal overlays, and the logo meshes characters and helmets carry
+                // (livery_v2_logo, helmet_logo, ...): drawn blended, by their atlas's alpha
+                Overlay = F1ModelLoader.GetIsOverlay(gm) || F1ModelLoader.IsDecalLikeSlotName(name) || IsLogoShader(eaid),
                 Positions = pos,
                 Normals = nrm,
                 Uvs = uv,
@@ -119,6 +121,22 @@ namespace SimplifiedUniversalExporter
                     return (px, w, h);
                 },
             };
+        }
+
+        /// <summary>A material on one of the character logo shaders (char_logo_skinned*, incl. the helmet MSDF one).</summary>
+        private static bool IsLogoShader(string materialEaid)
+        {
+            if (string.IsNullOrEmpty(materialEaid)) return false;
+            var cache = F1ModelLoader.ActiveTextureCache ?? F1ModelLoaderClassic.ActiveTextureCache ?? F1ModelLoaderLegacy.ActiveTextureCache;
+            try
+            {
+                var shader = cache?.GetMaterial(materialEaid)?.ShaderEaid;
+                return shader != null && shader.IndexOf("/char_logo", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static Media3D.DiffuseMaterial FindDiffuse(Media3D.Material mat)
