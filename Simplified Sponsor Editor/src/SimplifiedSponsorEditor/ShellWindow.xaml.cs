@@ -145,8 +145,10 @@ public partial class ShellWindow : Window
 
         // The game's text, if it is not already beside the app. At startup
         // because the rest of the suite does it at startup, and for the reason
-        // they do — see EnsureGameFiles.
-        Loaded += async (_, _) => await EnsureGameFiles();
+        // they do — see EnsureGameFiles. ContentRendered rather than Loaded:
+        // Loaded fires before the window is shown, so the game-files dialog
+        // came up with no app on screen or on the taskbar behind it.
+        ContentRendered += async (_, _) => await EnsureGameFiles();
     }
 
     // ── The two states ────────────────────────────────────────────────

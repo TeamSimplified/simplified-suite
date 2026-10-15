@@ -254,8 +254,11 @@ namespace SimplifiedUniversalExporter
             // Debug/automation hook: pass an .erp path on the command line
             // to auto-load it once the window is up. Lets scripted runs
             // exercise the full load pipeline without driving the file
-            // dialog by hand.
-            Loaded += async (_, __) =>
+            // dialog by hand. ContentRendered rather than Loaded, as across the
+            // suite: a load that fails says so in a dialog, and Loaded fires
+            // before the window is shown, so it would come up with no app on
+            // screen or on the taskbar behind it.
+            ContentRendered += async (_, __) =>
             {
                 try
                 {

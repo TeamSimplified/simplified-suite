@@ -223,6 +223,14 @@ so the last should always be the choice that changes nothing.
   belong in `%TEMP%`, which makes the app more robust, not less portable.
 - **Dark by default**, with a Light toggle in Settings.
 - A failed config write must never interrupt real work — catch and carry on.
+- **The window first, then any dialog.** Anything that can show a dialog at
+  startup — the game-files notice, a file passed on the command line, a load
+  that fails — runs from `ContentRendered`, never `Loaded` or the constructor.
+  `Loaded` fires before the window is shown, so a dialog raised there comes up
+  with no app on screen or on the taskbar behind it.
+- **Ask before extracting from the game.** Every app that takes files out of the
+  install shows `SimplifiedUi.GameFilesNotice` first and extracts nothing if the
+  person cancels.
 
 ---
 
