@@ -68,6 +68,7 @@ namespace SimplifiedUniversalExporter
                       $"{s.Groups} groups, {s.Vertices:N0} vertices, {s.Triangles:N0} triangles, {s.Materials} materials, " +
                       $"{s.Textures} textures ({s.CompressedTextures} in their block format), " +
                       $"scene {s.Json.Length / 1024.0:0} KB + {s.Binary.Length / 1048576.0:0.0} MB.");
+                RmLogFile("RM Renderer textures:" + Environment.NewLine + string.Join(Environment.NewLine, s.TextureLines.Select(l => "    " + l)));
 
                 if (_rmView == null)
                 {
@@ -140,6 +141,12 @@ namespace SimplifiedUniversalExporter
         private void RmLog(string message)
         {
             LogToUi(message);
+            RmLogFile(message);
+        }
+
+        /// <summary>The log file alone, for detail that would swamp the activity log.</summary>
+        private static void RmLogFile(string message)
+        {
             try
             {
                 var dir = Path.Combine(AppPaths.TempRoot, "logs");

@@ -6,7 +6,8 @@
 // Changes: the scene arrives from the host as JSON plus one binary buffer it points into (instead of
 // zlib + base64 in a <script> block), only the whole-model ("car") views are offered, the studio, floor,
 // camera and zoom scale with the model's size, the toolbar follows the studio colour (grey by
-// default), and readiness is reported to the host.
+// default), readiness is reported to the host, and a see-through kind (10) draws helmet visors,
+// tear-offs and clear plastic at the game's opacity with their own index of refraction.
 // Distributed under the GNU GPL v3.0 as part of Simplified Suite - see LICENSE and NOTICE.md.
 function WheelPreviewInit(root,data,bin){
 if(!root)return;
@@ -72,6 +73,10 @@ void main(){
   else if(uKind==4){alb=vec3(.006);rough=.08;emit=vec3(.004,.006,.01)*(1.+uP2.z*4.);}
   else if(uKind==5){alb=vec3(.8);metal=1.;rough=.04;}
   else if(uKind==6){alpha=0.;if(uHas.x>0.){vec4 c=texture(uD,uv1);alb=lin(c.rgb);alpha=c.a;}}
+  // see-through (helmet visor, tear-off, clear plastic): p0 = opacity, roughness, index of refraction;
+  // the surface map, when there is one, gives roughness (G) and metallic (B) - a mirrored visor
+  else if(uKind==10){alb=uHas.x>0.?lin(texture(uD,uv0).rgb):vec3(.02);alpha=uP0.x;rough=max(uP0.y,.03);
+    if(uHas.z>0.){vec4 s=texture(uS,uv0);rough=clamp(s.g,.03,1.);metal=s.b;}if(uHas.y>0.)n=nmap(uN,uv0,n);}
   else{vec2 t=uv0*uP0.xy,tD=t,tN=t,tS=t;
     // tread sheets stack strips as tall as the sheet is wide (8 on the colour sheet, 4 on the normal map); a new
     // tyre is the first strip of each
@@ -92,7 +97,7 @@ void main(){
   if(alpha<.004)discard;
   float ao=(uP2.w>0.?clamp(vAo,0.,1.):1.)*occ;
   vec3 v=normalize(uEye-vPos);float nv=max(dot(n,v),1e-4),gv=max(dot(gn,v),1e-4);
-  vec3 f0=mix(vec3(.04),mc.x>=0.?mc:alb,metal);vec3 col=vec3(0.);float a=rough*rough,ac=coatR*coatR;
+  vec3 f0=mix(vec3(.04),mc.x>=0.?mc:alb,metal);if(uKind==10){float q=(uP0.z-1.)/(uP0.z+1.);f0=mix(vec3(q*q),alb,metal);}vec3 col=vec3(0.);float a=rough*rough,ac=coatR*coatR;
   float Fcv=F(gv,vec3(.04)).x*coat;
   vec3 L[2];L[0]=normalize(vec3(-.35,.8,-.6));L[1]=normalize(vec3(.6,.25,.45));vec3 C[2];C[0]=vec3(3.2);C[1]=vec3(.9,.95,1.1);
   for(int i=0;i<2;i++){vec3 l=L[i];vec3 h=normalize(l+v);float nl=max(dot(n,l),0.);
@@ -104,7 +109,7 @@ void main(){
   if(uStudio==1)ao*=mix(.7,1.,sh0);
   vec3 r=reflect(-v,n);vec3 Fe=F(nv,f0);
   col+=((1.-Fe)*(1.-metal)*alb*env(n,1.)*.55+Fe*env(r,rough)*(1.-rough*.7)*.6*uP3.w)*ao*(1.-Fcv)+Fcv*env(reflect(-v,gn),coatR)*.65+emit;
-  if(uKind==3)alpha=max(alpha,Fe.x*.9);
+  if(uKind==3)alpha=max(alpha,Fe.x*.9);if(uKind==10)alpha=max(alpha,max(Fe.x,metal*.85)*.9);
   if(uKind==7)col+=vec3(.035)*pow(1.-nv,3.)*env(n,.8)*ao;   // rubber's soft grazing sheen
   col=col*(2.51*col+.03)/(col*(2.43*col+.59)+.14);
   o=vec4(pow(clamp(col,0.,1.),vec3(1./2.2)),alpha);}`;

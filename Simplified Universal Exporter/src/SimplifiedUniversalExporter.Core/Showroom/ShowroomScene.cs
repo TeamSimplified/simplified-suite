@@ -58,6 +58,8 @@ namespace SimplifiedUniversalExporter.Core.Showroom
         public byte[] Binary;
         public int Groups, Materials, Textures, CompressedTextures, Vertices, Triangles;
         public TimeSpan Elapsed;
+        /// <summary>One line per texture: name, format, size and levels - for the log.</summary>
+        public List<string> TextureLines = new List<string>();
     }
 
     /// <summary>
@@ -82,8 +84,20 @@ namespace SimplifiedUniversalExporter.Core.Showroom
         // the page's material kinds (PreviewScene.KindOf in RM's swapper)
         public const int KGeneric = 0, KPaint = 1, KCarbon = 2, KGlass = 3, KScreen = 4, KMirror = 5, KDecal = 6, KTyre = 7, KLight = 8;
 
-        /// <summary>Largest texture side: paint and decal sheets, colour maps, normal and surface maps.</summary>
-        private const int PaintSize = 2048, ColourSize = 1024, DetailSize = 512;
+        /// <summary>
+        /// Added to RM's kinds: a helmet's visor, tear-off or clear plastic, decided by
+        /// <see cref="SeeThroughMaterial"/> exactly as the exporter's own preview decides it.
+        /// </summary>
+        public const int KSeeThrough = 10;
+
+        /// <summary>
+        /// Largest texture side, by area: paint and decal sheets, colour maps,
+        /// normal and surface maps. RM's preview capped these at 2048 / 1024 /
+        /// 512 for a page saved to disk; here nothing leaves the app and the
+        /// textures stay block-compressed, so they go at the game's own full
+        /// size - a helmet's 2048x1024 sheet halved was visibly soft.
+        /// </summary>
+        private const int PaintSize = 4096, ColourSize = 4096, DetailSize = 4096;
 
         public static ShowroomSceneData Build(IReadOnlyList<ShowroomMesh> meshes, ShowroomSources sources)
         {
@@ -111,6 +125,7 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                 Groups = b.Groups.Count, Materials = b.Mats.Count, Textures = b.Tex.Count,
                 CompressedTextures = b.Compressed, Vertices = b.Vertices, Triangles = b.Triangles,
                 Elapsed = watch.Elapsed,
+                TextureLines = b.Tex.Select(t => $"{t["name"],-48} {t["f"],-5} {t["w"],5}x{t["h"],-5} {((System.Collections.ICollection)t["l"]).Count} level(s)").ToList(),
             };
         }
 
@@ -257,6 +272,8 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                 string shader = mf?.ShaderEaid != null ? Path.GetFileNameWithoutExtension(mf.ShaderEaid.Split('?')[0]) : "";
                 int kind = mf == null ? KGeneric : KindOf(shader);
                 if (kind < 0) return -1;
+                var see = mf == null ? null : SeeThroughMaterial.For(mf);
+                if (see != null) kind = KSeeThrough;
 
                 var matKey = (mesh.MaterialEaid ?? "none") + "|" + (mesh.Colour?.Key?.GetHashCode() ?? 0);
                 if (_mat.TryGetValue(matKey, out var mi)) return mi;
@@ -280,11 +297,12 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                     f: paint && V(mf, "me_flakesStrength", 0) > 0 ? Texture(B("me_flakesMap"), DetailSize, true) : -1,
                     ls: tyre ? -1 : Texture(B("me_logoSurfaceMap"), DetailSize, false));
 
-                var uvTile = Vec(mf, "me_uvTile", 2, 1);
+                var uvTile = see != null ? new[] { see.Opacity, see.Roughness } : Vec(mf, "me_uvTile", 2, 1);
                 if (shader == "tyre_tread") uvTile = new[] { 1f, -1f };   // strip sheets: the page picks each sheet's first strip
                 var p = new List<float>
                 {
-                    uvTile[0], uvTile[1], V(mf, "me_uOffset", 0), V(mf, "me_vOffset", 0),
+                    // p0: uv tile and carbon offset - for the see-through kind, opacity, roughness and index of refraction
+                    uvTile[0], uvTile[1], see != null ? see.Ior : V(mf, "me_uOffset", 0), V(mf, "me_vOffset", 0),
                     // the exporter's UVs already place the paint sheet, so no paint offset on top
                     0, 0, V(mf, "me_carbonTile", 1), V(mf, "me_lacquerRoughness", 0.05f),
                     V(mf, "me_logoRoughness", 0.35f), paint ? 1f : V(mf, "me_lacquerLevel", 0), V(mf, "me_screenSelfIllumination", 0), V(mf, "me_vertexAo", 0),
@@ -296,7 +314,7 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                 Mats.Add(new Dictionary<string, object>
                 {
                     ["name"] = string.IsNullOrEmpty(mesh.MaterialEaid) ? "untagged" : mesh.MaterialEaid.Split('/').Last(),
-                    ["k"] = kind, ["t"] = tex, ["p"] = p.ToArray(), ["blend"] = kind == KGlass || kind == KDecal,
+                    ["k"] = kind, ["t"] = tex, ["p"] = p.ToArray(), ["blend"] = kind == KGlass || kind == KDecal || kind == KSeeThrough,
                 });
                 return _mat[matKey] = Mats.Count - 1;
             }
