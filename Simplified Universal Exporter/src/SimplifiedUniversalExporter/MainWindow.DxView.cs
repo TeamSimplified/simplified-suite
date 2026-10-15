@@ -29,13 +29,15 @@ namespace SimplifiedUniversalExporter
         /// nothing is loaded, or DX fails (fall back to WPF).</summary>
         private void RefreshDxView()
         {
-            // The RM Renderer, when it is switched on, takes the newly loaded
-            // model instead.
-            if (RmRendererWanted && !_is2DMode && _currentModel?.Content is Model3DGroup)
+            // The RM Renderer, when it is switched on, takes the model - except
+            // in the analysis modes, whose material swaps live in the WPF tree
+            // and are drawn by the DirectX view.
+            if (RmRendererWanted && !_is2DMode && !InAnalysisMode && _currentModel?.Content is Model3DGroup)
             {
                 _ = ShowRmRenderer();
                 return;
             }
+            CollapseRmView();
 
             // 2D mode owns the main area: keep the flat view fronted and
             // refresh its selector/image against the (possibly new)

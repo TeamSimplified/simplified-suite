@@ -294,10 +294,16 @@ namespace SimplifiedUniversalExporter.Core.Showroom
                                            : Texture(B("me_albedoMap", "me_diffuseMap", "me_diffuseTex"), paint || tyre ? PaintSize : ColourSize, false),
                     n: paint ? -1 : Texture(B("me_normalMap", "me_normalTex", "me_baseNormalTex"), tyre ? ColourSize : DetailSize, true),
                     s: Texture(paint ? B("me_paintSurfaceMap") : B("me_surfaceMap", "me_surfaceTex"), paint || tyre ? ColourSize : DetailSize, false),
-                    l: tyre ? Texture(B("me_logoSurfaceMap"), ColourSize, false) : Texture(B("me_logoMap"), paint ? PaintSize : ColourSize, false),
+                    // the logo sheet is drawn by RM's shader through uv1, the decal sheet's
+                    // uv - which the exporter's meshes don't carry: it builds the decals as
+                    // overlay meshes of their own instead. Sampled at uv1 = 0 it painted the
+                    // sheet's corner texel over the whole part (the steering wheel came out
+                    // white), so base meshes go without it; tyres keep theirs, the sidewall
+                    // lettering read through uv0
+                    l: tyre ? Texture(B("me_logoSurfaceMap"), ColourSize, false) : -1,
                     c: paint ? Texture(B("me_metallicMap"), ColourSize, false) : -1,
                     f: paint && V(mf, "me_flakesStrength", 0) > 0 ? Texture(B("me_flakesMap"), DetailSize, true) : -1,
-                    ls: tyre ? -1 : Texture(B("me_logoSurfaceMap"), DetailSize, false));
+                    ls: -1);
 
                 var uvTile = see != null ? new[] { see.Opacity, see.Roughness } : Vec(mf, "me_uvTile", 2, 1);
                 if (shader == "tyre_tread") uvTile = new[] { 1f, -1f };   // strip sheets: the page picks each sheet's first strip

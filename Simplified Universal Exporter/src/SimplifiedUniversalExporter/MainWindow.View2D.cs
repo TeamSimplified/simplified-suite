@@ -46,6 +46,7 @@ namespace SimplifiedUniversalExporter
             {
                 Viewport.Visibility = Visibility.Collapsed;
                 DxViewport.Visibility = Visibility.Collapsed;
+                CollapseRmView();
                 CameraButtonsPanel.Visibility = Visibility.Collapsed;
                 View2D.Visibility = Visibility.Visible;
                 Populate2DTextures();

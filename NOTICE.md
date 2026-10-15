@@ -46,6 +46,7 @@ change:
 | EgoEngineLibrary, (c) ryder25 (Petar Tasev) | ported into `EGO Engine Library/` | MIT |
 | NeFS Library, (c) 2020 victorbush | `NeFS Library/` | MIT - see `NeFS Library/LICENSE` |
 | DirectXTex texconv, (c) Microsoft Corporation | `tools/texconv.exe` in several apps | MIT |
+| Steering Wheel Swapper 3D preview, (c) RM Designs | the Universal Exporter's RM Renderer (`ShowroomWeb/`) | GPL-3.0 |
 | Outfit font, (c) 2021 The Outfit Project Authors | `Shared/Fonts/` | SIL Open Font License 1.1 - see `Shared/Fonts/OFL.txt` |
 | HelixToolkit, AssimpNet, ZstdSharp, K4os.Compression.LZ4, CommunityToolkit and the other NuGet packages | restored at build time | each package's own licence |
 
@@ -74,6 +75,8 @@ change:
 - **RM Designs** - the mesh, node-table, material and bounds formats in
   `EGO Engine Library/Archive/Erp/Model/`, worked out for their Steering Wheel
   and Helmet Swappers and used here with their permission.
+- **RM Designs** - the Universal Exporter's web 3D renderer (the RM Renderer),
+  adapted from the 3D preview of their Steering Wheel Swapper v1.7.1 (GPL-3.0).
 - **Jefry** - the showroom lighting in the Universal Exporter, from Jefry's
   Model Handler.
 - **Petar Tasev (ryder25)** - EgoEngineLibrary, the foundation of the ERP code.

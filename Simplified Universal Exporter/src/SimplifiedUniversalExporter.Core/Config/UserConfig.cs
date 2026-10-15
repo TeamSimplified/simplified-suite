@@ -47,6 +47,9 @@ public sealed class UserConfig
     /// <summary>Where the last ERP was opened from.</summary>
     public string LastErpFolder { get; set; }
 
+    /// <summary>Show the model in the RM Renderer (RM Designs' web 3D renderer); off, the DirectX showroom.</summary>
+    public bool RmRenderer { get; set; } = true;
+
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static string ConfigPath => AppPaths.ConfigFile;

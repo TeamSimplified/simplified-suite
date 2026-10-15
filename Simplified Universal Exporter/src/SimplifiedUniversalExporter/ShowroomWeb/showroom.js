@@ -6,7 +6,7 @@
 // Changes: the scene arrives from the host as JSON plus one binary buffer it points into (instead of
 // zlib + base64 in a <script> block), only the whole-model ("car") views are offered, the studio, floor,
 // camera and zoom scale with the model's size, the toolbar follows the studio colour (grey by
-// default), readiness is reported to the host, and a see-through kind (10) draws helmet visors,
+// default), zoom and reset buttons stand in for the exporter's own camera buttons, readiness is reported to the host, and a see-through kind (10) draws helmet visors,
 // tear-offs and clear plastic at the game's opacity with their own index of refraction.
 // Distributed under the GNU GPL v3.0 as part of Simplified Suite - see LICENSE and NOTICE.md.
 function WheelPreviewInit(root,data,bin){
@@ -252,7 +252,11 @@ canvas.addEventListener('pointermove',e=>{if(!drag||!ready)return;const dx=e.cli
   if(drag.b===2||e.shiftKey){const k=cam.dist*.0016;target[0]+=dx*k*Math.cos(cam.yaw);target[2]-=dx*k*Math.sin(cam.yaw);target[1]+=dy*k;}
   else{cam.yaw-=dx*.008;cam.pitch=Math.max(-1.5,Math.min(1.5,cam.pitch+dy*.008));}draw();});
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(!ready)return;const [lo,hi]=cam.space==='car'?[.2*SCALE,30*SCALE]:[.12,3];cam.dist=Math.max(lo,Math.min(hi,cam.dist*Math.exp(e.deltaY*.0012)));draw();},{passive:false});
-root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+// the exporter's camera buttons, here because WebView2 draws over the window's own
+  root.querySelectorAll('[data-cam]').forEach(b=>b.onclick=()=>{if(!ready)return;
+    if(b.dataset.cam==='reset'){const v=viewBar.querySelector('button.on');if(v)v.click();return;}
+    const [lo,hi]=cam.space==='car'?[.2*SCALE,30*SCALE]:[.12,3];cam.dist=Math.max(lo,Math.min(hi,cam.dist*(b.dataset.cam==='in'?.8:1.25)));draw();});
+  root.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 root.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{side=b.dataset.side;root.querySelectorAll('[data-side]').forEach(x=>x.classList.toggle('on',x===b));draw();});
 const sel=root.querySelector('.pv-car');if(sel)sel.onchange=()=>{car=+sel.value;draw();};
 msg.textContent='Loading 3D data…';

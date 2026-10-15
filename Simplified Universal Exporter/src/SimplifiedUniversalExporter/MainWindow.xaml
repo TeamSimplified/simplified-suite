@@ -253,10 +253,10 @@
                 <!-- The RM Renderer: RM Designs' WebGL renderer in WebView2. -->
                 <CheckBox x:Name="RmRendererCheckBox"
                           Content="RM Renderer"
-                          IsChecked="False"
+                          IsChecked="True"
                           VerticalAlignment="Center"
                           Margin="14,0,0,0"
-                          ToolTip="Show the model in the renderer from RM Designs' Steering Wheel Swapper: lacquered paint, carbon weave, tyres and a studio with shadows."
+                          ToolTip="Show the model in the renderer from RM Designs' Steering Wheel Swapper: lacquered paint, carbon weave, tyres and a studio with shadows. Off: the DirectX showroom. UV view and Untextured use the DirectX one either way."
                           Click="OnRmRendererToggle" />
 
                 <CheckBox x:Name="DecalZFightCheckBox"

@@ -65,7 +65,7 @@ public static class ExporterSettings
 
         dialog.Credits(
             ("Petar Tasev", "Underlying ERP structure and format code"),
-            ("RM Designs", "Model, mesh and helmet format research"),
+            ("RM Designs", "Model, mesh and helmet format research, and the Web 3D renderer"),
             ("Jefry", "Showroom lighting, from Jefry's Model Handler"),
             ("Team Simplified", "App functionality and Design"),
             ("Claude Code", "Coding"));

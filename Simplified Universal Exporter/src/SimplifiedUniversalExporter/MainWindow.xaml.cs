@@ -204,6 +204,7 @@ namespace SimplifiedUniversalExporter
                     // that saved it off must not silently disable it.
                     AssembleCheckBox.IsChecked = true;
                     DecalZFightCheckBox.IsChecked = cfg.FixDecalZFighting;
+                    RmRendererCheckBox.IsChecked = cfg.RmRenderer;
                     foreach (var item in GenderComboBox.Items)
                     {
                         if (item is System.Windows.Controls.ComboBoxItem ci &&
@@ -412,6 +413,7 @@ namespace SimplifiedUniversalExporter
                 bool sidebarVisible = SidebarPanel == null ||
                     SidebarPanel.Visibility == Visibility.Visible;
                 _config.FixDecalZFighting = DecalZFightCheckBox?.IsChecked == true;
+                _config.RmRenderer = RmRendererCheckBox?.IsChecked == true;
                 _config.Gender = (GenderComboBox?.SelectedItem as
                     System.Windows.Controls.ComboBoxItem)?.Content as string ?? "Male";
                 _config.SidebarVisible = sidebarVisible;

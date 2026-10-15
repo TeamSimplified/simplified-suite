@@ -30,21 +30,35 @@ namespace SimplifiedUniversalExporter
         private bool _rmStarting;
         private readonly object _rmCacheLock = new object();
 
-        private async void OnRmRendererToggle(object sender, RoutedEventArgs e)
+        /// <summary>WebView2 couldn't start here; the DirectX view stands in for the rest of the session.</summary>
+        private bool _rmUnavailable;
+
+        private void OnRmRendererToggle(object sender, RoutedEventArgs e)
         {
-            if (RmRendererCheckBox.IsChecked == true) await ShowRmRenderer();
-            else HideRmRenderer();
+            SaveSettings();
+            RefreshDxView();
         }
 
-        /// <summary>On by the box, or by SUE_RM_RENDERER=1 for a test run that can't click it.</summary>
+        /// <summary>On by the box (remembered), or by SUE_RM_RENDERER=1 for a test run that can't click it.</summary>
         private bool RmRendererWanted
         {
             get
             {
                 if (Environment.GetEnvironmentVariable("SUE_RM_RENDERER") == "1" && RmRendererCheckBox.IsChecked != true)
                     RmRendererCheckBox.IsChecked = true;
-                return RmRendererCheckBox.IsChecked == true;
+                return RmRendererCheckBox.IsChecked == true && !_rmUnavailable;
             }
+        }
+
+        /// <summary>UV view or Untextured: material swaps on the WPF tree, which the DirectX view draws.</summary>
+        private bool InAnalysisMode => UvViewCheckBox?.IsChecked == true || UntexturedCheckBox?.IsChecked == true;
+
+        /// <summary>Put the RM Renderer away and give the WPF camera buttons back; the caller fronts what replaces it.</summary>
+        private void CollapseRmView()
+        {
+            if (_rmView == null || _rmView.Visibility != Visibility.Visible) return;
+            _rmView.Visibility = Visibility.Collapsed;
+            if (!_is2DMode) CameraButtonsPanel.Visibility = Visibility.Visible;
         }
 
         private async Task ShowRmRenderer()
@@ -95,9 +109,15 @@ namespace SimplifiedUniversalExporter
                 _rmView.Visibility = Visibility.Visible;
                 _rmView.CoreWebView2.Navigate($"https://{RmHost}/showroom.html");
             }
+            catch (WebView2RuntimeNotFoundException)
+            {
+                _rmUnavailable = true;
+                RmLog("RM Renderer: this PC has no WebView2 runtime (Microsoft's, part of Windows 11), so the DirectX view is used instead.");
+                HideRmRenderer();
+            }
             catch (Exception ex)
             {
-                RmLog("RM Renderer failed: " + ex.Message);
+                RmLog("RM Renderer failed, so the DirectX view is used instead: " + ex.Message);
                 HideRmRenderer();
             }
             finally
@@ -129,12 +149,31 @@ namespace SimplifiedUniversalExporter
             };
         }
 
+        /// <summary>Back to the DirectX view after a failure, for this model.</summary>
         private void HideRmRenderer()
         {
-            if (_rmView != null) _rmView.Visibility = Visibility.Collapsed;
-            CameraButtonsPanel.Visibility = Visibility.Visible;
+            CollapseRmView();
             _rmScene = null;
-            RefreshDxView();
+            if (_rmUnavailable) RefreshDxView();
+            else ShowDxFallback();
+        }
+
+        /// <summary>The DirectX view for the current model without asking the RM Renderer again (it just failed).</summary>
+        private void ShowDxFallback()
+        {
+            if (_currentModel?.Content is not Model3DGroup root || root.Children.Count == 0) return;
+            try
+            {
+                if (ShowroomDx.PopulateNeutral(DxViewport, root))
+                {
+                    Viewport.Visibility = Visibility.Collapsed;
+                    DxViewport.Visibility = Visibility.Visible;
+                    _dxViewLive = true;
+                    return;
+                }
+            }
+            catch { }
+            ShowWpfView();
         }
 
         /// <summary>The activity log, and a copy in %TEMP%\simplified-universal-exporter\logs\rm-renderer.log.</summary>
