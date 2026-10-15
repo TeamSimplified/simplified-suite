@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, Helmet, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'Helmet', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -118,16 +118,6 @@ $Apps = @(
         # window. Kept building and kept consistent with the suite, so it
         # is ready if it is ever wanted; just not shipped alongside the
         # app that replaced it. -App Driverwear still packages it.
-        InAll = $false
-    }
-    [pscustomobject]@{
-        Short = 'Helmet'; Folder = 'Simplified Helmet Swapper'
-        Project = 'src\SimplifiedHelmetSwapper\SimplifiedHelmetSwapper.csproj'
-        Exe = 'Simplified Helmet Swapper'; Package = 'Simplified Helmet Swapper'
-        Tag = 'helmet-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
-        # Held back from a suite release: the shell swap has not been
-        # confirmed in game yet. Still releasable on its own with
-        # -App Helmet, which is how it goes out once it has been.
         InAll = $false
     }
     [pscustomobject]@{

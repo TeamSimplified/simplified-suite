@@ -7,7 +7,7 @@ applies to any app in the suite. §9 is the second arrival, the **Driver
 Swapper**, which needed a different half of the same list.
 
 The apps: Studio, ERP, Toolkit (`stk`, CLI), Chassis Swapper, Driverwear
-Swapper, Swapper, Helmet Swapper, Team Editor, Driver Swapper, Grid Editor,
+Swapper, Swapper, Team Editor, Driver Swapper, Grid Editor,
 Resource Extractor, Sponsor Editor, Language Extractor. Four shared libraries —
 `EGO Engine Library`, `Simplified UI Library`, `Language Library`, and the
 vendored `NeFS Library` under it — and a `Shared/` folder of odds and ends sit
@@ -31,7 +31,7 @@ copying:
 > reimplemented here.
 
 If the library is missing something, **add it there**. That is how `RemoveAll`
-and a `filter` on `StripMips` arrived this week: the Helmet Swapper needed
+and a `filter` on `StripMips` arrived: an app needed
 them, so they went into `Operations/ErpOperations.cs` and every app has them
 now.
 
@@ -233,10 +233,10 @@ near the top:
 
 ```powershell
 [pscustomobject]@{
-    Short = 'Helmet'; Folder = 'Simplified Helmet Swapper'
-    Project = 'src\SimplifiedHelmetSwapper\SimplifiedHelmetSwapper.csproj'
-    Exe = 'Simplified Helmet Swapper'; Package = 'Simplified Helmet Swapper'
-    Tag = 'helmet-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
+    Short = 'Sponsor'; Folder = 'Simplified Sponsor Editor'
+    Project = 'src\SimplifiedSponsorEditor\SimplifiedSponsorEditor.csproj'
+    Exe = 'Simplified Sponsor Editor'; Package = 'Simplified Sponsor Editor'
+    Tag = 'sponsor-v'; Kind = 'window'; Ships = @('*.exe', 'runtime\*')
 }
 ```
 
