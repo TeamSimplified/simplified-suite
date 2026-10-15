@@ -484,6 +484,26 @@ namespace SimplifiedUniversalExporter.Core
                 ?? (IReadOnlyDictionary<string, MaterialParameter>)
                     new Dictionary<string, MaterialParameter>(0, StringComparer.OrdinalIgnoreCase);
 
+            // The index pairing above breaks when two samplers share one
+            // texture: the file stores that path once, so every sampler after
+            // the second user is paired with its neighbour's texture. The
+            // safety car's paint binds decal_s to both me_damageMap and
+            // me_logoSurfaceMap, and came out with me_metallicMap =
+            // cf_pattern_1_n, me_normalMap = paint_s and me_paintSurfaceMap =
+            // paint_d. On the F1 25 layout each sampler's own descriptor says
+            // which path it uses, so read that instead.
+            if (parameters.Count > 0 && ReadSamplerBindings(data) is { Count: > 0 } exact)
+            {
+                bindings.Clear();
+                foreach (var kv in exact)
+                {
+                    bindings[kv.Key] = kv.Value;
+                    string stem = kv.Key.Substring(0, kv.Key.Length - 3);
+                    string aliased = kv.Key.EndsWith("Tex", StringComparison.Ordinal) ? stem + "Map" : stem + "Tex";
+                    if (!exact.ContainsKey(aliased)) bindings[aliased] = kv.Value;
+                }
+            }
+
             return new MaterialFile
             {
                 ShaderEaid = shader,
@@ -492,6 +512,59 @@ namespace SimplifiedUniversalExporter.Core
                 BindingsBySlot = bindings,
                 Parameters = parameters,
             };
+        }
+
+        /// <summary>
+        /// Every texture sampler of an F1 25 layout material with the texture
+        /// its own descriptor names, or null when the layout doesn't read.
+        ///
+        /// The descriptor blocks (36 bytes each, from 0x20) give, for a
+        /// texture (type 2), the offset of its name in the name pool (field 0)
+        /// and of its texture path in the first texture-path pool (field 7).
+        /// The pools sit after the blocks and the constant buffer: the header
+        /// gives the name pool's start (field 4, just past the shader eaid) and
+        /// the texture pool's (field 5), counted from the end of the blocks.
+        /// Layout as RM Designs' swappers read it.
+        /// </summary>
+        private static Dictionary<string, string> ReadSamplerBindings(byte[] data)
+        {
+            try
+            {
+                if (data.Length < 32) return null;
+                int count = BitConverter.ToInt32(data, 0);
+                if (count <= 0 || count > 512) return null;
+                int blocksEnd = 32 + count * 36;
+                int namesBase = blocksEnd + BitConverter.ToInt32(data, 16);
+                int texBase = blocksEnd + BitConverter.ToInt32(data, 20);
+                if (blocksEnd > data.Length || namesBase >= data.Length || texBase >= data.Length) return null;
+
+                string CStr(int at)
+                {
+                    if (at < 0 || at >= data.Length) return null;
+                    int e = Array.IndexOf(data, (byte)0, at);
+                    return e > at ? Encoding.ASCII.GetString(data, at, e - at) : null;
+                }
+
+                var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (int k = 0; k < count; k++)
+                {
+                    int rec = 32 + k * 36;
+                    if (BitConverter.ToInt32(data, rec + 4) != 2) continue;   // textures only
+                    string name = CStr(namesBase + BitConverter.ToInt32(data, rec));
+                    string tex = CStr(texBase + BitConverter.ToInt32(data, rec + 28));
+                    // anything that doesn't read as a sampler name and a texture
+                    // eaid means the layout isn't the one this expects
+                    if (name == null || !name.StartsWith("me_", StringComparison.Ordinal) ||
+                        tex == null || !tex.StartsWith("eaid://", StringComparison.OrdinalIgnoreCase))
+                        return null;
+                    map[name] = tex;
+                }
+                return map;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
