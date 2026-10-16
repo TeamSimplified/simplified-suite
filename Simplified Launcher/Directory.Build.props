@@ -17,7 +17,7 @@
 
          The settings page says v4.0.00 in so many words. That string is typed
          into the XAML and does not come from here. -->
-    <Version>4.0</Version>
+    <Version>4.1</Version>
 
     <!-- The two the root sets differently. Declared after the import, so these
          win.

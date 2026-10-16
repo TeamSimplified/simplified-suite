@@ -64,7 +64,14 @@ public partial class MainWindow : Window
         // Once the window is on screen, never before: the notice is asked in
         // the window itself, and a question with no app behind it is the
         // thing every app in the suite was changed not to do.
-        ContentRendered += (_, _) => EnsureGameFiles();
+        ContentRendered += async (_, _) =>
+        {
+            // In this order. A game a previous session left modded has to be
+            // put back before anything is taken out of it, or the clean
+            // copies would be taken from the mods.
+            await RecoverGame();
+            await EnsureGameFiles();
+        };
 
         // The suite's windows get this from FramelessWindow.Attach; this one
         // draws its own chrome without any of that library, so it asks directly.
@@ -248,7 +255,7 @@ public partial class MainWindow : Window
     /// Said in the window's own voice, as the launch says it: the room
     /// empties, the heading asks, and play goes on.
     /// </summary>
-    private async void EnsureGameFiles()
+    private async Task EnsureGameFiles()
     {
         await _searched;
         if (!IsLoaded || _running) return;
@@ -264,15 +271,92 @@ public partial class MainWindow : Window
 
         // The room empties as it does for a launch, so the question has it to
         // itself.
-        Fade(Mods, 0, seconds: ClearSeconds);
-        Fade(BottomBar, 0, seconds: ClearSeconds, delay: TrailSeconds);
-        Mods.IsHitTestVisible = false;
-        Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
-        if (!await Wait(ClearSeconds + TrailSeconds)) return;
+        if (!await ClearRoom()) return;
 
         if (!await AskGameFiles()) return;
         if (!await TakeGameFiles(game, languages)) return;
         await Settle(Resting);
+    }
+
+    /// <summary>
+    /// Put the game back if an earlier session left it modded, before anything
+    /// else happens.
+    ///
+    /// A launch puts the game back itself when the game closes, so a backup
+    /// still here at startup means that never happened — the launcher was
+    /// closed by force or fell over while the game was running, or the machine
+    /// went off. The game is still modded, and the backup is the only copy of
+    /// what it had. So it goes back now, without being asked: it is what the
+    /// launch would have done, and nothing about it is anybody's choice.
+    ///
+    /// If the game is up — the launcher reopened while the session it lost is
+    /// still being played — the game is waited out first, exactly as a launch
+    /// waits it out. Putting files back under a running game is the one thing
+    /// that could make this worse.
+    /// </summary>
+    private async Task RecoverGame()
+    {
+        await _searched;
+        if (!IsLoaded || _running) return;
+
+        // An install folder alone is a launch that never got as far as
+        // touching the game. Spent either way.
+        if (!Directory.Exists(GameBackup.FolderPath))
+        {
+            await Task.Run(ModStack.Clear);
+            return;
+        }
+
+        var game = GameDir.Text.Trim();
+        if (!Directory.Exists(game)) return;
+
+        _running = true;
+        Ready();
+
+        if (!await ClearRoom()) return;
+
+        if (await Task.Run(() => GameLaunch.IsRunning(game)))
+        {
+            if (!await Say("WAITING FOR", "YOUR GAME")) return;
+
+            Drifting(false);
+            await Task.Run(() => GameLaunch.WaitForClose(game));
+            if (!IsLoaded) return;
+            Drifting(true);
+        }
+
+        if (!await Say("RESTORING", "YOUR GAME")) return;
+
+        var began = DateTime.UtcNow;
+        var back = await Task.Run(() => GameBackup.Put(game));
+        if (!IsLoaded) return;
+
+        if (back.Problem is not null)
+        {
+            // Kept, so the next start tries again and nothing is lost.
+            await Settle("COULDN'T PUT", "YOUR GAME BACK");
+            return;
+        }
+
+        await Task.Run(ModStack.Clear);
+        if (!IsLoaded) return;
+
+        if (!await Rest(began)) return;
+        await Settle(Resting);
+    }
+
+    /// <summary>
+    /// Empty the room for something that is not the list: the list goes, the
+    /// buttons a breath behind it, and the heading travels to the middle once
+    /// both have. False if the window went away meanwhile.
+    /// </summary>
+    private async Task<bool> ClearRoom()
+    {
+        Fade(Mods, 0, seconds: ClearSeconds);
+        Fade(BottomBar, 0, seconds: ClearSeconds, delay: TrailSeconds);
+        Mods.IsHitTestVisible = false;
+        Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
+        return await Wait(ClearSeconds + TrailSeconds);
     }
 
     /// <summary>
