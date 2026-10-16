@@ -221,6 +221,17 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Whether the game will read mods' language files: not on the EA App.
+    ///
+    /// The game only reads them from the folder the exe patch points it at
+    /// (see <see cref="ExePatch"/>), and the EA App's exe has no such string to
+    /// patch. Its language files would be staged, backed up and installed for
+    /// a game that never opens them, with a patch that has nowhere to go -
+    /// so they are left out entirely, and the exe left alone.
+    /// </summary>
+    private bool LanguagesReadable => PlatformEa.IsChecked != true;
+
     /// <summary>The search for the game, so what needs the folder can wait for it.</summary>
     private readonly Task _searched;
 
@@ -244,8 +255,9 @@ public partial class MainWindow : Window
         if (!IsLoaded || _running) return;
 
         var game = GameDir.Text.Trim();
+        var languages = LanguagesReadable;
         var needed = await Task.Run(() =>
-            Simplified.Language.LanguageFiles.FindExe(game) is not null && !Originals.Current(game));
+            Simplified.Language.LanguageFiles.FindExe(game) is not null && !Originals.Current(game, languages));
         if (!needed || !IsLoaded || _running) return;
 
         _running = true;
@@ -260,7 +272,7 @@ public partial class MainWindow : Window
         if (!await Wait(ClearSeconds + TrailSeconds)) return;
 
         if (!await AskGameFiles()) return;
-        if (!await TakeGameFiles(game)) return;
+        if (!await TakeGameFiles(game, languages)) return;
         await Settle(Resting);
     }
 
@@ -269,7 +281,7 @@ public partial class MainWindow : Window
     /// not be taken — said in the heading, the window put back — or when the
     /// window went away meanwhile.
     /// </summary>
-    private async Task<bool> TakeGameFiles(string game)
+    private async Task<bool> TakeGameFiles(string game, bool languages)
     {
         if (!await Say("UPDATING", "GAME FILES")) return false;
 
@@ -278,7 +290,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                Originals.Refresh(game);
+                Originals.Refresh(game, languages);
                 return true;
             }
             catch
@@ -661,18 +673,19 @@ public partial class MainWindow : Window
         // and the work is about to be handed to another thread.
         var chosen = Chosen();
         var game = GameDir.Text.Trim();
+        var languages = LanguagesReadable;
 
         // The database and the language files are merged into the game's own
         // copies, so those have to be here and from this build before anything
         // is staged. Taken at startup ordinarily; asked again here only when a
         // chosen mod carries one and they are not - the game has updated since
         // the window opened, or taking them at startup failed.
-        if (await Task.Run(() => Originals.Wanted(chosen) && !Originals.Current(game)))
+        if (await Task.Run(() => Originals.Wanted(chosen, languages) && !Originals.Current(game, languages)))
         {
             if (!IsLoaded) return;
 
             if (!await AskGameFiles()) return;
-            if (!await TakeGameFiles(game)) return;
+            if (!await TakeGameFiles(game, languages)) return;
         }
 
         if (!await Say("STAGING", "YOUR MODS")) return;
@@ -681,7 +694,7 @@ public partial class MainWindow : Window
         // and the dots are the only thing on screen saying the app has not
         // hung.
         var began = DateTime.UtcNow;
-        var staged = await Task.Run(() => ModStack.Build(chosen, game));
+        var staged = await Task.Run(() => ModStack.Build(chosen, game, languages));
         if (!IsLoaded) return;
 
         if (staged.Problem is not null)

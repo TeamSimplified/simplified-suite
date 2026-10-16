@@ -71,7 +71,12 @@ public static class ModStack
     /// The game's folder, for the patched exe that language files need. See
     /// <see cref="ExePatch"/>.
     /// </param>
-    public static Stacked Build(IReadOnlyList<InstalledMod> order, string? gameDir = null)
+    /// <param name="languages">
+    /// Whether to stage language files at all. Not on the EA App, whose exe
+    /// cannot be patched to read them: every .lng is left out, and no exe is
+    /// staged.
+    /// </param>
+    public static Stacked Build(IReadOnlyList<InstalledMod> order, string? gameDir = null, bool languages = true)
     {
         var parent = Path.GetDirectoryName(FolderPath)!;
         Directory.CreateDirectory(parent);
@@ -92,7 +97,7 @@ public static class ModStack
             // database by where it goes, and each folder of language files as
             // one set per mod.
             var databases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var languages = new Dictionary<string, List<IReadOnlyDictionary<string, string>>>(StringComparer.OrdinalIgnoreCase);
+            var languageSets = new Dictionary<string, List<IReadOnlyDictionary<string, string>>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var mod in order)
             {
@@ -106,7 +111,7 @@ public static class ModStack
 
                 var theirs = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-                var (written, over) = Lay(from, game, (relative, file) =>
+                var (written, over) = Lay(from, game, languages, (relative, file) =>
                 {
                     if (Merged.Kind(file) == Merged.Kinds.Database)
                     {
@@ -123,7 +128,7 @@ public static class ModStack
 
                 foreach (var (folder, set) in theirs)
                 {
-                    if (!languages.TryGetValue(folder, out var list)) languages[folder] = list = [];
+                    if (!languageSets.TryGetValue(folder, out var list)) languageSets[folder] = list = [];
                     list.Add(set);
                 }
 
@@ -139,11 +144,11 @@ public static class ModStack
                 merged++;
             }
 
-            foreach (var (folder, sets) in languages)
+            foreach (var (folder, sets) in languageSets)
                 merged += Merged.Languages(sets, Path.Combine(game, folder));
 
             // Language files the game would never read without it.
-            if (languages.Count > 0) ExePatch.Stage(gameDir, game);
+            if (languageSets.Count > 0) ExePatch.Stage(gameDir, game);
 
             Swap(building);
 
@@ -195,7 +200,8 @@ public static class ModStack
     /// merge it into. Without one the file is laid like any other, which is
     /// what the launcher always did, rather than left out.
     /// </summary>
-    private static (int Written, int Replaced) Lay(string from, string onto, Action<string, string> setAside)
+    private static (int Written, int Replaced) Lay(string from, string onto, bool languages,
+                                                   Action<string, string> setAside)
     {
         var written = 0;
         var replaced = 0;
@@ -203,6 +209,8 @@ public static class ModStack
         foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(from, file);
+
+            if (!languages && Merged.Kind(file) == Merged.Kinds.Language) continue;
 
             if (Mergeable(file))
             {

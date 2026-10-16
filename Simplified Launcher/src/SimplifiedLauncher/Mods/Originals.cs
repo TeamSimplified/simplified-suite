@@ -37,31 +37,45 @@ public static class Originals
     private static string LanguageCacheDir => Path.Combine(RuntimeDir, "language");
 
     /// <summary>Whether any of <paramref name="mods"/> carries a file that is merged rather than copied.</summary>
-    public static bool Wanted(IEnumerable<InstalledMod> mods) =>
+    /// <param name="languages">
+    /// Whether language files count. Not on the EA App, where they are left
+    /// out of a launch altogether.
+    /// </param>
+    public static bool Wanted(IEnumerable<InstalledMod> mods, bool languages = true) =>
         mods.Any(mod =>
         {
             var game = Path.Combine(mod.Folder, ModStaging.GameFolderName);
             return Directory.Exists(game)
                    && Directory.EnumerateFiles(game, "*", SearchOption.AllDirectories)
-                               .Any(file => Merged.Kind(file) is not Merged.Kinds.Not);
+                               .Any(file => Merged.Kind(file) switch
+                               {
+                                   Merged.Kinds.Database => true,
+                                   Merged.Kinds.Language => languages,
+                                   _ => false,
+                               });
         });
 
     /// <summary>
     /// True when the copies here came out of the game that is installed now.
     /// Reads a couple of small notes and file names, nothing more.
     /// </summary>
-    public static bool Current(string? gameDir) =>
-        LanguageFiles.Check(gameDir, LanguageDir) == LanguageState.Current
+    /// <param name="languages">Whether the language files are wanted too.</param>
+    public static bool Current(string? gameDir, bool languages = true) =>
+        (!languages || LanguageFiles.Check(gameDir, LanguageDir) == LanguageState.Current)
         && GameOriginals.Check(gameDir, FolderPath) == OriginalsState.Current;
 
     /// <summary>
-    /// Take whichever of the two is missing or from an older build. Returns
-    /// anything worth telling the person about the database taken, which is
-    /// nothing ordinarily. Throws when the game cannot be read.
+    /// Take whichever is missing or from an older build. Returns anything
+    /// worth telling the person about the database taken, which is nothing
+    /// ordinarily. Throws when the game cannot be read.
     /// </summary>
-    public static IReadOnlyList<string> Refresh(string? gameDir)
+    /// <param name="languages">
+    /// Whether to take the language files too. Not on the EA App: nothing
+    /// there would use them.
+    /// </param>
+    public static IReadOnlyList<string> Refresh(string? gameDir, bool languages = true)
     {
-        if (LanguageFiles.Check(gameDir, LanguageDir) != LanguageState.Current)
+        if (languages && LanguageFiles.Check(gameDir, LanguageDir) != LanguageState.Current)
             LanguageFiles.Refresh(gameDir, LanguageDir, LanguageCacheDir);
 
         return GameOriginals.Check(gameDir, FolderPath) == OriginalsState.Current
