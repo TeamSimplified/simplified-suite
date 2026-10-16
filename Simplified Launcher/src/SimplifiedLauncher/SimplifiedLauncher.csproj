@@ -78,11 +78,24 @@
     <Compile Include="..\..\..\Shared\NativeLibraryFolder.cs" Link="NativeLibraryFolder.cs" />
   </ItemGroup>
 
-  <!-- The minimise animation, which every window here needs for the same reason
-       and gets from the same file. The suite's apps reach it through
-       SimplifiedUi; this one has no SimplifiedUi, so it links it directly. -->
+  <!-- The game's own files, and what merging a mod's into them takes.
+
+       The Team Editor's Core is the suite's one place for the originals: it
+       takes the database out of the install and stamps which build it came
+       from, and through it come the language files out of the exe (the
+       Language Library), the database format (EgoEngineLibrary), and the
+       language file reader that writes the game's files back byte for byte.
+       The Grid Editor reads the same originals the same way, so a game update
+       is noticed by all three at once.
+
+       SimplifiedUi for one thing only: the notice every app shows before
+       taking files out of the game, whose wording lives there so that every
+       app says it the same. Its look is not used - the launcher never merges
+       its theme - and the minimise animation, which this app used to link
+       directly, now arrives through it the way it does for the others. -->
   <ItemGroup>
-    <Compile Include="..\..\..\Shared\MinimiseAnimation.cs" Link="MinimiseAnimation.cs" />
+    <ProjectReference Include="..\..\..\Simplified Team Editor\src\SimplifiedTeamEditor.Core\SimplifiedTeamEditor.Core.csproj" />
+    <ProjectReference Include="..\..\..\Simplified UI Library\SimplifiedUi.csproj" />
   </ItemGroup>
 
   <!-- Outfit, embedded rather than installed. The app is portable and goes out

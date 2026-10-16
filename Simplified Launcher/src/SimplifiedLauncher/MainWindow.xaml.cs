@@ -20,9 +20,9 @@ namespace SimplifiedLauncher;
 /// is only what this file and its XAML say. The one thing it does borrow is the
 /// game-install search, which is the suite's own GameDirDetector.
 ///
-/// Two things in here are still shape rather than substance, and both are
-/// marked where they are: the catalogue below is invented, and Play_Click mimes
-/// a launch without installing or starting anything.
+/// One thing in here is still shape rather than substance, and it is marked
+/// where it is: Play_Click installs the mods and puts the game back for real,
+/// but starting the game and waiting for it to close are still mimed.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -60,7 +60,12 @@ public partial class MainWindow : Window
         // was silent about. Both before the window is shown, so the settings page
         // is never briefly wrong.
         LoadSettings();
-        FindGameInstall();
+        _searched = FindGameInstall();
+
+        // Once the window is on screen, never before: the notice is asked in
+        // the window itself, and a question with no app behind it is the
+        // thing every app in the suite was changed not to do.
+        ContentRendered += (_, _) => EnsureGameFiles();
 
         // The suite's windows get this from FramelessWindow.Attach; this one
         // draws its own chrome without any of that library, so it asks directly.
@@ -197,7 +202,7 @@ public partial class MainWindow : Window
     /// await as well as before, which is what covers someone filling the box in
     /// or pressing a chip while the search was still running.
     /// </summary>
-    private async void FindGameInstall()
+    private async Task FindGameInstall()
     {
         var hit = await Task.Run(Find);
         if (hit is null) return;
@@ -214,6 +219,82 @@ public partial class MainWindow : Window
             try { return GameDirDetector.Detect(); }
             catch { return null; }   // a search that fails is not a reason not to start
         }
+    }
+
+    /// <summary>The search for the game, so what needs the folder can wait for it.</summary>
+    private readonly Task _searched;
+
+    /// <summary>
+    /// Make sure the game's own database and language files are here and from
+    /// the installed build, at startup, as every app in the suite does it.
+    ///
+    /// Mods' copies of those two are merged into these when a launch stages
+    /// them, so they have to be the game's and current. The editors check the
+    /// same thing the same way when they open, and taking them now rather than
+    /// in the middle of a launch is what a person opening an app is expecting
+    /// to wait for: the half minute of reading the game's exe happens once,
+    /// here, and not between pressing play and the game.
+    ///
+    /// Said in the window's own voice, as the launch says it: the room
+    /// empties, the heading asks, and play goes on.
+    /// </summary>
+    private async void EnsureGameFiles()
+    {
+        await _searched;
+        if (!IsLoaded || _running) return;
+
+        var game = GameDir.Text.Trim();
+        var needed = await Task.Run(() =>
+            Simplified.Language.LanguageFiles.FindExe(game) is not null && !Originals.Current(game));
+        if (!needed || !IsLoaded || _running) return;
+
+        _running = true;
+        Ready();
+
+        // The room empties as it does for a launch, so the question has it to
+        // itself.
+        Fade(Mods, 0, seconds: ClearSeconds);
+        Fade(BottomBar, 0, seconds: ClearSeconds, delay: TrailSeconds);
+        Mods.IsHitTestVisible = false;
+        Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
+        if (!await Wait(ClearSeconds + TrailSeconds)) return;
+
+        if (!await AskGameFiles()) return;
+        if (!await TakeGameFiles(game)) return;
+        await Settle(Resting);
+    }
+
+    /// <summary>
+    /// Take the originals with the heading saying so. False when they could
+    /// not be taken — said in the heading, the window put back — or when the
+    /// window went away meanwhile.
+    /// </summary>
+    private async Task<bool> TakeGameFiles(string game)
+    {
+        if (!await Say("UPDATING", "GAME FILES")) return false;
+
+        var began = DateTime.UtcNow;
+        var taken = await Task.Run(() =>
+        {
+            try
+            {
+                Originals.Refresh(game);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+        if (!IsLoaded) return false;
+
+        if (!taken)
+        {
+            await Settle("COULDN'T READ", "YOUR GAME");
+            return false;
+        }
+
+        return await Rest(began);
     }
 
     /// <summary>
@@ -544,24 +625,25 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The whole of a launch, mimed.
+    /// The whole of a launch.
     ///
-    /// Nothing is installed and nothing is started: this is the shape of the
-    /// thing, so the timings and the movement can be looked at before there
-    /// is anything behind them. The captions and their waits are the only part
-    /// that will not survive contact with real work.
-    ///
-    /// Six steps, in the order the real thing will have to do them: read what
-    /// was chosen, take a copy of what is about to be overwritten, write the
-    /// mods in, start the game, wait it out, and put the game back. Backing up
-    /// gets the longest wait of the three before launch because it is the one
-    /// that will actually be slow — copying the game's own shader packages
-    /// somewhere safe is what makes restoring possible at all. The numbers are
-    /// guesses either way and are there to be replaced by however long the work
-    /// takes.
+    /// In order: take the game's own database and language files when a mod
+    /// needs them merged and the copies here are missing or from an older
+    /// build, asking first; stack the chosen mods into the install folder,
+    /// merging those two kinds of file; back up what is about to be
+    /// overwritten; install; start the game and wait it out; put the game
+    /// back. Everything but starting and waiting is real. Those two are still
+    /// fixed pauses standing in for the game.
     /// </summary>
     private async void Play_Click(object sender, RoutedEventArgs e)
     {
+        // Play is Continue while the game-files notice is up.
+        if (_asking is { } asking)
+        {
+            asking.TrySetResult(true);
+            return;
+        }
+
         if (_running) return;
         _running = true;
         Ready();
@@ -575,14 +657,31 @@ public partial class MainWindow : Window
         Mods.IsHitTestVisible = false;
         Slide(CentreOffset(), delay: ClearSeconds + TrailSeconds);
 
+        // Read here rather than inside the work: the box belongs to the window
+        // and the work is about to be handed to another thread.
+        var chosen = Chosen();
+        var game = GameDir.Text.Trim();
+
+        // The database and the language files are merged into the game's own
+        // copies, so those have to be here and from this build before anything
+        // is staged. Taken at startup ordinarily; asked again here only when a
+        // chosen mod carries one and they are not - the game has updated since
+        // the window opened, or taking them at startup failed.
+        if (await Task.Run(() => Originals.Wanted(chosen) && !Originals.Current(game)))
+        {
+            if (!IsLoaded) return;
+
+            if (!await AskGameFiles()) return;
+            if (!await TakeGameFiles(game)) return;
+        }
+
         if (!await Say("STAGING", "YOUR MODS")) return;
 
-        // The one step that is no longer mimed. Off the window's thread,
-        // because it is file copying and the dots are the only thing on screen
-        // saying the app has not hung.
-        var chosen = Chosen();
+        // Off the window's thread, because it is file copying and merging,
+        // and the dots are the only thing on screen saying the app has not
+        // hung.
         var began = DateTime.UtcNow;
-        var staged = await Task.Run(() => ModStack.Build(chosen));
+        var staged = await Task.Run(() => ModStack.Build(chosen, game));
         if (!IsLoaded) return;
 
         if (staged.Problem is not null)
@@ -594,10 +693,6 @@ public partial class MainWindow : Window
         if (!await Rest(began)) return;
 
         if (!await Say("BACKING UP", "YOUR GAME")) return;
-
-        // Read here rather than inside the work: the box belongs to the window
-        // and the work is about to be handed to another thread.
-        var game = GameDir.Text.Trim();
 
         began = DateTime.UtcNow;
         var backup = await Task.Run(() => GameBackup.Take(game, staged.Folder));
@@ -876,11 +971,80 @@ public partial class MainWindow : Window
     /// </summary>
     private void Ready()
     {
-        Play.IsEnabled = !_running && !_inSettings && Mods.SelectedItems.Count > 0;
+        var asking = _asking is not null;
+        Play.IsEnabled = asking || (!_running && !_inSettings && Mods.SelectedItems.Count > 0);
         Settings.IsEnabled = !_running && !_inSettings;
         Back.IsEnabled = _inSettings;
-        CloseButton.IsEnabled = !_running;
+
+        // Nothing has been touched yet while the notice is up, so the window
+        // can go, and closing it is how somebody declines.
+        CloseButton.IsEnabled = asking || !_running;
     }
+
+    /// <summary>
+    /// Tell the person files are about to be taken out of the game, as every
+    /// app in the suite does, and wait for them to go on. False only when the
+    /// window was closed instead.
+    ///
+    /// The suite's notice, in this window's voice: the heading is already in
+    /// the middle of an empty room at this point, so it asks the question, the
+    /// notice goes under it, and play — the thing that goes ahead everywhere
+    /// else in the window — is the one answer. There is no second button. The
+    /// files are what the launcher installs mods into, so not taking them is
+    /// not a way to carry on; somebody who does not want to has the window's
+    /// own close, and nothing has been touched when they use it.
+    ///
+    /// The settings gear is kept out of it. Opening another page from the
+    /// middle of this is a second thing to be in the middle of.
+    /// </summary>
+    private async Task<bool> AskGameFiles()
+    {
+        Notice.Text = $"{SimplifiedUi.GameFilesNotice.Headline} {SimplifiedUi.GameFilesNotice.LauncherBody}";
+        Play.ToolTip = "Continue";
+
+        Present(SettingsSlot, false);
+        Present(BackSlot, false);
+        Present(PlaySlot, true);
+
+        _asking = new TaskCompletionSource<bool>();
+        Ready();
+
+        if (!await Say(false, "EXTRACT", "GAME FILES?")) return false;
+        FadeInAfter(Notice, 0, ClearSeconds);
+        FadeInAfter(BottomBar, TrailSeconds, ClearSeconds);
+
+        await _asking.Task;
+        _asking = null;
+        Ready();
+
+        Fade(Notice, 0, seconds: ClearSeconds);
+        Fade(BottomBar, 0, seconds: ClearSeconds);
+        if (!await Wait(ClearSeconds)) return false;
+
+        // Back as it was, now that nobody can see it.
+        Present(SettingsSlot, true);
+        Play.ToolTip = "Launch";
+
+        return true;
+    }
+
+    /// <summary>
+    /// Put a slot in the row or take it out, at once and without a fade.
+    ///
+    /// The animation holding its opacity is dropped first. A finished fade
+    /// keeps holding the value it ended on, and a plain assignment underneath
+    /// it is not an error and not a change — the slot just stays where the
+    /// last fade left it.
+    /// </summary>
+    private static void Present(UIElement slot, bool shown)
+    {
+        slot.BeginAnimation(OpacityProperty, null);
+        slot.Opacity = shown ? 1 : 0;
+        slot.IsHitTestVisible = shown;
+    }
+
+    /// <summary>The game-files notice, while it waits for an answer. Null the rest of the time.</summary>
+    private TaskCompletionSource<bool>? _asking;
 
     private bool _running;
 
@@ -921,7 +1085,8 @@ public partial class MainWindow : Window
             //
             // Balanced, the letters land on the middle and the punctuation hangs
             // off the right, which is what hanging punctuation is for.
-            if (lines[i].EndsWith('.')) Headline.Inlines.Add(Spacer("."));
+            if (lines[i] is [.., var last] && char.IsPunctuation(last))
+                Headline.Inlines.Add(Spacer(last.ToString()));
 
             if (working && i == lines.Length - 1)
                 for (var d = 0; d < 2; d++) Headline.Inlines.Add(Spacer("."));

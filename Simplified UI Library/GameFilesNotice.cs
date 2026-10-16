@@ -22,6 +22,15 @@ public static class GameFilesNotice
         "These will be modified and packaged as your final mod. Before hitting continue make sure your " +
         "game files are verified and clean.";
 
+    /// <summary>
+    /// The launcher's second sentence. What it takes is not built into a mod
+    /// but used as the base the chosen mods are installed into, so it says
+    /// that instead; the rest is the same notice.
+    /// </summary>
+    public const string LauncherBody =
+        "These will be used as a base to install your mods into when launching. Before hitting continue make " +
+        "sure your game files are verified and clean.";
+
     /// <summary>True to go ahead and extract; false when the person cancelled or closed the dialog.</summary>
     public static bool Confirm(Window? owner) =>
         MessageDialog.Choose(owner, "Game files", Headline, Body,

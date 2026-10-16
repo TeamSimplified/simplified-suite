@@ -1433,6 +1433,31 @@ CHOOSE<LineBreak/>YOUR MODS</TextBlock>
             <Path Data="{StaticResource TeamMark}" Fill="#FFFFFF"/>
         </Viewbox>
 
+        <!-- The notice every app in the suite gives before taking files out
+             of the game, said in this window's own voice: the heading reads
+             EXTRACT GAME FILES?, this sits under it, and play takes the
+             role of Continue. The words are read from
+             SimplifiedUi.GameFilesNotice, which keeps the launcher's own
+             second sentence beside the one the other apps say.
+
+             Set as the settings page's prose is - the labels' face, white,
+             fourteen on twenty - and centred, because everything shown during
+             a launch is centred on the window. Just clear of the buttons, so
+             it reads as what they answer. -->
+        <TextBlock x:Name="Notice"
+                   Style="{StaticResource Label}"
+                   FontWeight="Regular"
+                   FontSize="14"
+                   Foreground="#FFFFFF"
+                   LineHeight="20"
+                   LineStackingStrategy="BlockLineHeight"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   VerticalAlignment="Bottom"
+                   Margin="44,0,44,124"
+                   Opacity="0"
+                   IsHitTestVisible="False"/>
+
         <!-- The bottom row, and what hides it. Being switched off and
              being out of the picture both want to fade, and both would
              want the same Opacity — so one of them has to belong to

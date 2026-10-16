@@ -106,7 +106,12 @@ public sealed class LngFile
         var values = new MemoryStream();
         var valueOffsetByKey = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        foreach (var (keyAt, _) in _offsets)
+        // In the order the values already sit in the file, not the order SIDA
+        // lists them. The game's own files lay them out differently from the
+        // index, and both work — values are reached through their offsets — but
+        // only this order gives back the game's file byte for byte when nothing
+        // was edited, which is what lets a merge of no changes be checked as one.
+        foreach (var (keyAt, _) in _offsets.OrderBy(o => o.Value))
         {
             var key = ReadCString(_keysBlob, keyAt);
             var value = edits.TryGetValue(key, out var edited) ? edited : Entries[key];

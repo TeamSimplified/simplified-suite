@@ -14,12 +14,17 @@ namespace SimplifiedLauncher.Mods;
 /// Mods that had nothing to give — an import that came out
 /// <see cref="Staged.Unrecognised"/> has no <c>F1 25</c> folder to take from.
 /// </param>
+/// <param name="Merged">
+/// Databases and language files written by merging the mods' copies into the
+/// game's own, rather than by copying one of them.
+/// </param>
 /// <param name="Problem">Why there is no usable install folder. Null when there is.</param>
 public sealed record Stacked(
     string Folder,
     int Files = 0,
     int Replaced = 0,
     int Empty = 0,
+    int Merged = 0,
     string? Problem = null);
 
 /// <summary>
@@ -33,6 +38,11 @@ public sealed record Stacked(
 /// chosen later is written last and is the one that survives. Everything else
 /// about the two is kept — merging is per file, not per folder, so a mod that
 /// only replaces one car does not take the other mod's cars with it.
+///
+/// The game database and the language files are the exception to the order
+/// winning whole: they are set aside while the rest is laid, and merged into
+/// the game's own copies afterwards — see <see cref="Merged"/>. The order
+/// still decides, but entry by entry rather than file by file.
 ///
 /// Built from nothing every time. The install folder is not a record of
 /// anything, it is this launch's answer: last launch's leftovers in it would be
@@ -57,7 +67,11 @@ public static class ModStack
     /// previous one where it was rather than a mixture of two launches that
     /// would look exactly like a finished one.
     /// </summary>
-    public static Stacked Build(IReadOnlyList<InstalledMod> order)
+    /// <param name="gameDir">
+    /// The game's folder, for the patched exe that language files need. See
+    /// <see cref="ExePatch"/>.
+    /// </param>
+    public static Stacked Build(IReadOnlyList<InstalledMod> order, string? gameDir = null)
     {
         var parent = Path.GetDirectoryName(FolderPath)!;
         Directory.CreateDirectory(parent);
@@ -74,6 +88,12 @@ public static class ModStack
             var replaced = 0;
             var empty = 0;
 
+            // Set aside for merging, in the order they were ticked: each
+            // database by where it goes, and each folder of language files as
+            // one set per mod.
+            var databases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var languages = new Dictionary<string, List<IReadOnlyDictionary<string, string>>>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var mod in order)
             {
                 var from = Path.Combine(mod.Folder, ModStaging.GameFolderName);
@@ -84,18 +104,54 @@ public static class ModStack
                     continue;
                 }
 
-                var (written, over) = Lay(from, game);
+                var theirs = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
+                var (written, over) = Lay(from, game, (relative, file) =>
+                {
+                    if (Merged.Kind(file) == Merged.Kinds.Database)
+                    {
+                        if (!databases.TryGetValue(relative, out var list)) databases[relative] = list = [];
+                        list.Add(file);
+                        return;
+                    }
+
+                    var folder = Path.GetDirectoryName(relative) ?? "";
+                    if (!theirs.TryGetValue(folder, out var set))
+                        theirs[folder] = set = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    set[Path.GetFileName(file)] = file;
+                });
+
+                foreach (var (folder, set) in theirs)
+                {
+                    if (!languages.TryGetValue(folder, out var list)) languages[folder] = list = [];
+                    list.Add(set);
+                }
+
                 files += written;
                 replaced += over;
             }
 
+            var merged = 0;
+
+            foreach (var (relative, sources) in databases)
+            {
+                replaced += Merged.Database(sources, Path.Combine(game, relative));
+                merged++;
+            }
+
+            foreach (var (folder, sets) in languages)
+                merged += Merged.Languages(sets, Path.Combine(game, folder));
+
+            // Language files the game would never read without it.
+            if (languages.Count > 0) ExePatch.Stage(gameDir, game);
+
             Swap(building);
 
-            return new Stacked(FolderPath, files, replaced, empty);
+            return new Stacked(FolderPath, files, replaced, empty, merged);
         }
         catch (Exception e)
         {
-            return new Stacked(FolderPath, Problem: $"The mods couldn't be put together. ({e.GetType().Name})");
+            return new Stacked(FolderPath, Problem: $"The mods couldn't be put together. ({e.GetType().Name}: {e.Message})");
         }
         finally
         {
@@ -133,15 +189,28 @@ public static class ModStack
     /// <summary>
     /// Copy one mod's game files over whatever is already there, and say how
     /// many were written and how many of those took another mod's place.
+    ///
+    /// A file that is merged instead goes to <paramref name="setAside"/> with
+    /// its path under the game folder — but only when there is a clean copy to
+    /// merge it into. Without one the file is laid like any other, which is
+    /// what the launcher always did, rather than left out.
     /// </summary>
-    private static (int Written, int Replaced) Lay(string from, string onto)
+    private static (int Written, int Replaced) Lay(string from, string onto, Action<string, string> setAside)
     {
         var written = 0;
         var replaced = 0;
 
         foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
         {
-            var landing = Path.Combine(onto, Path.GetRelativePath(from, file));
+            var relative = Path.GetRelativePath(from, file);
+
+            if (Mergeable(file))
+            {
+                setAside(relative, file);
+                continue;
+            }
+
+            var landing = Path.Combine(onto, relative);
 
             Directory.CreateDirectory(Path.GetDirectoryName(landing)!);
 
@@ -153,6 +222,18 @@ public static class ModStack
 
         return (written, replaced);
     }
+
+    /// <summary>
+    /// A database or a language file the game ships, and a clean copy of it
+    /// here to merge into. A language file of some other name — a mod's own
+    /// lookup table, say — is the mod's and is laid as it is.
+    /// </summary>
+    private static bool Mergeable(string file) => Merged.Kind(file) switch
+    {
+        Merged.Kinds.Database => File.Exists(Originals.DatabasePath),
+        Merged.Kinds.Language => Merged.IsGameLanguage(Path.GetFileName(file)),
+        _ => false,
+    };
 
     /// <summary>
     /// Put the newly built folder where the install folder goes.
