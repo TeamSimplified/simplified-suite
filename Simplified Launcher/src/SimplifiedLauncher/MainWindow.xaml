@@ -1256,7 +1256,7 @@ CHOOSE<LineBreak/>YOUR MODS</TextBlock>
                  do and the two pages share an edge. -->
             <!-- Two up from the prose below it and bold, so the page
                  opens by saying which launcher this is. -->
-            <TextBlock Text="v4.1.00"
+            <TextBlock Text="v4.0.00"
                        Style="{StaticResource Label}"
                        FontWeight="Bold"
                        FontSize="16"
