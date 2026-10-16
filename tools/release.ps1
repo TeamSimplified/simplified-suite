@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, TrackInstaller, UniversalExporter, DatabaseMerger, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'DatabaseMerger', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -207,6 +207,13 @@ $Apps = @(
         Project = 'src\SimplifiedUniversalExporter\SimplifiedUniversalExporter.csproj'
         Exe = 'Simplified Universal Exporter'; Package = 'Simplified Universal Exporter'
         Tag = 'universalexporter-v'; Kind = 'window'
+        Ships = @('*.exe', 'runtime\*')
+    }
+    [pscustomobject]@{
+        Short = 'DatabaseMerger'; Folder = 'Simplified Database Merger'
+        Project = 'src\SimplifiedDatabaseMerger\SimplifiedDatabaseMerger.csproj'
+        Exe = 'Simplified Database Merger'; Package = 'Simplified Database Merger'
+        Tag = 'databasemerger-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{

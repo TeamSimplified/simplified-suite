@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedDatabaseMerger/SimplifiedDatabaseMerger.csproj" />
+  <Project Path="src/SimplifiedDatabaseMerger.Core/SimplifiedDatabaseMerger.Core.csproj" />
+</Solution>

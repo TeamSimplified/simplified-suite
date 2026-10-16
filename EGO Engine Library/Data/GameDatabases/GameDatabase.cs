@@ -51,6 +51,19 @@ public sealed class GameDatabase
     public static GameDatabase Load(string path) => FromBytes(File.ReadAllBytes(path));
 
     /// <summary>
+    /// A database made of records assembled elsewhere — a merge of several
+    /// files, say — written with <paramref name="cipher"/>, which should be the
+    /// key the records were read under so the game that reads it is the game
+    /// they came from.
+    /// </summary>
+    public static GameDatabase FromRecords(IEnumerable<DatabaseRecord> records, DatabaseCipher.Key cipher)
+    {
+        var list = records.ToList();
+        if (list.Count == 0) throw new ArgumentException("A database needs at least one record.", nameof(records));
+        return new GameDatabase(list, cipher);
+    }
+
+    /// <summary>
     /// Read a database already in memory — one lifted out of a zip, or a copy
     /// held while something else is written over the file it came from.
     /// </summary>
