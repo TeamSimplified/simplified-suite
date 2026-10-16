@@ -20,9 +20,8 @@ namespace SimplifiedLauncher;
 /// is only what this file and its XAML say. The one thing it does borrow is the
 /// game-install search, which is the suite's own GameDirDetector.
 ///
-/// One thing in here is still shape rather than substance, and it is marked
-/// where it is: Play_Click installs the mods and puts the game back for real,
-/// but starting the game and waiting for it to close are still mimed.
+/// A launch is the whole of it: the mods are installed, the game is started
+/// and waited out, and the game is put back — see Play_Click.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -643,9 +642,8 @@ public partial class MainWindow : Window
     /// needs them merged and the copies here are missing or from an older
     /// build, asking first; stack the chosen mods into the install folder,
     /// merging those two kinds of file; back up what is about to be
-    /// overwritten; install; start the game and wait it out; put the game
-    /// back. Everything but starting and waiting is real. Those two are still
-    /// fixed pauses standing in for the game.
+    /// overwritten; install; start the game's exe and wait for it to close; put the game back. A game that never comes up is
+    /// put back too.
     /// </summary>
     private async void Play_Click(object sender, RoutedEventArgs e)
     {
@@ -674,6 +672,14 @@ public partial class MainWindow : Window
         var chosen = Chosen();
         var game = GameDir.Text.Trim();
         var languages = LanguagesReadable;
+
+        // Installing under a running game would fail halfway on files it holds
+        // open, and putting the game back afterwards would be done under it.
+        if (await Task.Run(() => GameLaunch.IsRunning(game)))
+        {
+            if (IsLoaded) await Settle("CLOSE YOUR", "GAME FIRST");
+            return;
+        }
 
         // The database and the language files are merged into the game's own
         // copies, so those have to be here and from this build before anything
@@ -740,13 +746,33 @@ public partial class MainWindow : Window
         if (!await Rest(began)) return;
 
         if (!await Say("LAUNCHING", "YOUR GAME")) return;
-        if (!await Wait(5)) return;
 
-        if (!await Say("GAME", "LAUNCHED.", working: false)) return;
-        Drifting(false);
-        if (!await Wait(10)) return;
+        // All of it off the window's thread. Starting a 400 MB exe can hold the
+        // caller for seconds, and looking for the game's process is a walk of
+        // every process on the machine: done here they stopped the window
+        // drawing, so the caption vanished mid-fade and the app was reported
+        // as hung until the game came up.
+        var started = await Task.Run(async () =>
+            GameLaunch.Start(game) is null && await GameLaunch.WaitForStart(game));
+        if (!IsLoaded) return;
 
-        Drifting(true);
+        if (started)
+        {
+            if (!await Say("GAME", "LAUNCHED.", working: false)) return;
+            Drifting(false);
+
+            // However long the session is. The window cannot be closed in the
+            // meantime: the game is modded until this returns, and the one
+            // thing that puts it back is the code after it.
+            await Task.Run(() => GameLaunch.WaitForClose(game));
+            if (!IsLoaded) return;
+
+            Drifting(true);
+        }
+
+        // The game never came up, or could not be asked to: it is modded all
+        // the same, so it is put back now rather than left that way for a game
+        // that is not coming.
         if (!await Say("RESTORING", "YOUR GAME")) return;
 
         began = DateTime.UtcNow;
@@ -769,7 +795,8 @@ public partial class MainWindow : Window
 
         if (!await Rest(began)) return;
 
-        await Settle(Resting);
+        if (started) await Settle(Resting);
+        else await Settle("GAME DIDN'T", "START");
     }
 
     /// <summary>

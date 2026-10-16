@@ -16,6 +16,12 @@ namespace SimplifiedLauncher.Mods;
 /// same length either way, so nothing else in the exe moves. Found once in the
 /// current build, and the same bytes the launcher before this one used.
 ///
+/// Not staged at the moment. The launcher before this one only ever ran a
+/// patched exe alongside something that disabled the anti-cheat, and a
+/// normal launch starts the game with its anti-cheat checking the exe. Kept,
+/// unused, because the merged language files are worth nothing to the game
+/// without it, and how they get read is still to be decided.
+///
 /// Never done to the game's exe in place. A patched copy is put in the install
 /// folder like any mod file, so the backup takes the game's own exe before the
 /// install puts this one over it, and putting the game back puts the original

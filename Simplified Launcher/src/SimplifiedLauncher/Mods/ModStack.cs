@@ -147,8 +147,10 @@ public static class ModStack
             foreach (var (folder, sets) in languageSets)
                 merged += Merged.Languages(sets, Path.Combine(game, folder));
 
-            // Language files the game would never read without it.
-            if (languageSets.Count > 0) ExePatch.Stage(gameDir, game);
+            // The exe patch that would make the game read these is held back
+            // for now: a changed exe meets the anti-cheat's own check of it on
+            // a normal launch. The files are merged and installed regardless,
+            // so they are ready the day it is decided how they get read.
 
             Swap(building);
 
