@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>SimplifiedTrackManager.Core</RootNamespace>
+    <AssemblyName>SimplifiedTrackManager.Core</AssemblyName>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    Everything a track addon becomes is archive and database work - renaming the
+    track's ERP, converting its pictures, reading the game's database - so this
+    is the EgoEngineLibrary and nothing else. Plain net10.0, so it can be driven
+    from a console with nothing on screen.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\EGO Engine Library\EgoEngineLibrary.csproj" />
+  </ItemGroup>
+
+  <!-- What game a folder holds, for Settings to say so. -->
+  <ItemGroup>
+    <Compile Include="..\..\..\Shared\GameVersion.cs" Link="GameVersion.cs" />
+  </ItemGroup>
+
+</Project>

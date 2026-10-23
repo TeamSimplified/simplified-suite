@@ -25,7 +25,7 @@
     smoke test ends up packaged.
 
 .PARAMETER App
-    Studio, ERP, Toolkit, Chassis, Driverwear, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, TrackInstaller, UniversalExporter, DatabaseMerger, or All (the default).
+    Studio, ERP, Toolkit, Chassis, Driverwear, TeamEditor, Swapper, Driver, Grid, Extractor, Sponsor, Language, LanguageEditor, Launcher, TrackManager, UniversalExporter, DatabaseMerger, or All (the default).
 
 .PARAMETER DryRun
     Say what would happen and change nothing.
@@ -46,7 +46,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackInstaller', 'UniversalExporter', 'DatabaseMerger', 'All')]
+    [ValidateSet('Studio', 'ERP', 'Toolkit', 'Chassis', 'Driverwear', 'TeamEditor', 'Swapper', 'Driver', 'Grid', 'Extractor', 'Sponsor', 'Language', 'LanguageEditor', 'Launcher', 'TrackManager', 'UniversalExporter', 'DatabaseMerger', 'All')]
     [string] $App = 'All',
     [switch] $DryRun,
     [switch] $NoTag,
@@ -192,14 +192,14 @@ $Apps = @(
         Ships = @('*.exe', 'runtime\*')
     }
     [pscustomobject]@{
-        Short = 'TrackInstaller'; Folder = 'Simplified Track Installer'
-        Project = 'src\SimplifiedTrackInstaller\SimplifiedTrackInstaller.csproj'
-        Exe = 'Simplified Track Installer'; Package = 'Simplified Track Installer'
-        Tag = 'trackinstaller-v'; Kind = 'window'
+        Short = 'TrackManager'; Folder = 'Simplified Track Manager'
+        Project = 'src\SimplifiedTrackManager\SimplifiedTrackManager.csproj'
+        Exe = 'Simplified Track Manager'; Package = 'Simplified Track Manager'
+        Tag = 'trackmanager-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
         # Held back from a suite release: a packaged track does not reach the
         # track list until the game database names it, which this does not do
-        # yet. -App TrackInstaller still packages it.
+        # yet. -App TrackManager still packages it.
         InAll = $false
     }
     [pscustomobject]@{

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/SimplifiedTrackManager/SimplifiedTrackManager.csproj" />
+  <Project Path="src/SimplifiedTrackManager.Core/SimplifiedTrackManager.Core.csproj" />
+</Solution>

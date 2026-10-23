@@ -1,7 +1,7 @@
 # Simplified Suite
 
 Modding tools for F1® 25 by Team Simplified: swappers, editors, an ERP
-workbench, a track installer, a launcher, a model exporter and a database
+workbench, a track manager, a launcher, a model exporter and a database
 merger, built on one shared EGO engine library and one shared UI library.
 
 ## Licence
