@@ -197,10 +197,6 @@ $Apps = @(
         Exe = 'Simplified Track Manager'; Package = 'Simplified Track Manager'
         Tag = 'trackmanager-v'; Kind = 'window'
         Ships = @('*.exe', 'runtime\*')
-        # Held back from a suite release: a packaged track does not reach the
-        # track list until the game database names it, which this does not do
-        # yet. -App TrackManager still packages it.
-        InAll = $false
     }
     [pscustomobject]@{
         Short = 'UniversalExporter'; Folder = 'Simplified Universal Exporter'
