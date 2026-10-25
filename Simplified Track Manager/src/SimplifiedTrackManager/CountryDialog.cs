@@ -47,7 +47,7 @@ public static class CountryDialog
         var note = new TextBlock
         {
             Text = "The round flag is the game's own where it has one, and one from flag-icons otherwise. " +
-                   "The rectangular flags are always the game's.",
+                   "The rectangular flags are the game's. The chequered flag, which the game hasn't got, is drawn by the app.",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 11.5,
             Margin = new Thickness(0, 8, 0, 0),

@@ -31,13 +31,23 @@ public sealed partial class StockGame
     /// <summary>The datasets under <c>track_data.game_setup</c>, by label, in row order.</summary>
     public IReadOnlyList<string> Datasets { get; }
 
-    /// <summary>The nationalities the game's tracks and drivers use, sorted, less <see cref="HiddenCountries"/>.</summary>
+    /// <summary>
+    /// The nationalities the game's tracks and drivers use, less
+    /// <see cref="HiddenCountries"/>: <see cref="NoCountry"/> first, then the
+    /// countries sorted.
+    /// </summary>
     public IReadOnlyList<string> Nationalities { get; }
 
     /// <summary>
     /// Countries the app leaves out of its nationality list and its in-game
     /// flags, by the game's key. One list, so the two can't disagree.
     /// </summary>
+    /// <summary>
+    /// The game's nationality for no country, which it gives Sochi and the
+    /// drivers it made neutral; its flag is a world map.
+    /// </summary>
+    public const string NoCountry = "default";
+
     public static readonly IReadOnlySet<string> HiddenCountries =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "israel" };
 
@@ -98,9 +108,9 @@ public sealed partial class StockGame
             if (db.Text($"tracks.Track_{row}.nationality") is { Length: > 0 } n) nationalities.Add(n);
         for (var i = 0; i < 2000; i++)
             if (db.Text($"entrants.drivers.driver_{i}.nationality") is { Length: > 0 } n) nationalities.Add(n);
-        nationalities.Remove("default");
+        nationalities.Remove(NoCountry);
         nationalities.ExceptWith(HiddenCountries);
-        Nationalities = nationalities.ToList();
+        Nationalities = [NoCountry, .. nationalities];
 
         var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in StockAcronyms) taken.Add(a.ToLowerInvariant());

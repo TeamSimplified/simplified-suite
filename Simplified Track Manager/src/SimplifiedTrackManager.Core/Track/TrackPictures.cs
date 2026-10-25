@@ -180,7 +180,8 @@ public static class TrackPictures
     /// out rather than failing the rest.
     /// </summary>
     public static Dictionary<string, string> ExtractPreviews(TrackZip zip, IReadOnlyList<Slot> slots,
-        TexconvRunner texconv, string outDir, CancellationToken cancel = default)
+        TexconvRunner texconv, string outDir, CancellationToken cancel = default,
+        Action<EgoEngineLibrary.Archive.Erp.ErpFile>? inspect = null)
     {
         Directory.CreateDirectory(outDir);
         var erpPath = Path.Combine(outDir, "track.erp");
@@ -190,6 +191,8 @@ public static class TrackPictures
             zip.ExtractErp(erpPath);
             cancel.ThrowIfCancellationRequested();
             var erp = EgoEngineLibrary.Util.ErpFileIO.Load(erpPath);
+            // Anything else the caller wants from the archive, while it's read.
+            inspect?.Invoke(erp);
 
             foreach (var slot in slots)
             {

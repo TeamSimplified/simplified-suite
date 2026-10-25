@@ -11,9 +11,13 @@ namespace SimplifiedTrackManager.Core.Track;
 ///
 /// Resource names are renamed; data that embeds the code is rewritten through
 /// its own format — worlds and layers (<c>!pkg</c>) through their JSON form,
-/// texture headers through the SRV reader — never patched as bytes. A fragment
-/// that holds the code in any other format stops the job rather than being
-/// guessed at.
+/// texture headers through the SRV reader. Meshes, models, material bindings,
+/// materials and terrain name the resources they use as paths inside a string
+/// table, with offsets to each string kept elsewhere in a format this doesn't
+/// read; a code of a different length would move every string after it. So
+/// there the code is replaced in place, and only by one of the same length,
+/// which moves nothing — a track whose own data names its paths that way can
+/// only be given a code as long as its own (<see cref="EmbedsCode"/>).
 ///
 /// The old code is matched where no letter or digit touches it, so
 /// <c>melbourne</c> never matches inside <c>melbourne24</c>. An underscore does
@@ -28,7 +32,7 @@ namespace SimplifiedTrackManager.Core.Track;
 /// </summary>
 public static class TrackRecode
 {
-    public sealed record Result(int Renamed, int Pkgs, int Headers, IReadOnlyList<string> Moved);
+    public sealed record Result(int Renamed, int Pkgs, int Headers, int InPlace, IReadOnlyList<string> Moved);
 
     private const string Tracks = "eaid://environment_package/tracks/";
 
@@ -59,7 +63,11 @@ public static class TrackRecode
         var needles = stems.Keys.Select(Encoding.ASCII.GetBytes).ToList();
         if (word is not null) needles.Add(Encoding.ASCII.GetBytes(from));
 
-        int renamed = 0, pkgs = 0, headers = 0;
+        // In place, byte for byte: Latin-1 maps each byte to one character and
+        // back, and the two codes are the same length, so nothing moves.
+        var inPlaceOk = word is not null && Encoding.ASCII.GetByteCount(to) == from.Length;
+
+        int renamed = 0, pkgs = 0, headers = 0, inPlace = 0;
         var refused = new List<string>();
         foreach (var r in erp.Resources)
         {
@@ -100,7 +108,14 @@ public static class TrackRecode
                 }
                 else if (word is not null && word.IsMatch(Encoding.Latin1.GetString(data)))
                 {
-                    refused.Add($"{r.Identifier} ({r.ResourceType}, fragment {f.Name})");
+                    if (!inPlaceOk)
+                    {
+                        refused.Add($"{r.Identifier} ({r.ResourceType}, fragment {f.Name})");
+                        continue;
+                    }
+                    f.SetData(Encoding.Latin1.GetBytes(word.Replace(Encoding.Latin1.GetString(data), to)));
+                    inPlace++;
+                    changed = true;
                 }
             }
             if (changed) r.UpdateHash();
@@ -108,15 +123,17 @@ public static class TrackRecode
 
         if (refused.Count > 0)
             throw new InvalidDataException(
-                $"The track holds its code in {refused.Count} resource(s) of a kind this can't rewrite, " +
-                $"so it can't be given a new one safely: {string.Join(", ", refused.Take(5))}");
+                $"{refused.Count} of the track's meshes, models and materials name their files with {from} " +
+                $"inside data that can't change length, so its new code has to be {from.Length} characters " +
+                $"long, as {from} is. {to} is {to.Length}.");
 
         var moved = stems.Select(s => $"{s.Key} → {s.Value}").ToList();
         log?.Invoke(from == to
             ? $"  kept the code {to}"
-            : $"  {from} → {to}: {renamed:N0} resources renamed, {pkgs} worlds and layers and {headers} texture headers rewritten");
+            : $"  {from} → {to}: {renamed:N0} resources renamed, {pkgs} worlds and layers, {headers} texture headers " +
+              $"and {inPlace} meshes, models and materials rewritten");
         foreach (var m in moved) log?.Invoke($"  moved {m}");
-        return new Result(renamed, pkgs, headers, moved);
+        return new Result(renamed, pkgs, headers, inPlace, moved);
     }
 
     /// <summary>
@@ -125,6 +142,28 @@ public static class TrackRecode
     /// </summary>
     public static string RecodeText(string text, string from, string to) =>
         from == to ? text : Regex.Replace(text, $"(?<![A-Za-z0-9]){Regex.Escape(from)}(?![A-Za-z0-9])", to);
+
+    /// <summary>
+    /// Whether the track's own data — a mesh, model, material binding,
+    /// material or terrain — names a path with <paramref name="code"/>, which
+    /// means a new code has to be as long as this one.
+    /// </summary>
+    public static bool EmbedsCode(ErpFile erp, string code)
+    {
+        var word = new Regex($"(?<![A-Za-z0-9]){Regex.Escape(code)}(?![A-Za-z0-9])");
+        var needle = Encoding.ASCII.GetBytes(code);
+        foreach (var r in erp.Resources)
+        {
+            if (r.ResourceType == "GfxSRVResource") continue;
+            foreach (var f in r.Fragments)
+            {
+                var data = f.GetDataArray(true);
+                if (data.AsSpan().IndexOf(needle) < 0 || data.AsSpan().StartsWith("!pkg"u8)) continue;
+                if (word.IsMatch(Encoding.Latin1.GetString(data))) return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// Whether any resource name in <paramref name="erp"/> still holds

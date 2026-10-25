@@ -20,11 +20,21 @@ public sealed partial class TrackSettings
     public string Author { get; set; } = "";
     public string Version { get; set; } = "1.0.0";
 
+    /// <summary>
+    /// The length the code has to be, when the track's own data names its
+    /// paths with its old code (<see cref="TrackRecode.EmbedsCode"/>); null when
+    /// any length will do.
+    /// </summary>
+    public int? CodeLength { get; set; }
+
     /// <summary>Three letters, the infix of every language key and the acronym the menus show.</summary>
     public string Initials { get; set; } = "";
 
     // ── Names ───────────────────────────────────────────────────────────────
-    /// <summary>The country or short title, e.g. <c>Turkey</c>.</summary>
+    /// <summary>
+    /// The country or short title, e.g. <c>Turkey</c>. Left empty, the track's
+    /// name is written in its place, so the menus never show a blank title.
+    /// </summary>
     public string Country { get; set; } = "";
 
     /// <summary>The circuit's name, e.g. <c>ISTANBUL PARK</c>.</summary>
@@ -77,7 +87,7 @@ public sealed partial class TrackSettings
         var x = Infix;
         return
         [
-            ($"lng_track_{x}_title", Country),
+            ($"lng_track_{x}_title", Country.Trim().Length > 0 ? Country.Trim() : Name.Trim()),
             ($"lng_track_{x}_subtitle", Circuit),
             ($"lng_track_{x}_city_name", City),
             ($"lng_track_{x}_tla", Acronym),
@@ -182,6 +192,9 @@ public sealed partial class TrackSettings
             problems.Add("The track code has to be lower-case letters, digits, _ or -, starting with a letter.");
         else if (game.IsStockTrack(code))
             problems.Add($"The game already has a track called {code}. Give this one a code of its own.");
+        else if (CodeLength is { } length && code.Length != length)
+            problems.Add($"The track code has to be {length} characters long, as the track's own is: " +
+                         "its meshes and materials name their files with it.");
 
         if (!InitialsPattern().IsMatch(Initials.Trim()))
             problems.Add("The initials have to be exactly three letters.");
@@ -190,7 +203,6 @@ public sealed partial class TrackSettings
 
         if (Name.Trim().Length == 0) problems.Add("The track needs a name.");
         if (!VersionPattern().IsMatch(Version.Trim())) problems.Add("The version has to look like 1.0.0.");
-        if (Country.Trim().Length == 0) problems.Add("The track needs a country or title for the menus.");
         if (LengthKm.Trim().Length > 0 && LengthMetres() is null) problems.Add("The length has to be a number of kilometres, like 5.338.");
         if (Corners.Trim().Length > 0 && !int.TryParse(Corners, out _)) problems.Add("The corners have to be a whole number.");
 
@@ -206,6 +218,22 @@ public sealed partial class TrackSettings
         var code = NotCodeChars().Replace(name.Trim().ToLowerInvariant(), "_").Trim('_');
         if (code.Length == 0 || !char.IsAsciiLetterLower(code[0])) code = "track_" + code;
         return code.Length > 40 ? code[..40].TrimEnd('_') : code;
+    }
+
+    /// <summary>
+    /// A code from a name at a given length: <see cref="CodeFrom"/>'s, without
+    /// its underscores and cut to length when too long, and filled out with
+    /// <c>_track</c> or <c>_trk</c>, whichever fits, and then digits when too short.
+    /// </summary>
+    public static string CodeFrom(string name, int length)
+    {
+        var code = CodeFrom(name);
+        if (code.Length > length) code = code.Replace("_", "");
+        if (code.Length > length) code = code[..length];
+        foreach (var filler in new[] { "_track", "_trk" })
+            if (code.Length + filler.Length <= length) { code += filler; break; }
+        while (code.Length < length) code += "0";
+        return code;
     }
 
     /// <summary>A version as Swofty wants it, three numbers: <c>2.72</c> becomes <c>2.72.0</c>.</summary>

@@ -346,7 +346,7 @@
                         <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Country / title:"/>
                         <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="CountryBox" TextChanged="Field_Changed"
-                                     ToolTip="What the menus call the track, e.g. Turkey"/>
+                                     ToolTip="What the menus call the track, e.g. Turkey. Left empty, the track's name is used."/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: Belgium"/>
                         </StackPanel>
                         <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="City:"/>

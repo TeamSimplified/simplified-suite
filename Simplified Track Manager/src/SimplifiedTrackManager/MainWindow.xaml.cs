@@ -131,6 +131,7 @@ public partial class MainWindow : Window
         {
             _game = StockGame.Load(_config.GameDir);
             NationalityBox.ItemsSource = _game.Nationalities;
+            NationalityBox.ItemTemplate ??= NationalityTemplate();
         }
         catch (Exception ex)
         {
@@ -238,6 +239,7 @@ public partial class MainWindow : Window
             if (_game?.IsStockTrack(code) != false) code = TrackSettings.CodeFrom(t.Name);
             while (_game?.IsStockTrack(code) == true) code += "_track";
             CodeBox.Text = code;
+            _suggestedCode = code;
 
             InitialsBox.Text = GuessInitials(t, Override("title"));
 
@@ -648,7 +650,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (CountryDialog.Show(this, flags.Countries, NationalityBox.Text.Trim()) is not { } country) return;
+        // The chequered flag first, then the countries.
+        var choices = new List<GameFlags.Country>(flags.Countries.Count + 1);
+        if (Chequered() is { } chequered) choices.Add(chequered);
+        choices.AddRange(flags.Countries);
+        if (CountryDialog.Show(this, choices, NationalityBox.Text.Trim()) is not { } country) return;
 
         // The round flag is the game's own where it has one, else the one the
         // app ships from flag-icons, else a cut of the large flag; the
@@ -664,14 +670,78 @@ public partial class MainWindow : Window
         _pictures["flag_rectangle"] = country.Banner;
         _pictures["flag_rectangle_small"] = country.Small;
 
-        if (NationalityBox.Text.Trim().Length == 0) NationalityBox.Text = country.Key;
+        // The chequered flag is no country's, so it means the game's own no-country nationality.
+        if (NationalityBox.Text.Trim().Length == 0)
+            NationalityBox.Text = country.Key == ChequeredKey ? StockGame.NoCountry : country.Key;
         BuildPictures(t);
+    }
+
+    /// <summary>
+    /// The nationality list as the game's keys, which is what the box holds
+    /// and the track gets, with the no-country one said in words in the list.
+    /// </summary>
+    private static DataTemplate NationalityTemplate()
+    {
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding { Converter = new NationalityLabel() });
+        return new DataTemplate { VisualTree = text };
+    }
+
+    private sealed class NationalityLabel : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+            value as string == StockGame.NoCountry ? "Default (no country)" : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>Not a country, so not a nationality either.</summary>
+    private const string ChequeredKey = "chequered";
+
+    /// <summary>
+    /// A chequered flag, drawn at the game's flag sizes — it has none of its
+    /// own — beside the game's flags, for a track that belongs to no country.
+    /// </summary>
+    private GameFlags.Country? Chequered()
+    {
+        if (_gameFlagsDir is null) return null;
+        var dir = Path.Combine(_gameFlagsDir, ChequeredKey);
+        string Drawn(string name, int width, int height, int columns, bool round = false)
+        {
+            var path = Path.Combine(dir, name + ".png");
+            if (!File.Exists(path)) FlagCrop.Save(FlagCrop.Chequered(width, height, columns, round), path);
+            return path;
+        }
+        try
+        {
+            return new GameFlags.Country(ChequeredKey, "Chequered flag",
+                Small: Drawn("small", 40, 28, 10),
+                Banner: Drawn("banner", 128, 80, 16),
+                Large: Drawn("large", 268, 152, 16),
+                Round: Drawn("round", 28, 28, 7, round: true),
+                RoundFromGame: false);
+        }
+        catch (Exception)
+        {
+            return null; // no chequered flag is no reason to lose the countries
+        }
     }
 
     // ── Previews of the zip's own pictures ──────────────────────────────────
 
     /// <summary>The zip's own pictures as PNGs, by slot key, once they are out.</summary>
     private Dictionary<string, string> _previews = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The length the code has to be — the track's own code's — when its
+    /// meshes and materials name their files with it; found by the preview
+    /// pass, which reads the archive anyway.
+    /// </summary>
+    private int? _codeLength;
+
+    /// <summary>The code the form last made up, so it knows whether the box still holds it.</summary>
+    private string? _suggestedCode;
     private bool _previewsLoading;
     private CancellationTokenSource? _previewCancel;
     private string? _previewDir;
@@ -692,16 +762,21 @@ public partial class MainWindow : Window
         _previewDir = dir;
         _previews = new Dictionary<string, string>(StringComparer.Ordinal);
         _previewsLoading = true;
+        _codeLength = null;
+        int? codeLength = null;
 
         try
         {
             var previews = await Task.Run(() =>
             {
                 using var zip = TrackZip.Open(zipPath);
-                return TrackPictures.ExtractPreviews(zip, slots, new EgoEngineLibrary.Texconv.TexconvRunner(), dir, cancel.Token);
+                var oldCode = zip.Code;
+                return TrackPictures.ExtractPreviews(zip, slots, new EgoEngineLibrary.Texconv.TexconvRunner(), dir, cancel.Token,
+                    erp => codeLength = TrackRecode.EmbedsCode(erp, oldCode) ? oldCode.Length : null);
             }, cancel.Token);
             if (cancel.IsCancellationRequested) return;
             _previews = previews;
+            if (codeLength is { } length && _track is { } loaded) NeedCodeLength(loaded, length);
         }
         catch (OperationCanceledException)
         {
@@ -794,10 +869,31 @@ public partial class MainWindow : Window
             PitMirrored = PitMirroredBox.IsChecked == true,
             // Not on the form: the track's ERS goes over as the zip gave it.
             Ers = _track?.Ers.ToList() ?? [],
+            CodeLength = _track is { } t && t.Code != CodeBox.Text.Trim() ? _codeLength : null,
         };
         for (var i = 0; i < 3; i++) s.CrowdColours[i] = _crowd[i];
         foreach (var (key, png) in _pictures) s.Pictures[key] = png;
         return s;
+    }
+
+    /// <summary>
+    /// The track's data names its files with its code, so a new code has to
+    /// be as long. A code the form made up is made up again at that length;
+    /// one that was typed is left, and the line under it says why it won't do.
+    /// </summary>
+    private void NeedCodeLength(LoadedTrack t, int length)
+    {
+        _codeLength = length;
+        var code = CodeBox.Text.Trim();
+        if (code.Length != length && code == _suggestedCode)
+        {
+            var next = TrackSettings.CodeFrom(t.Name, length);
+            for (var i = 1; _game?.IsStockTrack(next) == true && i < 10; i++)
+                next = next[..(length - 1)] + i.ToString(CultureInfo.InvariantCulture);
+            _suggestedCode = next;
+            CodeBox.Text = next;
+        }
+        Refresh();
     }
 
     private void Package_Click(object sender, RoutedEventArgs e)
@@ -937,6 +1033,8 @@ public partial class MainWindow : Window
             Say(CodeHint, $"The game already has a track called {code}", "Danger");
         else if (code.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(code, "^[a-z][a-z0-9_-]{1,39}$"))
             Say(CodeHint, "Lower-case letters, digits, _ or -, starting with a letter", "Danger");
+        else if (_codeLength is { } length && _track is { } t && code != t.Code && code.Length != length)
+            Say(CodeHint, $"Has to be {length} characters, as {t.Code} is: its meshes name their files with it", "Danger");
         else
             Say(CodeHint, "Spa: spa_francorchamps", "TextMuted");
 
