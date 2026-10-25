@@ -8,7 +8,7 @@
   <PropertyGroup>
     <!-- What the app reports for its version, alongside the commit it was
          built from, so a release tag can be checked against the binary. -->
-    <Version>1.2</Version>
+    <Version>1.3</Version>
 
     <!-- The two the root sets differently. Declared after the import, so these
          win. -->
