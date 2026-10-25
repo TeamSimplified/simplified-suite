@@ -90,6 +90,19 @@ public sealed class GameFlags
         return new GameFlags(countries);
     }
 
+    /// <summary>
+    /// Every country the game has a flag for, by its nationality key — more
+    /// than its tracks and drivers use: South Africa, Chile, Greece and some
+    /// forty others. Only the menus' database is read, not the pictures, so
+    /// it is quick.
+    /// </summary>
+    public static IReadOnlyList<string> CountryKeys(string gameDir)
+    {
+        var ui = Path.Combine(gameDir, Ui.Replace('/', Path.DirectorySeparatorChar));
+        var names = ReadLists(Path.Combine(ui, "databases.erp")).GetValueOrDefault("drivers.nationality_flags") ?? [];
+        return names.Where(n => n.Length > 0 && n != "default" && !StockGame.HiddenCountries.Contains(n)).Distinct().ToList();
+    }
+
     /// <summary><c>czech_republic</c> as <c>Czech Republic</c>; a few the game spells its own way, put right.</summary>
     public static string Display(string key) => key switch
     {

@@ -155,13 +155,26 @@ public partial class MainWindow : Window
         try
         {
             _game = StockGame.Load(_config.GameDir);
-            NationalityBox.ItemsSource = _game.Nationalities;
-            NationalityBox.ItemTemplate ??= NationalityTemplate();
+            NationalityBox.ItemsSource = Countries(_game, _config.GameDir);
+            NationalityBox.ItemTemplate = NationalityTemplate();
         }
         catch (Exception ex)
         {
             _gameError = $"The game's database couldn't be read: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// The countries to choose from: the no-country one, then every
+    /// nationality the game's tracks and drivers use and every country it has
+    /// a flag for, by name.
+    /// </summary>
+    private static List<string> Countries(StockGame game, string gameDir)
+    {
+        var keys = new HashSet<string>(game.Nationalities.Where(n => n != StockGame.NoCountry), StringComparer.Ordinal);
+        try { keys.UnionWith(GameFlags.CountryKeys(gameDir)); }
+        catch (Exception) { /* without the menus' database, the game's own nationalities still do */ }
+        return [StockGame.NoCountry, .. keys.OrderBy(GameFlags.Display, StringComparer.CurrentCulture)];
     }
 
     // ── The track ───────────────────────────────────────────────────────────
@@ -424,7 +437,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// The country chosen names the track in the menus too: its title is the
     /// country's name, Turkey for turkey, Great Britain for britain, kept in
-    /// step behind the scenes. The no-country one names nothing, and the
+    /// step behind the scenes. It sets the continent as well. The no-country one names nothing, and the
     /// track's name is used instead. Not while the form is filled from a
     /// track, which brings its own title.
     /// </summary>
@@ -432,6 +445,8 @@ public partial class MainWindow : Window
     {
         if (_filling) return;
         CountryBox.Text = Nationality() is { Length: > 0 } key && key != StockGame.NoCountry ? GameFlags.Display(key) : "";
+        if (TrackTuning.ContinentForCountry(Nationality()) is { } continent) Choose(ContinentBox, continent);
+        FlagsForCountry(Nationality());
         Refresh();
     }
 
@@ -498,7 +513,7 @@ public partial class MainWindow : Window
     /// </summary>
     private readonly Dictionary<Control, string> _followed = [];
 
-    /// <summary>The values the boxes follow, from the length, the downforce and where the track is.</summary>
+    /// <summary>The values the boxes follow, from the length and the downforce.</summary>
     private IEnumerable<(Control Box, string? Value)> Derived()
     {
         var km = TrackTuning.Number(LengthBox.Text);
@@ -511,7 +526,6 @@ public partial class MainWindow : Window
         yield return (F2SprintLapsBox, Laps(TrackTuning.F2SprintKm));
         yield return (F1FuelBurnBox, Burn(TrackTuning.F1FuelBurnFor(km, downforce)));
         yield return (F2FuelBurnBox, Burn(TrackTuning.F2FuelBurnFor(km, downforce)));
-        yield return (ContinentBox, TrackTuning.ContinentFor(TrackTuning.Number(LatitudeBox.Text), TrackTuning.Number(LongitudeBox.Text)));
     }
 
     /// <summary>What the boxes follow, as a track opens: nothing changes, it is only noted.</summary>
@@ -522,7 +536,7 @@ public partial class MainWindow : Window
             if (value is not null) _followed[box] = value;
     }
 
-    /// <summary>Bring the following boxes up to date after the length, downforce or location changed.</summary>
+    /// <summary>Bring the following boxes up to date after the length or downforce changed.</summary>
     private void FollowDerived()
     {
         foreach (var (box, value) in Derived())
@@ -607,7 +621,7 @@ public partial class MainWindow : Window
 
     private void Field_Changed(object sender, TextChangedEventArgs e)
     {
-        if (!_filling && (ReferenceEquals(sender, LengthBox) || ReferenceEquals(sender, LatitudeBox) || ReferenceEquals(sender, LongitudeBox)))
+        if (!_filling && ReferenceEquals(sender, LengthBox))
             FollowDerived();
         if (!_filling) Refresh();
     }
@@ -869,7 +883,28 @@ public partial class MainWindow : Window
         var dir = Path.Combine(Path.GetTempPath(), "simplified-track-manager", "flags", Guid.NewGuid().ToString("N"));
         DeleteGameFlags();
         _gameFlagsDir = dir;
-        _gameFlags = Task.Run(() => GameFlags.Extract(gameDir, game, new EgoEngineLibrary.Texconv.TexconvRunner(), dir));
+        var task = Task.Run(() => GameFlags.Extract(gameDir, game, new EgoEngineLibrary.Texconv.TexconvRunner(), dir));
+        _gameFlags = task;
+
+        // The country list shows each country's flag, which it has only once
+        // they're out.
+        task.ContinueWith(_ => Dispatcher.BeginInvoke(() =>
+        {
+            if (!ReferenceEquals(_gameFlags, task)) return;
+            NationalityBox.ItemTemplate = NationalityTemplate();
+
+            // The closed box keeps what it drew before; chosen again, quietly,
+            // it draws the flag too.
+            var chosen = NationalityBox.SelectedItem;
+            var filling = _filling;
+            _filling = true;
+            try
+            {
+                NationalityBox.SelectedItem = null;
+                NationalityBox.SelectedItem = chosen;
+            }
+            finally { _filling = filling; }
+        }));
     }
 
     private void DeleteGameFlags()
@@ -881,21 +916,38 @@ public partial class MainWindow : Window
 
     private void InGameFlags_Click(object sender, RoutedEventArgs e)
     {
-        if (_track is not { } t) return;
+        if (_track is null || WaitForFlags("Replace with in game") is not { } flags) return;
+
+        // The chequered flag first, then the countries.
+        var choices = new List<GameFlags.Country>(flags.Countries.Count + 1);
+        if (Chequered() is { } chequered) choices.Add(chequered);
+        choices.AddRange(flags.Countries);
+        if (CountryDialog.Show(this, choices, Nationality()) is not { } country) return;
+
+        UseFlags(country);
+
+        // The chequered flag is no country's, so it means the game's own no-country nationality.
+        if (Nationality().Length == 0)
+            Choose(NationalityBox, country.Key == ChequeredKey ? StockGame.NoCountry : country.Key);
+    }
+
+    /// <summary>
+    /// The game's flags, once they're out: started when the app opened, so
+    /// usually done by now, and if not the wait is shown along the bottom.
+    /// Null, said, when there's no game to take them from.
+    /// </summary>
+    private GameFlags? WaitForFlags(string title)
+    {
         if (_gameFlags is null) LoadGameFlags();
         if (_gameFlags is not { } pending)
         {
             SimplifiedUi.MessageDialog.Show(this, _gameError ?? "The game's flags need the game folder — set it in Settings.",
-                "Replace with in game", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+                title, MessageBoxButton.OK, MessageBoxImage.Information);
+            return null;
         }
-
-        GameFlags flags;
         try
         {
-            // Started when the app opened, so usually done by now; if not, the
-            // wait is shown along the bottom like any other.
-            flags = pending.IsCompleted
+            return pending.IsCompleted
                 ? pending.Result
                 : SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, "Taking the game's flags out",
                                         _ => pending.GetAwaiter().GetResult());
@@ -904,20 +956,20 @@ public partial class MainWindow : Window
         {
             _gameFlags = null;
             SimplifiedUi.MessageDialog.Show(this, $"The game's flags couldn't be read.\n\n{ex.InnerException?.Message ?? ex.Message}",
-                "Replace with in game", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+                title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
         }
+    }
 
-        // The chequered flag first, then the countries.
-        var choices = new List<GameFlags.Country>(flags.Countries.Count + 1);
-        if (Chequered() is { } chequered) choices.Add(chequered);
-        choices.AddRange(flags.Countries);
-        if (CountryDialog.Show(this, choices, Nationality()) is not { } country) return;
-
-        // The round flag is the game's own where it has one, else the one the
-        // app ships from flag-icons, else a cut of the large flag; the
-        // rectangle comes from the 128×80 flag, which the build sizes to
-        // 100×64; the small one is the game's 40×28 as it is.
+    /// <summary>
+    /// A country's three flags in place of the track's. The round flag is
+    /// the game's own where it has one, else the one the app ships from
+    /// flag-icons, else a cut of the large flag; the rectangle comes from the
+    /// 128×80 flag, which the build sizes to 100×64; the small one is the
+    /// game's 40×28 as it is.
+    /// </summary>
+    private void UseFlags(GameFlags.Country country)
+    {
         var round = country.Round;
         if (round is null)
         {
@@ -927,22 +979,71 @@ public partial class MainWindow : Window
         _pictures["flag_circle"] = round;
         _pictures["flag_rectangle"] = country.Banner;
         _pictures["flag_rectangle_small"] = country.Small;
+        if (_track is { } t) BuildPictures(t);
+    }
 
-        // The chequered flag is no country's, so it means the game's own no-country nationality.
-        if (Nationality().Length == 0)
-            Choose(NationalityBox, country.Key == ChequeredKey ? StockGame.NoCountry : country.Key);
-        BuildPictures(t);
+    /// <summary>
+    /// A test: the flags follow the country chosen — its own three, or the
+    /// chequered flag for no country.
+    /// </summary>
+    private void FlagsForCountry(string key)
+    {
+        if (_track is null || key.Length == 0 || WaitForFlags("Country") is not { } flags) return;
+        var country = key == StockGame.NoCountry ? Chequered() : flags.Countries.FirstOrDefault(c => c.Key == key);
+        if (country is not null) UseFlags(country);
     }
 
     /// <summary>
     /// The nationality list as the game's keys, which is what the box holds
-    /// and the track gets, with the no-country one said in words in the list.
+    /// and the track gets, shown as each country's small flag and its name,
+    /// the no-country one as the chequered flag and in words.
     /// </summary>
-    private static DataTemplate NationalityTemplate()
+    private DataTemplate NationalityTemplate()
     {
+        var row = new FrameworkElementFactory(typeof(StackPanel));
+        row.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+        var flag = new FrameworkElementFactory(typeof(Image));
+        flag.SetValue(WidthProperty, 20.0);
+        flag.SetValue(HeightProperty, 14.0);
+        flag.SetValue(MarginProperty, new Thickness(0, 0, 8, 0));
+        flag.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        flag.SetValue(RenderOptions.BitmapScalingModeProperty, BitmapScalingMode.HighQuality);
+        flag.SetBinding(Image.SourceProperty, new System.Windows.Data.Binding { Converter = new FlagIcon(FlagIconFile) });
+        row.AppendChild(flag);
+
         var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding { Converter = new NationalityLabel() });
-        return new DataTemplate { VisualTree = text };
+        row.AppendChild(text);
+        return new DataTemplate { VisualTree = row };
+    }
+
+    /// <summary>A country's small flag as a file, once the game's flags are out; the chequered one for no country.</summary>
+    private string? FlagIconFile(string key)
+    {
+        if (_gameFlags is not { IsCompletedSuccessfully: true } || _gameFlagsDir is null) return null;
+        if (key == StockGame.NoCountry) return Chequered()?.Small;
+        var path = Path.Combine(_gameFlagsDir, "small", key + ".png");
+        return File.Exists(path) ? path : null;
+    }
+
+    private sealed class FlagIcon(Func<string, string?> file) : System.Windows.Data.IValueConverter
+    {
+        public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is not string key || file(key) is not { } path) return null;
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.UriSource = new Uri(path);
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 
     private sealed class NationalityLabel : System.Windows.Data.IValueConverter

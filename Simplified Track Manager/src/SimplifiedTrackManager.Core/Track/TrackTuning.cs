@@ -141,18 +141,33 @@ public sealed partial class TrackTuning
         F1FuelBurnFor(lengthKm, downforce) is { } f1 ? Math.Round(f1 * 1.37, 2) : null;
 
     /// <summary>
-    /// The game's continent for a place: the Americas west of 30°W, Europe
-    /// north of 35°N up to the Caspian (Baku and Sochi are Europe to the
-    /// game), and Asia and Oceania for the rest — the Gulf, the Far East,
-    /// Australia.
+    /// The game's continent for a country, by its nationality key: it has
+    /// three, and its own tracks put Azerbaijan and Turkey in Europe and the
+    /// Gulf in Asia and Oceania. It has no Africa; Africa's countries go with
+    /// Europe, whose time zones they share. Null for the no-country one and
+    /// for a key the game's list hasn't got.
     /// </summary>
-    public static string? ContinentFor(double? latitude, double? longitude)
-    {
-        if (latitude is not { } lat || longitude is not { } lon || Math.Abs(lat) > 90 || Math.Abs(lon) > 180) return null;
-        if (lon < -30) return "Americas";
-        if (lat >= 35 && lon is >= -30 and < 60) return "Europe";
-        return "AsiaAndOceania";
-    }
+    public static string? ContinentForCountry(string key) =>
+        Americas.Contains(key) ? "Americas"
+        : AsiaAndOceania.Contains(key) ? "AsiaAndOceania"
+        : Europe.Contains(key) ? "Europe"
+        : null;
+
+    private static readonly HashSet<string> Americas =
+        ["argentina", "barbados", "bolivia", "brazil", "canada", "chile", "columbia", "costa_rica", "ecuador", "el_salvador",
+         "guatemala", "honduras", "jamaica", "mexico", "nicaragua", "panama", "paraguay", "peru", "uruguay", "usa", "venezuela"];
+    private static readonly HashSet<string> AsiaAndOceania =
+        ["australia", "bahrain", "china", "hong_kong", "india", "indonesia", "japan", "jordan", "kuwait", "lebanon",
+         "malaysia", "new_zealand", "oman", "pakistan", "phillipines", "qatar", "saudi_arabia", "singapore", "south_korea",
+         "thailand", "uae", "vietnam"];
+    private static readonly HashSet<string> Europe =
+        ["austria", "azerbaijan", "belgium", "bosnia", "britain", "bulgaria", "croatia", "cyprus", "czech_republic",
+         "denmark", "england", "estonia", "finland", "france", "germany", "greece", "hungary", "iceland", "ireland", "italy",
+         "latvia", "lithuania", "luxembourg", "malta", "monaco", "netherlands", "northern_ireland", "norway", "poland",
+         "portugal", "romania", "russia", "scotland", "serbia", "slovakia", "slovenia", "spain", "sweden", "switzerland",
+         "turkey", "ukraine", "wales",
+         // Africa
+         "algeria", "cameroon", "ghana", "south_africa"];
 
     public static bool IsF2(string dataset) => dataset.StartsWith("f2", StringComparison.Ordinal);
     public static bool IsSprint(string dataset) =>

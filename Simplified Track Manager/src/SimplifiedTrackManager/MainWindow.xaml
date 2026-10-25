@@ -314,14 +314,15 @@
                             <TextBlock Style="{StaticResource Example}" Text="Spa: Spa-Francorchamps"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Continent:"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
+                        <!-- Hidden: the continent is set from the country. -->
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Continent:" Visibility="Collapsed"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}" Visibility="Collapsed">
                             <ComboBox Name="ContinentBox" SelectionChanged="Choice_Changed"
-                                ToolTip="Follows the latitude and longitude until you choose your own."/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: Europe · from latitude and longitude"/>
+                                ToolTip="Set from the country when you choose one."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: Europe · from the country"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Air pressure:"/>
-                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Air pressure:"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="AirPressureBox" TextChanged="Field_Changed"
                                  ToolTip="1 at sea level, lower at altitude"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 0.956"/>
@@ -406,39 +407,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- ── Flags & Colours ─────────────────────────────────────
-                         How the track looks in the stands and in the menus: its crowd's
-                         three colours, and its three flags, a card each in three equal
-                         columns; the negative margin takes back the gap after the last. -->
-                    <Border Style="{StaticResource SectionHeader}">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Name="InGameFlagsButton" Content="Replace with in game"
-                                    Style="{StaticResource BrowseButton}" Click="InGameFlags_Click"
-                                    ToolTip="Use one of the game's countries' flags for all three"/>
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="Flags &amp; Colours"/>
-                        </DockPanel>
-                    </Border>
-                    <!-- Laid out as the field sections are: a label in the label
-                         column, the cards from where the boxes start, three to a row.
-                         The crowd's colours as the Grid Editor shows a team's: swatch,
-                         name, hex, and a reset. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Flags:"/>
-                        <UniformGrid Grid.Row="0" Grid.Column="1" Name="FlagsPanel" Columns="3" Margin="0,0,-12,0"/>
-
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Crowd colours:" Margin="0,20,12,0"/>
-                        <UniformGrid Grid.Row="1" Grid.Column="1" Name="CrowdPanel" Columns="3" Margin="0,12,-12,0"/>
-                    </Grid>
-
                     <!-- ── Names ───────────────────────────────────────────── -->
                     <Border Style="{StaticResource SectionHeader}">
                         <DockPanel>
@@ -503,6 +471,40 @@
                                      ToolTip="The title of the last time it was raced"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: FORMULA 1 ROLEX BELGIAN GRAND PRIX 2024"/>
                         </StackPanel>
+                    </Grid>
+
+                    <!-- ── Colours ───────────────────────────────────────────────
+                         How the track looks in the stands and in the menus: its crowd's
+                         three colours, and its three flags, a card each in three equal
+                         columns; the negative margin takes back the gap after the last. -->
+                    <Border Style="{StaticResource SectionHeader}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Name="InGameFlagsButton" Content="Replace with in game" Visibility="Collapsed"
+                                    Style="{StaticResource BrowseButton}" Click="InGameFlags_Click"
+                                    ToolTip="Use one of the game's countries' flags for all three"/>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Colours"/>
+                        </DockPanel>
+                    </Border>
+                    <!-- Laid out as the field sections are: a label in the label
+                         column, the cards from where the boxes start, three to a row.
+                         The crowd's colours as the Grid Editor shows a team's: swatch,
+                         name, hex, and a reset. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Hidden for a test: the flags follow the country chosen. -->
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Flags:" Visibility="Collapsed"/>
+                        <UniformGrid Grid.Row="0" Grid.Column="1" Name="FlagsPanel" Columns="3" Margin="0,0,-12,0" Visibility="Collapsed"/>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Crowd colours:" Margin="0,20,12,0"/>
+                        <UniformGrid Grid.Row="1" Grid.Column="1" Name="CrowdPanel" Columns="3" Margin="0,12,-12,0"/>
                     </Grid>
 
                     <!-- ── Stats ───────────────────────────────────────────── -->
