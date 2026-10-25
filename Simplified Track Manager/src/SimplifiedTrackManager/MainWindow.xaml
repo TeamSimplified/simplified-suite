@@ -183,32 +183,40 @@
                 <Border DockPanel.Dock="Left" Width="1" Height="22" Margin="16,0,0,0"
                         VerticalAlignment="Center" Background="{DynamicResource BorderSoft}"/>
 
-                <!-- Which track is loaded, the way Studio names the open project
-                     up here. Only one of the two is ever showing. -->
+                <!-- The open track by its name, following the Name box; its file
+                     is in the tooltip. MaxWidth sits on the label, since trimming
+                     needs a width to trim to. -->
                 <TextBlock Name="TrackNameLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Margin="16,0,10,0" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextPrimary}"
-                           MinWidth="0" MaxWidth="420" TextTrimming="CharacterEllipsis"
-                           Visibility="Collapsed"/>
-                <TextBlock Name="NoTrackLabel" DockPanel.Dock="Left" VerticalAlignment="Center"
-                           Margin="16,0,0,0" Foreground="{DynamicResource TextDisabled}"
-                           Text="No track loaded"/>
+                           Margin="16,0,10,0" Foreground="{DynamicResource TextDisabled}"
+                           MinWidth="0" MaxWidth="460" TextTrimming="CharacterEllipsis"
+                           Text="No track open"/>
             </DockPanel>
         </Border>
 
-        <!-- Action bar: settings on the left, what the app does on the right. -->
+        <!-- File bar, as the ERP app has it: settings, then opening a track,
+             on the left; packaging it and closing it on the right. No save:
+             what this writes is the package. -->
         <Border Grid.Row="1" Background="{DynamicResource SurfaceAlt}"
                 BorderBrush="{DynamicResource BorderSoft}" BorderThickness="0,0,0,1"
                 Padding="18,12">
             <DockPanel LastChildFill="False">
+                <Button Name="SettingsButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconSettings}" Click="Settings_Click"
+                        ToolTip="Settings"/>
+                <Border DockPanel.Dock="Left" Margin="10,0" Width="1" Background="{DynamicResource BorderSoft}"/>
+                <Button Name="OpenTrackButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
+                        Tag="{StaticResource IconOpen}" Click="OpenTrack_Click"
+                        ToolTip="Open a track zip or Swofty addon    (Ctrl+O)"/>
+
+                <!-- Reverse visual order: DockPanel resolves Dock=Right outward-in,
+                     so Close, listed first, ends up furthest right. -->
+                <Button DockPanel.Dock="Right" Name="CloseTrackButton" Content="Close" Padding="12,7" Margin="6,0,0,0"
+                        Click="CloseTrack_Click" IsEnabled="False"
+                        ToolTip="Close the open track"/>
                 <Button DockPanel.Dock="Right" Name="PackageButton" Content="Package"
                         Padding="16,7" FontWeight="SemiBold" IsEnabled="False"
                         Click="Package_Click"
                         ToolTip="Package the track as a Swofty addon, with its own code, names and pictures"/>
-
-                <Button Name="SettingsButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}"
-                        Tag="{StaticResource IconSettings}" Click="Settings_Click"
-                        ToolTip="Settings"/>
             </DockPanel>
         </Border>
 
@@ -219,23 +227,11 @@
                       Background="{DynamicResource Surface}">
             <StackPanel Margin="28,20,28,28" MaxWidth="1100" HorizontalAlignment="Stretch">
 
-                <!-- ── The track ───────────────────────────────────────────── -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="{StaticResource LabelWidth}"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource FieldLabel}" Text="Track:"/>
-                    <StackPanel Grid.Column="1">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Name="BrowseTrackButton" Content="Browse"
-                                    Style="{StaticResource BrowseButton}" Click="BrowseTrack_Click"/>
-                            <TextBox Name="TrackBox" IsReadOnly="True"/>
-                        </DockPanel>
-                        <TextBlock Name="TrackHint" Style="{StaticResource Hint}" Margin="2,6,0,0"
-                                   Text="A track zip as the EgoGameDatabasesEditor takes it, or a Swofty track addon — or drop one on the window."/>
-                    </StackPanel>
-                </Grid>
+                <!-- One line about the open track — who made it, its code, what
+                     it's built on, how big it is — or, with none open, how to
+                     open one. Red when the game can't be read. -->
+                <TextBlock Name="TrackHint" Style="{StaticResource Hint}"
+                           Text="Open a track zip, as the EgoGameDatabasesEditor takes it, or a Swofty track addon — or drop one on the window."/>
 
                 <!-- Everything below needs a track, and is hidden until one is loaded. -->
                 <StackPanel Name="TrackForm" Visibility="Collapsed">

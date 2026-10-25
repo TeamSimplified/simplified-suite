@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
@@ -71,6 +72,15 @@ public partial class MainWindow : Window
         DifficultyBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
         AeroBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
         NationalityBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
+        NationalityBox.SelectionChanged += Nationality_Selected;
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control && !_running)
+            {
+                OpenTrack_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+        };
 
         LoadGame();
         LoadGameFlags();
@@ -141,7 +151,7 @@ public partial class MainWindow : Window
 
     // ── The track ───────────────────────────────────────────────────────────
 
-    private void BrowseTrack_Click(object sender, RoutedEventArgs e)
+    private void OpenTrack_Click(object sender, RoutedEventArgs e)
     {
         var picker = new OpenFileDialog
         {
@@ -171,6 +181,26 @@ public partial class MainWindow : Window
     private static bool IsTrackFile(string path) =>
         path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
         || path.EndsWith(".swoftyaddon", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Close the open track: the form goes, its pictures and previews with it,
+    /// and nothing is written — what this app writes is the package.
+    /// </summary>
+    private void CloseTrack_Click(object sender, RoutedEventArgs e)
+    {
+        if (_running || _track is null) return;
+        _previewCancel?.Cancel();
+        _previewCancel = null;
+        DeletePreviews();
+        _previews = new Dictionary<string, string>(StringComparer.Ordinal);
+        _previewsLoading = false;
+        _track = null;
+        _trackPath = null;
+        _codeLength = null;
+        _pictures.Clear();
+        DatabaseBox.Text = "";
+        Refresh();
+    }
 
     /// <summary>
     /// Read the zip's manifest now, so a zip that isn't a track is turned away
@@ -262,6 +292,10 @@ public partial class MainWindow : Window
 
             if (t.Names.Count > 0) FillNames(t);
 
+            // A record the track doesn't give reads "-", as the game writes one it hasn't got.
+            foreach (var box in new[] { LapRecordBox, LapRecordHolderBox, F2LapRecordBox, F2LapRecordHolderBox })
+                if (box.Text.Trim().Length == 0) box.Text = "-";
+
             NationalityBox.Text = Either("nationality") ?? "";
             for (var i = 0; i < 3; i++)
                 _crowd[i] = _crowdOriginal[i] = int.TryParse(Either($"TrackCrowds_0.crowdColour{i + 1}"), out var colour) ? colour : null;
@@ -347,6 +381,18 @@ public partial class MainWindow : Window
         if (GrandPrixPreviousBox.Text == _derived.Previous) GrandPrixPreviousBox.Text = next.Item3;
         _derived = next;
         Field_Changed(sender, e);
+    }
+
+    /// <summary>
+    /// A nationality picked from the list names the country, so an empty
+    /// Country / title takes it — Turkey for turkey, Great Britain for
+    /// britain. Not while the form is filled from a track, and not for the
+    /// no-country one, which names nothing.
+    /// </summary>
+    private void Nationality_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        if (_filling || NationalityBox.SelectedItem is not string key || key == StockGame.NoCountry) return;
+        if (CountryBox.Text.Trim().Length == 0) CountryBox.Text = GameFlags.Display(key);
     }
 
     private void Field_Changed(object sender, TextChangedEventArgs e)
@@ -956,14 +1002,16 @@ public partial class MainWindow : Window
 
     private void Refresh()
     {
-        TrackBox.Text = _trackPath ?? "";
         TrackForm.Visibility = _track is null ? Visibility.Collapsed : Visibility.Visible;
+        CloseTrackButton.IsEnabled = _track is not null;
+        TrackNameLabel.Text = _track is null ? "No track open"
+            : NameBox.Text.Trim().Length > 0 ? NameBox.Text.Trim() : _track.Name;
+        TrackNameLabel.ToolTip = _trackPath;
+        TrackNameLabel.FontWeight = _track is null ? FontWeights.Normal : FontWeights.SemiBold;
+        TrackNameLabel.SetResourceReference(TextBlock.ForegroundProperty, _track is null ? "TextDisabled" : "TextPrimary");
 
         if (_track is { } t)
         {
-            TrackNameLabel.Text = NameBox.Text.Trim().Length > 0 ? NameBox.Text.Trim() : t.Name;
-            TrackNameLabel.Visibility = Visibility.Visible;
-            NoTrackLabel.Visibility = Visibility.Collapsed;
 
             // One line: who made it, its code (and that it needs a new one),
             // what it is built on, and how big it is.
@@ -976,9 +1024,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            TrackNameLabel.Visibility = Visibility.Collapsed;
-            NoTrackLabel.Visibility = Visibility.Visible;
-            TrackHint.Text = "A track zip as the EgoGameDatabasesEditor takes it, or a Swofty track addon — or drop one on the window.";
+            TrackHint.Text = "Open a track zip, as the EgoGameDatabasesEditor takes it, or a Swofty track addon — or drop one on the window.";
         }
 
         // Without the game nothing can be checked or packaged, which the line
