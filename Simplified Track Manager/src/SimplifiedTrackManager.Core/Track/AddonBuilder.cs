@@ -220,6 +220,7 @@ public static class AddonBuilder
             ui["images_file"] = zip.ImagesFile;
             ui["minimap_file"] = zip.MinimapFile;
 
+            if (settings.Description.Trim().Length > 0) manifest["description"] = settings.Description.Trim();
             manifest["track_code"] = code;
             manifest["track_name"] = settings.Name.Trim();
             manifest["version"] = version;
@@ -238,8 +239,12 @@ public static class AddonBuilder
 
             // ── The addon ──────────────────────────────────────────────────
             var by = settings.Author.Trim().Length > 0 ? $" Track by {settings.Author.Trim()}." : "";
-            var description = $"{settings.Name.Trim()} as track {code}, with its own names.{by}";
+            var description = settings.Description.Trim().Length > 0 ? settings.Description.Trim()
+                : $"{settings.Name.Trim()} as track {code}, with its own names.{by}";
             if (description.Length > 255) description = description[..252] + "...";
+            if (settings.Readme.Trim().Length > 0)
+                File.WriteAllText(Path.Combine(root, "README.md"), settings.Readme.Replace("\r\n", "\n").TrimEnd() + "\n");
+
             WriteJson(Path.Combine(root, "swofty.json"), new JsonObject
             {
                 ["schema_version"] = 1,

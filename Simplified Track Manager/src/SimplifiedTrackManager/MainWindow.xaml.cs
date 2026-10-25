@@ -40,7 +40,8 @@ public partial class MainWindow : Window
         string Name, string Code, string Author, string Version, string BaseTrack, string SlotTrack,
         IReadOnlyList<(string Key, string Value)> Ers, IReadOnlyList<TrackPictures.Slot> Slots,
         IReadOnlyList<TrackOverride> TrackOverrides, IReadOnlyList<TrackOverride> Overrides, string Manifest,
-        IReadOnlyDictionary<string, string> Names, bool IsAddon, long ErpBytes, int MipFiles);
+        IReadOnlyDictionary<string, string> Names, bool IsAddon, long ErpBytes, int MipFiles,
+        string Description, string Readme);
 
     // The crowd colours and pictures, kept here because their controls only show them.
     private readonly int?[] _crowd = new int?[3];
@@ -271,7 +272,7 @@ public partial class MainWindow : Window
             _trackPath = path;
             _track = new LoadedTrack(zip.Name, zip.Code, zip.Author, zip.Version, baseTrack, zip.CopySlot ?? baseTrack,
                 zip.Ers, TrackPictures.Slots(zip), zip.TrackOverrides, zip.Overrides, zip.ReadText("manifest.json"),
-                zip.Names, zip.IsAddon, zip.Erp.Length, zip.Mipmaps.Count);
+                zip.Names, zip.IsAddon, zip.Erp.Length, zip.Mipmaps.Count, zip.Description, zip.Readme);
             _previews = new Dictionary<string, string>(StringComparer.Ordinal);
             _previewsLoading = true;
             Fill(_track);
@@ -315,6 +316,7 @@ public partial class MainWindow : Window
 
             NameBox.Text = t.Name;
             AuthorBox.Text = t.Author;
+            DescriptionBox.Text = t.Description;
             VersionBox.Text = TrackSettings.SemVer(t.Version.Length > 0 ? t.Version : "1.0.0");
 
             var code = t.Code;
@@ -351,6 +353,16 @@ public partial class MainWindow : Window
             for (var i = 0; i < 3; i++)
                 _crowd[i] = _crowdOriginal[i] = int.TryParse(Either($"TrackCrowds_0.crowdColour{i + 1}"), out var colour) ? colour : null;
             PitMirroredBox.IsChecked = string.Equals(Either("pitMirrored"), "True", StringComparison.OrdinalIgnoreCase);
+
+            var ers = TrackErs.Read(t.Ers);
+            ErsHarvestBox.Text = ers.Harvest;
+            ErsHarvestQualifyingBox.Text = ers.HarvestQualifying;
+            ErsDetectionBox.Text = ers.Detection;
+            ErsActivationBox.Text = ers.Activation;
+            ErsMediumDeployBox.Text = ers.MediumDeploy;
+            ErsMediumDerateBox.Text = ers.MediumDerate;
+            ErsHotLapDeployBox.Text = ers.HotLapDeploy;
+            ErsHotLapDerateBox.Text = ers.HotLapDerate;
 
             FillTuning(t);
 
@@ -476,10 +488,16 @@ public partial class MainWindow : Window
         Choose(TyreHardBox, tuning.TyreHard);
         Choose(TyreMediumBox, tuning.TyreMedium);
         Choose(TyreSoftBox, tuning.TyreSoft);
-        for (var i = 0; i < SessionBoxes.Length; i++) SessionBoxes[i].Text = tuning.SessionTimes[i];
+        for (var i = 0; i < SessionBoxes.Length; i++)
+        {
+            SessionBoxes[i].Text = tuning.SessionTimes[i];
+            SprintSessionBoxes[i].Text = tuning.SprintSessionTimes[i];
+            F2SessionBoxes[i].Text = tuning.F2SessionTimes[i];
+        }
         F1PitLimitBox.Text = tuning.F1PitLimit;
         F2PitLimitBox.Text = tuning.F2PitLimit;
         NightStartBox.IsChecked = tuning.NightStart;
+        TrackMirroredBox.IsChecked = tuning.TrackMirrored;
         WorkOutFuelBox.IsChecked = true;
 
         for (var i = 0; i < WeatherBoxes.Length; i++) WeatherBoxes[i].Text = tuning.Weather[i];
@@ -556,7 +574,13 @@ public partial class MainWindow : Window
         }
     }
 
-    private TextBox[] SessionBoxes => [SessionP1Box, SessionP2Box, SessionP3Box, SessionQualifyingBox, SessionRaceBox];
+    private TextBox[] SessionBoxes =>
+        [SessionP1Box, SessionP2Box, SessionP3Box, SessionQualifyingBox, SessionRaceBox, SessionRace2Box, SessionRace3Box];
+    private TextBox[] SprintSessionBoxes =>
+        [SprintSessionP1Box, SprintSessionP2Box, SprintSessionP3Box, SprintSessionQualifyingBox, SprintSessionRaceBox,
+         SprintSessionRace2Box, SprintSessionRace3Box];
+    private TextBox[] F2SessionBoxes =>
+        [F2SessionP1Box, F2SessionP2Box, F2SessionP3Box, F2SessionQualifyingBox, F2SessionRaceBox, F2SessionRace2Box, F2SessionRace3Box];
     private TextBox[] WeatherBoxes => [WeatherClearBox, WeatherCloudyBox, WeatherOvercastBox, WeatherLightRainBox, WeatherHeavyRainBox];
 
     /// <summary>The form's tuning, as written.</summary>
@@ -570,9 +594,12 @@ public partial class MainWindow : Window
         TyreMedium = TyreMediumBox.SelectedItem as string ?? "",
         TyreSoft = TyreSoftBox.SelectedItem as string ?? "",
         SessionTimes = SessionBoxes.Select(b => b.Text.Trim()).ToArray(),
+        SprintSessionTimes = SprintSessionBoxes.Select(b => b.Text.Trim()).ToArray(),
+        F2SessionTimes = F2SessionBoxes.Select(b => b.Text.Trim()).ToArray(),
         F1PitLimit = F1PitLimitBox.Text.Trim(),
         F2PitLimit = F2PitLimitBox.Text.Trim(),
         NightStart = NightStartBox.IsChecked == true,
+        TrackMirrored = TrackMirroredBox.IsChecked == true,
         WorkOutFuel = WorkOutFuelBox.IsChecked == true,
         Weather = WeatherBoxes.Select(b => b.Text.Trim()).ToArray(),
         TemperatureMin = TemperatureMinBox.Text.Trim(),
@@ -609,13 +636,30 @@ public partial class MainWindow : Window
         if (!_filling) Refresh();
     }
 
+    /// <summary>
+    /// Under the description: how much of Swofty's 255 characters it uses,
+    /// or, left empty, the line the package makes up instead.
+    /// </summary>
+    private void ShowDescription()
+    {
+        var text = DescriptionBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            var by = AuthorBox.Text.Trim().Length > 0 ? $" Track by {AuthorBox.Text.Trim()}." : "";
+            Say(DescriptionHint, $"Empty, so: {NameBox.Text.Trim()} as track {CodeBox.Text.Trim()}, with its own names.{by}", "TextMuted");
+        }
+        else Say(DescriptionHint, $"Shown in Swofty's addon list · {text.Length} of 255 characters", "TextMuted");
+    }
+
     /// <summary>The weather's total under its boxes, red until it is 100%.</summary>
     private void ShowWeatherTotal()
     {
+        const string odds = "The odds of each weather type at the track";
         var values = WeatherBoxes.Select(b => TrackTuning.Number(b.Text)).ToList();
-        if (values.Any(v => v is null)) { Say(WeatherTotal, "Each a number, adding up to 100%", "TextMuted"); return; }
+        if (values.Any(v => v is null)) { Say(WeatherTotal, $"{odds} · each a number, together adding up to 100%", "TextMuted"); return; }
         var total = values.Sum(v => v!.Value);
-        Say(WeatherTotal, Math.Abs(total - 100) <= 0.5 ? "Adds up to 100%" : $"Adds up to {total:0.##}%, not 100%",
+        Say(WeatherTotal, Math.Abs(total - 100) <= 0.5 ? $"{odds} · together they add up to 100%"
+                                                       : $"{odds} · together they add up to {total:0.##}%, not 100%",
             Math.Abs(total - 100) <= 0.5 ? "TextMuted" : "Danger");
     }
 
@@ -1200,6 +1244,9 @@ public partial class MainWindow : Window
             Code = CodeBox.Text.Trim(),
             Name = NameBox.Text.Trim(),
             Author = AuthorBox.Text.Trim(),
+            Description = DescriptionBox.Text.Trim(),
+            // Not on the form: an addon's own README goes over as it came.
+            Readme = _track?.Readme ?? "",
             // Numbers as typed, made into the semver Swofty takes: 1.00.0 and
             // 2.72 become 1.0.0 and 2.72.0. Anything else is left for the
             // check to name.
@@ -1231,8 +1278,9 @@ public partial class MainWindow : Window
             AeroBias = AeroFor(DownforceBox.SelectedItem as string ?? ""),
             Nationality = Nationality(),
             PitMirrored = PitMirroredBox.IsChecked == true,
-            // Not on the form: the track's ERS goes over as the zip gave it.
-            Ers = _track?.Ers.ToList() ?? [],
+            // The form's ERS values in place; the rest go over as the zip gave them.
+            Ers = ReadErs().Apply(_track?.Ers ?? []),
+            ErsForm = ReadErs(),
             CodeLength = _track is { } t && t.Code != CodeBox.Text.Trim() ? _codeLength : null,
         };
         for (var i = 0; i < 3; i++) s.CrowdColours[i] = _crowd[i];
@@ -1344,6 +1392,7 @@ public partial class MainWindow : Window
                              $"{t.ErpBytes / 1048576.0:N0} MB, {t.MipFiles} mip files";
             Validate();
             ShowWeatherTotal();
+            ShowDescription();
             ShowDatabase(t);
         }
         else
@@ -1364,6 +1413,19 @@ public partial class MainWindow : Window
         InGameFlagsButton.IsEnabled = _game is not null;
     }
 
+    /// <summary>The form's ERS values, as typed.</summary>
+    private TrackErs ReadErs() => new()
+    {
+        Harvest = ErsHarvestBox.Text.Trim(),
+        HarvestQualifying = ErsHarvestQualifyingBox.Text.Trim(),
+        Detection = ErsDetectionBox.Text.Trim(),
+        Activation = ErsActivationBox.Text.Trim(),
+        MediumDeploy = ErsMediumDeployBox.Text.Trim(),
+        MediumDerate = ErsMediumDerateBox.Text.Trim(),
+        HotLapDeploy = ErsHotLapDeployBox.Text.Trim(),
+        HotLapDerate = ErsHotLapDerateBox.Text.Trim(),
+    };
+
     /// <summary>
     /// The Database section: what the package carries over that the form
     /// doesn't show, worked out the way the package works it out, so it
@@ -1377,7 +1439,8 @@ public partial class MainWindow : Window
         {
             try
             {
-                text = AddonBuilder.ToJson(AddonBuilder.Unshown(t.Manifest, t.TrackOverrides, t.Overrides, t.Ers,
+                var ers = t.Ers.Where(e => !TrackErs.Keys.Contains(e.Key.Trim())).ToList();
+                text = AddonBuilder.ToJson(AddonBuilder.Unshown(t.Manifest, t.TrackOverrides, t.Overrides, ers,
                                                                  t.BaseTrack, t.SlotTrack, Settings(), _game));
             }
             catch (Exception ex)

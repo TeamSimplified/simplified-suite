@@ -34,14 +34,23 @@ public sealed partial class TrackTuning
     public string TyreMedium { get; set; } = "";
     public string TyreSoft { get; set; } = "";
 
-    /// <summary>The F1 sessions' start times, <c>HH:MM</c>, in the order of <see cref="SessionFields"/>.</summary>
-    public string[] SessionTimes { get; set; } = ["", "", "", "", ""];
+    /// <summary>
+    /// The sessions' start times, <c>HH:MM</c>, in the order of
+    /// <see cref="SessionFields"/>: an F1 Grand Prix weekend's, an F1 sprint
+    /// weekend's, and an F2 weekend's. Each goes to every dataset of its kind.
+    /// </summary>
+    public string[] SessionTimes { get; set; } = ["", "", "", "", "", "", ""];
+    public string[] SprintSessionTimes { get; set; } = ["", "", "", "", "", "", ""];
+    public string[] F2SessionTimes { get; set; } = ["", "", "", "", "", "", ""];
 
     /// <summary>Pit lane speed limits, km/h.</summary>
     public string F1PitLimit { get; set; } = "";
     public string F2PitLimit { get; set; } = "";
 
     public bool NightStart { get; set; }
+
+    /// <summary>Whether the whole layout is the other way round, as Las Vegas runs.</summary>
+    public bool TrackMirrored { get; set; }
 
     /// <summary>Whether a change of laps or fuel burn also works out the F1 fuel loads.</summary>
     public bool WorkOutFuel { get; set; } = true;
@@ -77,8 +86,9 @@ public sealed partial class TrackTuning
     public string AirPressure { get; set; } = "";
 
     // ── What the game takes ─────────────────────────────────────────────────
-    public static readonly string[] SessionFields = ["p1_start_time", "p2_start_time", "p3_start_time", "q_start_time", "race_start_time"];
-    public static readonly string[] SessionNames = ["P1", "P2", "P3", "Qualifying", "Race"];
+    public static readonly string[] SessionFields =
+        ["p1_start_time", "p2_start_time", "p3_start_time", "q_start_time", "race_start_time", "race2_start_time", "race3_start_time"];
+    public static readonly string[] SessionNames = ["P1", "P2", "P3", "Qualifying", "Race", "Race 2", "Race 3"];
     public static readonly string[] WeatherFields = ["clear", "cloudy", "overcast", "light_rain", "heavy_rain"];
     public static readonly string[] WeatherNames = ["Clear", "Cloudy", "Overcast", "Light rain", "Heavy rain"];
     public static readonly string[] Compounds = ["C0", "C1", "C2", "C3", "C4", "C5", "C6"];
@@ -177,6 +187,8 @@ public sealed partial class TrackTuning
     {
         var copy = (TrackTuning)MemberwiseClone();
         copy.SessionTimes = (string[])SessionTimes.Clone();
+        copy.SprintSessionTimes = (string[])SprintSessionTimes.Clone();
+        copy.F2SessionTimes = (string[])F2SessionTimes.Clone();
         copy.Weather = (string[])Weather.Clone();
         return copy;
     }
@@ -210,12 +222,18 @@ public sealed partial class TrackTuning
             t.TyreSoft = track.Data(modern, "TyreData_0.compound_softer") ?? "";
         }
 
+        var f1Sprint = Prefer(f1.Where(IsSprint), "sprint_f1_2025");
         for (var i = 0; i < SessionFields.Length; i++)
+        {
             t.SessionTimes[i] = ShowTime(First(f1Main, Session + SessionFields[i]));
+            t.SprintSessionTimes[i] = ShowTime(First(f1Sprint, Session + SessionFields[i]));
+            t.F2SessionTimes[i] = ShowTime(First(f2Main, Session + SessionFields[i]));
+        }
 
         t.F1PitLimit = First(f1Main.Concat(f1), PitLimit) ?? "";
         t.F2PitLimit = First(f2Main, PitLimit) ?? "";
         t.NightStart = string.Equals(track.Row("allow_night_start"), "True", StringComparison.OrdinalIgnoreCase);
+        t.TrackMirrored = string.Equals(track.Row("trackMirrored"), "True", StringComparison.OrdinalIgnoreCase);
 
         for (var i = 0; i < WeatherFields.Length; i++)
             t.Weather[i] = Number(track.Row($"Weather_0.{WeatherFields[i]}")) is { } w ? Text(w * 100) : "";
@@ -288,16 +306,24 @@ public sealed partial class TrackTuning
                 Data(d, "TyreData_0.compound_softer", TyreSoft.Trim());
             }
 
-        for (var i = 0; i < SessionFields.Length; i++)
-            if (Changed(SessionTimes[i], was.SessionTimes[i]) && GameTime(SessionTimes[i]) is { } time)
-                foreach (var d in f1.Where(d => !IsSprint(d) && track.BaseData(d, Session + SessionFields[i]) is not null))
-                    Data(d, Session + SessionFields[i], time);
+        // Each weekend's times to every dataset of its kind that has the session.
+        foreach (var (now, before, sets) in new[]
+                 {
+                     (SessionTimes, was.SessionTimes, f1.Where(d => !IsSprint(d))),
+                     (SprintSessionTimes, was.SprintSessionTimes, f1.Where(IsSprint)),
+                     (F2SessionTimes, was.F2SessionTimes, f2.AsEnumerable()),
+                 })
+            for (var i = 0; i < SessionFields.Length; i++)
+                if (Changed(now[i], before[i]) && GameTime(now[i]) is { } time)
+                    foreach (var d in sets.Where(d => track.BaseData(d, Session + SessionFields[i]) is not null))
+                        Data(d, Session + SessionFields[i], time);
 
         if (Changed(F1PitLimit, was.F1PitLimit))
             foreach (var d in f1.Where(d => track.BaseData(d, PitLimit) is not null)) Data(d, PitLimit, F1PitLimit.Trim());
         if (Changed(F2PitLimit, was.F2PitLimit))
             foreach (var d in f2.Where(d => track.BaseData(d, PitLimit) is not null)) Data(d, PitLimit, F2PitLimit.Trim());
         if (NightStart != was.NightStart) Row("allow_night_start", NightStart ? "True" : "False");
+        if (TrackMirrored != was.TrackMirrored) Row("trackMirrored", TrackMirrored ? "True" : "False");
 
         // Fuel burn: the Track row's as typed, and every dataset's scaled by the same change.
         var newBurn = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -416,7 +442,12 @@ public sealed partial class TrackTuning
         WholeNumber(F1SprintLaps, "The F1 sprint laps");
         WholeNumber(F2FeatureLaps, "The F2 feature race laps");
         WholeNumber(F2SprintLaps, "The F2 sprint laps");
-        for (var i = 0; i < SessionTimes.Length; i++) Time(SessionTimes[i], $"The {SessionNames[i]} start");
+        for (var i = 0; i < SessionFields.Length; i++)
+        {
+            Time(SessionTimes[i], $"The F1 {SessionNames[i]} start");
+            Time(SprintSessionTimes[i], $"The F1 sprint weekend's {SessionNames[i]} start");
+            Time(F2SessionTimes[i], $"The F2 {SessionNames[i]} start");
+        }
         Decimal(F1PitLimit, "The F1 pit speed limit");
         Decimal(F2PitLimit, "The F2 pit speed limit");
         for (var i = 0; i < Weather.Length; i++) Decimal(Weather[i], $"The {WeatherNames[i].ToLowerInvariant()} weather");

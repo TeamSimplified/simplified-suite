@@ -21,6 +21,16 @@ public sealed partial class TrackSettings
     public string Version { get; set; } = "1.0.0";
 
     /// <summary>
+    /// What the addon says about the track, on Swofty's addon list and the
+    /// track's tile; at most 255 characters. Empty, a line is made up from the
+    /// name and author.
+    /// </summary>
+    public string Description { get; set; } = "";
+
+    /// <summary>The addon's README.md, for credits and notes; none when empty.</summary>
+    public string Readme { get; set; } = "";
+
+    /// <summary>
     /// The length the code has to be, when the track's own data names its
     /// paths with its old code (<see cref="TrackRecode.EmbedsCode"/>); null when
     /// any length will do.
@@ -74,6 +84,9 @@ public sealed partial class TrackSettings
 
     // ── ERS, and pictures ───────────────────────────────────────────────────
     public List<(string Key, string Value)> Ers { get; set; } = [];
+
+    /// <summary>The ERS values the form shows, as typed; <see cref="Ers"/> already has them in place.</summary>
+    public TrackErs? ErsForm { get; set; }
 
     /// <summary>
     /// The race weekend, conditions, character and location as the form has
@@ -210,11 +223,13 @@ public sealed partial class TrackSettings
             problems.Add($"{Acronym} belongs to one of the game's own tracks. Pick other initials.");
 
         if (Name.Trim().Length == 0) problems.Add("The track needs a name.");
+        if (Description.Trim().Length > 255) problems.Add($"The description is {Description.Trim().Length} characters; Swofty takes 255.");
         if (!VersionPattern().IsMatch(Version.Trim())) problems.Add("The version has to look like 1.0.0.");
         if (LengthKm.Trim().Length > 0 && LengthMetres() is null) problems.Add("The length has to be a number of kilometres, like 5.338.");
         if (Corners.Trim().Length > 0 && !int.TryParse(Corners, out _)) problems.Add("The corners have to be a whole number.");
 
         if (Tuning is { } tuning) problems.AddRange(tuning.Problems());
+        if (ErsForm is { } ersForm) problems.AddRange(ersForm.Problems());
 
         foreach (var (key, value) in Ers)
             if (key.Trim().Length == 0 || !double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))

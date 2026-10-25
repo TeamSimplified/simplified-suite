@@ -250,6 +250,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Name:"/>
@@ -257,6 +258,7 @@
                             <TextBox Name="NameBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: Circuit de Spa-Francorchamps"/>
                         </StackPanel>
+
                         <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Author:"/>
                         <StackPanel Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="AuthorBox" TextChanged="Field_Changed"/>
@@ -268,11 +270,20 @@
                             <TextBox Name="CodeBox" TextChanged="Field_Changed"/>
                             <TextBlock Name="CodeHint" Style="{StaticResource Example}" Text="Spa: spa_francorchamps"/>
                         </StackPanel>
+
                         <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Version:"/>
                         <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="VersionBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="Three numbers, such as 1.0.0"/>
                         </StackPanel>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Description:"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="DescriptionBox" TextChanged="Field_Changed" MaxLength="255"
+                                     ToolTip="What Swofty shows for the addon and on the track's tile, up to 255 characters. Left empty, a line is made from the name and author."/>
+                            <TextBlock Name="DescriptionHint" Style="{StaticResource Example}" Text="Shown in Swofty's addon list · up to 255 characters"/>
+                        </StackPanel>
+
                     </Grid>
 
                     <!-- ── Location ──────────────────────────────────────────── -->
@@ -314,41 +325,96 @@
                             <TextBlock Style="{StaticResource Example}" Text="Spa: Spa-Francorchamps"/>
                         </StackPanel>
 
-                        <!-- Hidden: the continent is set from the country. -->
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Continent:" Visibility="Collapsed"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}" Visibility="Collapsed">
-                            <ComboBox Name="ContinentBox" SelectionChanged="Choice_Changed"
-                                ToolTip="Set from the country when you choose one."/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: Europe · from the country"/>
-                        </StackPanel>
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Air pressure:"/>
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Latitude:"/>
                         <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
-                            <TextBox Name="AirPressureBox" TextChanged="Field_Changed"
-                                 ToolTip="1 at sea level, lower at altitude"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: 0.956"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Latitude:"/>
-                        <StackPanel Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="LatitudeBox" TextChanged="Field_Changed"
                                  ToolTip="Where the sun is, with the longitude"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 50.43694"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Longitude:"/>
-                        <StackPanel Grid.Row="2" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Longitude:"/>
+                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="LongitudeBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 5.972039"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Sunrise:"/>
-                        <StackPanel Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Sunrise:"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="DaylightStartBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 05:45"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Sunset:"/>
-                        <StackPanel Grid.Row="3" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Sunset:"/>
+                        <StackPanel Grid.Row="2" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="DaylightEndBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 17:40"/>
+                        </StackPanel>
+
+                        <!-- Hidden: the continent is set from the country. -->
+                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Continent:" Visibility="Collapsed"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldCell}" Visibility="Collapsed">
+                            <ComboBox Name="ContinentBox" SelectionChanged="Choice_Changed"
+                                ToolTip="Set from the country when you choose one."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: Europe · from the country"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Air pressure:"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="AirPressureBox" TextChanged="Field_Changed"
+                                 ToolTip="1 at sea level, lower at altitude"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: 0.956"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ── Character ─────────────────────────────────────────── -->
+                    <Border Style="{StaticResource SectionHeader}">
+                        <DockPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Character"/>
+                        </DockPanel>
+                    </Border>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="{StaticResource RightLabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Length (km):"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="LengthBox" TextChanged="Field_Changed" ToolTip="e.g. 5.338"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: 7.004"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Corners:"/>
+                        <StackPanel Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="CornersBox" TextChanged="Field_Changed"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: 19"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Difficulty:"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <ComboBox Name="DifficultyBox" IsEditable="True"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: Easy"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Downforce:"/>
+                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <ComboBox Name="DownforceBox" SelectionChanged="Choice_Changed"
+                                  ToolTip="How much wing the track asks for. The menus' aero stat says the same: Very Low to Very High."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: low"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Performance:"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <ComboBox Name="PerformanceBox" SelectionChanged="Choice_Changed"
+                                  ToolTip="What the car needs most here"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: HighTopSpeed"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Tyre wear:"/>
+                        <StackPanel Grid.Row="2" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <ComboBox Name="TyreWearBox" SelectionChanged="Choice_Changed"/>
+                            <TextBlock Style="{StaticResource Example}" Text="Spa: Low"/>
                         </StackPanel>
                     </Grid>
 
@@ -369,7 +435,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Weather (%):" ToolTip="How likely each weather is on a race weekend"/>
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Weather (%):" ToolTip="The odds of each weather type at the track: Clear, Cloudy, Overcast, Light rain and Heavy rain. Together they have to add up to 100%."/>
                         <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
                             <UniformGrid Columns="5" Margin="0,0,-10,0">
                                 <StackPanel Margin="0,0,10,0">
@@ -393,7 +459,7 @@
                                     <TextBlock Style="{StaticResource Example}" Text="Heavy rain · Spa: 6"/>
                                 </StackPanel>
                             </UniformGrid>
-                            <TextBlock Name="WeatherTotal" Style="{StaticResource Example}" Text="Adds up to 100%"/>
+                            <TextBlock Name="WeatherTotal" Style="{StaticResource Example}" Text="The odds of each weather type at the track · together they add up to 100%"/>
                         </StackPanel>
                         <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Lowest (°C):"/>
                         <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
@@ -473,40 +539,6 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- ── Colours ───────────────────────────────────────────────
-                         How the track looks in the stands and in the menus: its crowd's
-                         three colours, and its three flags, a card each in three equal
-                         columns; the negative margin takes back the gap after the last. -->
-                    <Border Style="{StaticResource SectionHeader}">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Name="InGameFlagsButton" Content="Replace with in game" Visibility="Collapsed"
-                                    Style="{StaticResource BrowseButton}" Click="InGameFlags_Click"
-                                    ToolTip="Use one of the game's countries' flags for all three"/>
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="Colours"/>
-                        </DockPanel>
-                    </Border>
-                    <!-- Laid out as the field sections are: a label in the label
-                         column, the cards from where the boxes start, three to a row.
-                         The crowd's colours as the Grid Editor shows a team's: swatch,
-                         name, hex, and a reset. -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Hidden for a test: the flags follow the country chosen. -->
-                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Flags:" Visibility="Collapsed"/>
-                        <UniformGrid Grid.Row="0" Grid.Column="1" Name="FlagsPanel" Columns="3" Margin="0,0,-12,0" Visibility="Collapsed"/>
-
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Crowd colours:" Margin="0,20,12,0"/>
-                        <UniformGrid Grid.Row="1" Grid.Column="1" Name="CrowdPanel" Columns="3" Margin="0,12,-12,0"/>
-                    </Grid>
-
                     <!-- ── Stats ───────────────────────────────────────────── -->
                     <Border Style="{StaticResource SectionHeader}">
                         <TextBlock Style="{StaticResource SectionTitle}" Text="Stats"/>
@@ -547,67 +579,38 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- ── Character ─────────────────────────────────────────── -->
+                    <!-- ── Colours ───────────────────────────────────────────────
+                         How the track looks in the stands and in the menus: its crowd's
+                         three colours, and its three flags, a card each in three equal
+                         columns; the negative margin takes back the gap after the last. -->
                     <Border Style="{StaticResource SectionHeader}">
                         <DockPanel>
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="Character"/>
+                            <Button DockPanel.Dock="Right" Name="InGameFlagsButton" Content="Replace with in game" Visibility="Collapsed"
+                                    Style="{StaticResource BrowseButton}" Click="InGameFlags_Click"
+                                    ToolTip="Use one of the game's countries' flags for all three"/>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Colours"/>
                         </DockPanel>
                     </Border>
+                    <!-- Laid out as the field sections are: a label in the label
+                         column, the cards from where the boxes start, three to a row.
+                         The crowd's colours as the Grid Editor shows a team's: swatch,
+                         name, hex, and a reset. -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="{StaticResource LabelWidth}"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="{StaticResource RightLabelWidth}"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Length (km):"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
-                            <TextBox Name="LengthBox" TextChanged="Field_Changed" ToolTip="e.g. 5.338"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: 7.004"/>
-                        </StackPanel>
-                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Corners:"/>
-                        <StackPanel Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldCell}">
-                            <TextBox Name="CornersBox" TextChanged="Field_Changed"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: 19"/>
-                        </StackPanel>
+                        <!-- Hidden for a test: the flags follow the country chosen. -->
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Flags:" Visibility="Collapsed"/>
+                        <UniformGrid Grid.Row="0" Grid.Column="1" Name="FlagsPanel" Columns="3" Margin="0,0,-12,0" Visibility="Collapsed"/>
 
-                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Difficulty:"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
-                            <ComboBox Name="DifficultyBox" IsEditable="True"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: Easy"/>
-                        </StackPanel>
-                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="AI lap (s):"/>
-                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
-                            <TextBox Name="AiLapTimeBox" TextChanged="Field_Changed"
-                                 ToolTip="The fastest AI lap, at the hardest difficulty. Every AI lap time, for every car, is scaled with it."/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: 101.69"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Downforce:"/>
-                        <StackPanel Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCell}">
-                            <ComboBox Name="DownforceBox" SelectionChanged="Choice_Changed"
-                                  ToolTip="How much wing the track asks for. The menus' aero stat says the same: Very Low to Very High."/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: low"/>
-                        </StackPanel>
-                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Performance:"/>
-                        <StackPanel Grid.Row="2" Grid.Column="3" Style="{StaticResource FieldCell}">
-                            <ComboBox Name="PerformanceBox" SelectionChanged="Choice_Changed"
-                                  ToolTip="What the car needs most here"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: HighTopSpeed"/>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Tyre wear:"/>
-                        <StackPanel Grid.Row="3" Grid.Column="1" Style="{StaticResource FieldCell}">
-                            <ComboBox Name="TyreWearBox" SelectionChanged="Choice_Changed"/>
-                            <TextBlock Style="{StaticResource Example}" Text="Spa: Low"/>
-                        </StackPanel>
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Crowd colours:" Margin="0,20,12,0"/>
+                        <UniformGrid Grid.Row="1" Grid.Column="1" Name="CrowdPanel" Columns="3" Margin="0,12,-12,0"/>
                     </Grid>
 
                     <!-- ── Race weekend ──────────────────────────────────────── -->
@@ -634,7 +637,11 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
+
                         <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="F1 race laps:"/>
                         <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="F1RaceLapsBox" TextChanged="Field_Changed"
@@ -647,6 +654,7 @@
                                 ToolTip="The fewest laps past 100 km, the FIA's sprint distance. Follows the length until you type your own."/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 15 · over 100 km"/>
                         </StackPanel>
+
                         <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="F2 feature laps:"/>
                         <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="F2FeatureLapsBox" TextChanged="Field_Changed"
@@ -659,9 +667,10 @@
                                 ToolTip="The fewest laps past 120 km, F2's sprint distance. Follows the length until you type your own."/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 18 · over 120 km"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Session starts:" ToolTip="Local time, for F1"/>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="F1 sessions:" ToolTip="Start times, local, of an F1 Grand Prix weekend"/>
                         <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
-                            <UniformGrid Columns="5" Margin="0,0,-10,0">
+                            <UniformGrid Columns="7" Margin="0,0,-10,0">
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBox Name="SessionP1Box" TextChanged="Field_Changed"/>
                                     <TextBlock Style="{StaticResource Example}" Text="P1 · Spa: 13:30"/>
@@ -676,17 +685,93 @@
                                 </StackPanel>
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBox Name="SessionQualifyingBox" TextChanged="Field_Changed"/>
-                                    <TextBlock Style="{StaticResource Example}" Text="Qualifying · Spa: 16:00"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Quali · Spa: 16:00"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBox Name="SessionRaceBox" TextChanged="Field_Changed"/>
                                     <TextBlock Style="{StaticResource Example}" Text="Race · Spa: 15:00"/>
                                 </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SessionRace2Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 2 · Spa: 15:00"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SessionRace3Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 3 · Spa: 12:00"/>
+                                </StackPanel>
                             </UniformGrid>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Tyres:" ToolTip="The compounds F1 brings, from C0, the hardest, to C6"/>
+                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="F1 sprint sessions:" ToolTip="Start times of an F1 sprint weekend: Qualifying is the sprint shootout, Race the sprint and Race 2 the Grand Prix. A session the weekend hasn't got reads 00:00."/>
                         <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
+                            <UniformGrid Columns="7" Margin="0,0,-10,0">
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionP1Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P1 · Spa: 13:30"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionP2Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P2 · Spa: —"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionP3Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P3 · Spa: —"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionQualifyingBox" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Quali · Spa: 17:00"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionRaceBox" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race · Spa: 17:05"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionRace2Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 2 · Spa: 15:00"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="SprintSessionRace3Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 3 · Spa: —"/>
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="4" Style="{StaticResource FieldLabel}" Text="F2 sessions:" ToolTip="Start times of an F2 weekend"/>
+                        <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
+                            <UniformGrid Columns="7" Margin="0,0,-10,0">
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionP1Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P1 · Spa: 12:55"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionP2Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P2 · Spa: 12:55"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionP3Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="P3 · Spa: 12:55"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionQualifyingBox" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Quali · Spa: 16:55"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionRaceBox" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race · Spa: 16:45"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionRace2Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 2 · Spa: 10:50"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,10,0">
+                                    <TextBox Name="F2SessionRace3Box" TextChanged="Field_Changed"/>
+                                    <TextBlock Style="{StaticResource Example}" Text="Race 3 · Spa: 12:00"/>
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="5" Style="{StaticResource FieldLabel}" Text="Tyres:" ToolTip="The compounds F1 brings, from C0, the hardest, to C6"/>
+                        <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
                             <UniformGrid Columns="3" Margin="0,0,-10,0">
                                 <StackPanel Margin="0,0,10,0">
                                     <ComboBox Name="TyreHardBox" SelectionChanged="Choice_Changed"/>
@@ -703,45 +788,164 @@
                             </UniformGrid>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="4" Style="{StaticResource FieldLabel}" Text="F1 fuel burn (kg/lap):"/>
-                        <StackPanel Grid.Row="4" Grid.Column="1" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="6" Style="{StaticResource FieldLabel}" Text="F1 fuel burn (kg/lap):"/>
+                        <StackPanel Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="F1FuelBurnBox" TextChanged="Field_Changed"
                                 ToolTip="About a third of a kilogram a kilometre, a little more the more downforce. Follows the length and downforce until you type your own."/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 2.25 · from length and downforce"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="4" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="F2 fuel burn:"/>
-                        <StackPanel Grid.Row="4" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="F2 fuel burn:"/>
+                        <StackPanel Grid.Row="6" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="F2FuelBurnBox" TextChanged="Field_Changed"
                                 ToolTip="About 1.37 times the F1 car's. Follows the length and downforce until you type your own."/>
                             <TextBlock Style="{StaticResource Example}" Text="Spa: 3.07 · from length and downforce"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="5" Style="{StaticResource FieldLabel}" Text="F1 pit limit:"/>
-                        <StackPanel Grid.Row="5" Grid.Column="1" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="7" Style="{StaticResource FieldLabel}" Text="F1 pit limit:"/>
+                        <StackPanel Grid.Row="7" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <TextBox Name="F1PitLimitBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="km/h · Spa: 80"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="5" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="F2 pit limit:"/>
-                        <StackPanel Grid.Row="5" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="7" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="F2 pit limit:"/>
+                        <StackPanel Grid.Row="7" Grid.Column="3" Style="{StaticResource FieldCell}">
                             <TextBox Name="F2PitLimitBox" TextChanged="Field_Changed"/>
                             <TextBlock Style="{StaticResource Example}" Text="km/h · Spa: 60"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="6" Style="{StaticResource FieldLabel}" Text="Pit lane:"/>
-                        <StackPanel Grid.Row="6" Grid.Column="1" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="8" Style="{StaticResource FieldLabel}" Text="Pit lane:"/>
+                        <StackPanel Grid.Row="8" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <CheckBox Name="PitMirroredBox" Content="Mirrored" Margin="0,8,0,0"
                                       ToolTip="The pit boxes are on the other side, as at a track that runs anticlockwise"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="6" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Night:"/>
-                        <StackPanel Grid.Row="6" Grid.Column="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="8" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Layout:"/>
+                        <StackPanel Grid.Row="8" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <CheckBox Name="TrackMirroredBox" Content="Mirrored" Margin="0,8,0,0" Click="Choice_Changed"
+                                      ToolTip="The whole track the other way round, as Las Vegas runs"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="9" Style="{StaticResource FieldLabel}" Text="Night:"/>
+                        <StackPanel Grid.Row="9" Grid.Column="1" Style="{StaticResource FieldCell}">
                             <CheckBox Name="NightStartBox" Content="Races can start after dark" Margin="0,8,0,0" Click="Choice_Changed"
                                       ToolTip="Whether a race here may be set at night"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="7" Style="{StaticResource FieldLabel}" Text="Fuel loads:"/>
-                        <StackPanel Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
+                        <TextBlock Grid.Row="10" Style="{StaticResource FieldLabel}" Text="Fuel loads:"/>
+                        <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3" Style="{StaticResource FieldCell}">
                             <CheckBox Name="WorkOutFuelBox" Content="Work out from laps and fuel burn" Margin="0,8,0,0" IsChecked="True" Click="Choice_Changed"
                                       ToolTip="When the race laps or the fuel burn change, the fuel a car starts with is worked out again from the base track's, so the race can be finished"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ── ERS & overtake ──────────────────────────────────── -->
+                    <!-- The 2026 cars' energy at this track: the manifest's ers block,
+                         which goes into every 2026 car's handling file. Empty leaves a
+                         value to the car's own default. -->
+                    <Border Style="{StaticResource SectionHeader}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Hint}" VerticalAlignment="Center"
+                                       Text="2026 cars only · empty uses the car's default"/>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="ERS &amp; overtake"/>
+                        </DockPanel>
+                    </Border>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="{StaticResource RightLabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Harvest (MJ):"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsHarvestBox}"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsHarvestBox" TextChanged="Field_Changed"
+                                     ToolTip="The most energy the MGU-K may recover in a lap of a race, in megajoules. Tracks with long straights and few heavy stops run lower. Empty uses the car's default, 8.5 MJ."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Energy recovered a lap, race · Spa: 7.1"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Qualifying:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsHarvestQualifyingBox}"/>
+                        <StackPanel Grid.Row="0" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsHarvestQualifyingBox" TextChanged="Field_Changed"
+                                     ToolTip="The most energy the MGU-K may recover in a qualifying lap, in megajoules. Empty uses the car's default, 9 MJ."/>
+                            <TextBlock Style="{StaticResource Example}" Text="The same in qualifying · Spa: 7"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Overtake (%):"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsDetectionBox}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsDetectionBox" TextChanged="Field_Changed"
+                                     ToolTip="Where the gap to the car ahead is measured for overtake mode, as how far round the lap it is: 0 at the line, 100 back at it. A car close enough here gets the extra energy."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Detection point, % of the lap · Spa: 96.3"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Activation:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsActivationBox}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsActivationBox" TextChanged="Field_Changed"
+                                     ToolTip="Where overtake mode can be switched on, as how far round the lap it is. It comes after the detection point, usually just before the main straight."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Where it switches on · Suzuka: 95.78"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ── AI ────────────────────────────────────────────────── -->
+                    <Border Style="{StaticResource SectionHeader}">
+                        <DockPanel>
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="AI"/>
+                        </DockPanel>
+                    </Border>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="{StaticResource RightLabelWidth}"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="AI lap (s):"
+                                   ToolTip="{Binding ToolTip, ElementName=AiLapTimeBox}"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="AiLapTimeBox" TextChanged="Field_Changed"
+                                 ToolTip="How fast the AI drives the track: its fastest lap in seconds, at the hardest difficulty. Every car's ten difficulty steps are scaled by the same amount, so the gaps between them stay. A new track starts with its base track's times, so set this to roughly a fast lap of your track."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Fastest AI lap · all AI times scale with it · Spa: 101.69"
+                                       ToolTip="{Binding ToolTip, ElementName=AiLapTimeBox}"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Race deploy:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsMediumDeployBox}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsMediumDeployBox" TextChanged="Field_Changed"
+                                     ToolTip="How much of its energy an AI 2026 car spends on a lap in a race, 0 to 1. Higher is faster down the straights but runs the battery down. Empty uses the car's default."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Energy spent, 0 to 1 · Spa: 0.7"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Race derate:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsMediumDerateBox}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsMediumDerateBox" TextChanged="Field_Changed"
+                                     ToolTip="How much an AI 2026 car eases off its electric power in a race to save energy, 0 to 1. Empty uses the car's default."/>
+                            <TextBlock Style="{StaticResource Example}" Text="Energy saved, 0 to 1 · Spa: 0.1"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Hot lap deploy:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsHotLapDeployBox}"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsHotLapDeployBox" TextChanged="Field_Changed"
+                                     ToolTip="How much of its energy an AI 2026 car spends on a flying lap in qualifying, 0 to 1. Empty uses the car's default."/>
+                            <TextBlock Style="{StaticResource Example}" Text="The same, flying lap · Spa: 0.7"/>
+                        </StackPanel>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FieldLabel}" Text="Hot lap derate:"
+                                   ToolTip="{Binding ToolTip, ElementName=ErsHotLapDerateBox}"/>
+                        <StackPanel Grid.Row="2" Grid.Column="3" Style="{StaticResource FieldCell}">
+                            <TextBox Name="ErsHotLapDerateBox" TextChanged="Field_Changed"
+                                     ToolTip="How much an AI 2026 car eases off on a flying lap, 0 to 1. Empty uses the car's default."/>
+                            <TextBlock Style="{StaticResource Example}" Text="The same, flying lap · Spa: 0.1"/>
                         </StackPanel>
                     </Grid>
 

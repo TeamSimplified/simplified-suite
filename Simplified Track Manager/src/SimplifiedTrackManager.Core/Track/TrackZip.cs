@@ -49,6 +49,16 @@ public sealed partial class TrackZip : IDisposable
     /// </summary>
     public IReadOnlyList<string> Unported { get; } = [];
 
+    /// <summary>
+    /// What the track says about itself: its manifest's description, which
+    /// Swofty shows on the track's tile, else an addon's own. Empty when it
+    /// says nothing.
+    /// </summary>
+    public string Description { get; } = "";
+
+    /// <summary>An addon's README.md, as written; empty for a track zip, or an addon without one.</summary>
+    public string Readme { get; } = "";
+
     public string ZipPath { get; }
 
     /// <summary>The code the track has in the zip, e.g. <c>melbourne24</c>.</summary>
@@ -103,6 +113,8 @@ public sealed partial class TrackZip : IDisposable
         ZipPath = path;
         _zip = zip;
 
+        var addonDescription = "";
+
         // An addon: the package is where its track.add says, and the rest of
         // what it does is read from its op files.
         var addonDb = new List<JsonElement>();
@@ -115,6 +127,9 @@ public sealed partial class TrackZip : IDisposable
             IsAddon = true;
             var swofty = ReadJson("swofty.json");
             documents.Add(swofty);
+            addonDescription = Text(swofty.RootElement, "description") ?? "";
+            if (FindEntry("README.md") is { } readme)
+                using (var reader = new StreamReader(readme.Open())) Readme = reader.ReadToEnd();
             var operations = swofty.RootElement.TryGetProperty("operations", out var o) ? o : default;
 
             var source = "track";
@@ -154,6 +169,7 @@ public sealed partial class TrackZip : IDisposable
         Name = Text(m, "track_name") ?? Code;
         Author = Text(m, "author_name") ?? "";
         Version = Text(m, "version") ?? "";
+        Description = Text(m, "description") is { Length: > 0 } own ? own : addonDescription;
 
         var activation = m.TryGetProperty("activation", out var a) && a.ValueKind == JsonValueKind.Object ? a : default;
         CopyFromTrack = activation.ValueKind == JsonValueKind.Object ? Text(activation, "copy_from_track") : null;
