@@ -144,7 +144,11 @@ public sealed partial class StockGame
 
     /// <summary>Whether the track's TrackData row in <paramref name="dataset"/> has a field.</summary>
     public bool TrackDataHas(string dataset, string track, string field) =>
-        TrackDataRow(dataset, track) is { } row && _db.Find($"{row}.{field}") is not null;
+        TrackDataValue(dataset, track, field) is not null;
+
+    /// <summary>A field of the track's TrackData row in <paramref name="dataset"/>, or null when the row lacks it.</summary>
+    public string? TrackDataValue(string dataset, string track, string field) =>
+        TrackDataRow(dataset, track) is { } row ? _db.Find($"{row}.{field}")?.Text : null;
 
     /// <summary>
     /// The record type the game stores a Track row field as, from any of its
@@ -167,17 +171,25 @@ public sealed partial class StockGame
         return null;
     }
 
-    private string? TrackDataRow(string dataset, string track)
-    {
-        if (!_datasets.TryGetValue(dataset, out var set)) return null;
-        for (var j = 0; j < 200; j++)
+    /// <summary>
+    /// Rows found, by dataset and track: the form asks for dozens of fields
+    /// each time it checks itself. Concurrent, as a package reads it from a
+    /// worker thread.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string), string?> _dataRows = new();
+
+    private string? TrackDataRow(string dataset, string track) =>
+        _dataRows.GetOrAdd((dataset, track), key =>
         {
-            var label = _db.Find($"track_data.game_setup.TrackDataSet_{set}.TrackData_{j}._metadata_");
-            if (label is null) return null;
-            if (label.Text == track) return $"track_data.game_setup.TrackDataSet_{set}.TrackData_{j}";
-        }
-        return null;
-    }
+            if (!_datasets.TryGetValue(key.Item1, out var set)) return null;
+            for (var j = 0; j < 200; j++)
+            {
+                var label = _db.Find($"track_data.game_setup.TrackDataSet_{set}.TrackData_{j}._metadata_");
+                if (label is null) return null;
+                if (label.Text == key.Item2) return $"track_data.game_setup.TrackDataSet_{set}.TrackData_{j}";
+            }
+            return null;
+        });
 
     [GeneratedRegex("^lng_track_([a-z0-9]{3})(?:_|$)")]
     private static partial Regex TrackKeyInfix();

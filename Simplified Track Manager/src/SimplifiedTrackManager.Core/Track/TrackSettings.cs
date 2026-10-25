@@ -75,6 +75,14 @@ public sealed partial class TrackSettings
     // ── ERS, and pictures ───────────────────────────────────────────────────
     public List<(string Key, string Value)> Ers { get; set; } = [];
 
+    /// <summary>
+    /// The race weekend, conditions, character and location as the form has
+    /// them, and as they were when the track was opened: only what differs is
+    /// written, so what the author tuned and the user left stays the author's.
+    /// </summary>
+    public TrackTuning? Tuning { get; set; }
+    public TrackTuning? TuningWas { get; set; }
+
     /// <summary>PNGs to put in place of the zip's pictures, by <see cref="TrackPictures.Slot.Key"/>.</summary>
     public Dictionary<string, string> Pictures { get; } = new(StringComparer.Ordinal);
 
@@ -205,6 +213,8 @@ public sealed partial class TrackSettings
         if (!VersionPattern().IsMatch(Version.Trim())) problems.Add("The version has to look like 1.0.0.");
         if (LengthKm.Trim().Length > 0 && LengthMetres() is null) problems.Add("The length has to be a number of kilometres, like 5.338.");
         if (Corners.Trim().Length > 0 && !int.TryParse(Corners, out _)) problems.Add("The corners have to be a whole number.");
+
+        if (Tuning is { } tuning) problems.AddRange(tuning.Problems());
 
         foreach (var (key, value) in Ers)
             if (key.Trim().Length == 0 || !double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))

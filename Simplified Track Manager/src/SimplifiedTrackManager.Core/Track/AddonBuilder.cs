@@ -163,6 +163,15 @@ public static class AddonBuilder
                         ops.Add(SetOp(DataRow(code, ds), field, value));
                         named.Add(ds);
                     }
+            // The race weekend, conditions, character and location the form changed.
+            foreach (var t in author.Tuning)
+            {
+                if (t.Dataset is { } ds) ops.Add(SetOp(DataRow(code, ds), t.Field, t.Value));
+                else if (game.TrackHas(slotTrack, t.Field)) ops.Add(SetOp(trackRow, t.Field, t.Value));
+                else if (game.TrackFieldTag(t.Field) is { } tag) ops.Add(CreateOp(trackRow, t.Field, t.Value, tag));
+                else Warn($"{slotTrack}'s Track row has no {t.Field}, so that one is left as the base track has it.");
+            }
+
             log?.Invoke($"  database: {authorOps} of the author's changes and {ops.Count - authorOps} of yours as set ops; " +
                         $"names in {named.Count} of the {datasets.Count} dataset(s) with {baseTrack}: {string.Join(", ", named)}");
             if (kept.Count + keptTrack.Count > 0)
@@ -298,10 +307,15 @@ public static class AddonBuilder
     /// The author's overrides, as the addon carries them: <c>set</c> ops for the
     /// fields the base track has, <c>set</c> ops that add the field (typed as the
     /// game's other tracks store it) for those it lacks, and, kept apart, the
-    /// few no track of the game has, which stay in the manifest. A field the
-    /// form sets is left out, since the form's value replaces it.
+    /// few no track of the game has, which stay in the manifest. A path like
+    /// <c>Session Start Times_*.p1_start_time</c> becomes a set on each numbered
+    /// field the base track has. A field the form sets is left out, since the
+    /// form's value replaces it — which also hands back the form's own
+    /// changes beyond the names (<see cref="TrackTuning"/>) as
+    /// <see cref="AuthorChangeSet.Tuning"/>.
     /// </summary>
-    public sealed record AuthorChangeSet(JsonArray Ops, List<TrackOverride> Kept, List<TrackOverride> KeptTrack, int Created);
+    public sealed record AuthorChangeSet(JsonArray Ops, List<TrackOverride> Kept, List<TrackOverride> KeptTrack, int Created,
+                                         IReadOnlyList<TrackTuning.Op> Tuning);
 
     public static AuthorChangeSet AuthorChanges(IReadOnlyList<TrackOverride> trackOverrides, IReadOnlyList<TrackOverride> overrides,
                                                 string baseTrack, string slotTrack, string code,
@@ -314,12 +328,26 @@ public static class AddonBuilder
         var trackRow = TrackRow(code);
         var created = 0;
 
-        var ours = settings.TrackRowFields().Select(f => f.Field).ToHashSet(StringComparer.Ordinal);
+        var source = new TrackSource(game, baseTrack, slotTrack, trackOverrides, overrides);
+        var tuning = settings.Tuning is { } now && settings.TuningWas is { } was ? now.Ops(source, was) : [];
+        var ours = settings.TrackRowFields().Select(f => f.Field)
+            .Concat(tuning.Where(t => t.Dataset is null).Select(t => t.Field))
+            .ToHashSet(StringComparer.Ordinal);
+        var oursData = tuning.Where(t => t.Dataset is not null).Select(t => (t.Dataset!, t.Field)).ToHashSet();
+
         foreach (var o in trackOverrides)
         {
-            if (ours.Contains(o.Path)) continue;
-            if (game.TrackHas(slotTrack, o.Path)) ops.Add(SetOp(trackRow, o.Path, o.Value));
-            else if (game.TrackFieldTag(o.Path) is { } tag) { ops.Add(CreateOp(trackRow, o.Path, o.Value, tag)); created++; }
+            var fields = TrackSource.Expand(o.Path, f => game.TrackHas(slotTrack, f));
+            if (fields.Count > 0)
+            {
+                foreach (var field in fields.Where(f => !ours.Contains(f))) ops.Add(SetOp(trackRow, field, o.Value));
+            }
+            else if (ours.Contains(o.Path)) continue;
+            else if (!o.Path.Contains("_*", StringComparison.Ordinal) && game.TrackFieldTag(o.Path) is { } tag)
+            {
+                ops.Add(CreateOp(trackRow, o.Path, o.Value, tag));
+                created++;
+            }
             else keptTrack.Add(o);
         }
         foreach (var o in overrides)
@@ -327,13 +355,22 @@ public static class AddonBuilder
             foreach (var ds in o.Datasets.Count > 0 ? o.Datasets : datasets)
             {
                 if (!datasets.Contains(ds)) continue;
-                if (settings.TrackDataFields(ds).Any(f => f.Field == o.Path)) continue;
-                if (game.TrackDataHas(ds, baseTrack, o.Path)) ops.Add(SetOp(DataRow(code, ds), o.Path, o.Value));
-                else if (game.TrackDataFieldTag(o.Path) is { } tag) { ops.Add(CreateOp(DataRow(code, ds), o.Path, o.Value, tag)); created++; }
+                bool Ours(string field) => oursData.Contains((ds, field)) || settings.TrackDataFields(ds).Any(f => f.Field == field);
+                var fields = TrackSource.Expand(o.Path, f => game.TrackDataHas(ds, baseTrack, f));
+                if (fields.Count > 0)
+                {
+                    foreach (var field in fields.Where(f => !Ours(f))) ops.Add(SetOp(DataRow(code, ds), field, o.Value));
+                }
+                else if (Ours(o.Path)) continue;
+                else if (!o.Path.Contains("_*", StringComparison.Ordinal) && game.TrackDataFieldTag(o.Path) is { } tag)
+                {
+                    ops.Add(CreateOp(DataRow(code, ds), o.Path, o.Value, tag));
+                    created++;
+                }
                 else kept.Add(o with { Datasets = [ds] });
             }
         }
-        return new AuthorChangeSet(ops, kept, keptTrack, created);
+        return new AuthorChangeSet(ops, kept, keptTrack, created, tuning);
     }
 
     /// <summary>

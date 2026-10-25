@@ -125,6 +125,11 @@ public sealed partial class TrackZip : IDisposable
                     case "track.add" when Text(op, "source") is { Length: > 0 } s:
                         source = s.Replace('\\', '/').Trim('/');
                         break;
+                    // Database changes can sit among the assets too, as db.set:
+                    // Swofty runs an addon's ops whichever file they're in.
+                    case "set" or "db.set":
+                        addonDb.Add(op);
+                        break;
                     case "lang.set" when Text(op, "key") is { } key && Text(op, "value") is { } value:
                         var language = Text(op, "language") ?? "*";
                         if (language == "*") text[key] = value;
@@ -163,7 +168,7 @@ public sealed partial class TrackZip : IDisposable
             var value = op.TryGetProperty("value", out var v)
                 ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText()
                 : null;
-            if (Text(op, "op") == "set" && field is not null && value is not null)
+            if (Text(op, "op") is "set" or "db.set" && field is not null && value is not null)
             {
                 if (TrackRowSelect().Match(select) is { Success: true } row && row.Groups[1].Value == Code)
                 {
@@ -224,6 +229,32 @@ public sealed partial class TrackZip : IDisposable
                 mips.TryAdd(name, entry);
         }
         Mipmaps = mips;
+    }
+
+    /// <summary>
+    /// The one Swofty addon a zip holds and nothing else of a track, as an
+    /// author may hand one out — <c>Circuit_Paul_Ricard_1.0.0.zip</c> holding
+    /// <c>twilight.paul-ricard.swoftyaddon</c> — or null. An archive inside an
+    /// archive can't be read in place, so it has to be taken out first
+    /// (<see cref="ExtractWrapped"/>).
+    /// </summary>
+    public static string? WrappedAddon(string path)
+    {
+        if (path.EndsWith(".swoftyaddon", StringComparison.OrdinalIgnoreCase)) return null;
+        using var zip = ZipFile.OpenRead(path);
+        if (zip.GetEntry("manifest.json") is not null || zip.GetEntry("swofty.json") is not null) return null;
+        var addons = zip.Entries.Where(e => e.FullName.EndsWith(".swoftyaddon", StringComparison.OrdinalIgnoreCase)).ToList();
+        return addons.Count == 1 ? addons[0].FullName : null;
+    }
+
+    /// <summary>Take <paramref name="entry"/> out of the zip at <paramref name="path"/> into <paramref name="dir"/>, and say where.</summary>
+    public static string ExtractWrapped(string path, string entry, string dir)
+    {
+        Directory.CreateDirectory(dir);
+        var to = Path.Combine(dir, Path.GetFileName(entry));
+        using var zip = ZipFile.OpenRead(path);
+        zip.GetEntry(entry)!.ExtractToFile(to, overwrite: true);
+        return to;
     }
 
     public static TrackZip Open(string path)

@@ -53,11 +53,24 @@ public partial class MainWindow : Window
     private (string Y2025, string Y2026, string Previous) _derived = ("", "", "");
 
     /// <summary>
-    /// The words the game's own tracks use, from its language files. No stock
-    /// track's aero reads Medium, but it sits between Low and High as meant.
+    /// The words the game's own tracks use, from its language files.
     /// </summary>
     private static readonly string[] Difficulties = ["Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
-    private static readonly string[] AeroBiases = ["Very Low", "Low", "Medium", "High", "Very High"];
+
+    /// <summary>
+    /// The menus' aero stat, said from the track's downforce level: the game's
+    /// tracks read Very Low at very_low, Low at low, High at high and Very High
+    /// at very_high, every one of them. Its medium tracks it calls Low or High,
+    /// having no word between; this track's own text can say Medium.
+    /// </summary>
+    private static string AeroFor(string downforce) => downforce switch
+    {
+        "very_low" => "Very Low",
+        "low" => "Low",
+        "high" => "High",
+        "very_high" => "Very High",
+        _ => "Medium",
+    };
 
     public MainWindow()
     {
@@ -68,11 +81,13 @@ public partial class MainWindow : Window
         ApplyWindowIcon();
 
         DifficultyBox.ItemsSource = Difficulties;
-        AeroBox.ItemsSource = AeroBiases;
         DifficultyBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
-        AeroBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
-        NationalityBox.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler(Field_Changed));
         NationalityBox.SelectionChanged += Nationality_Selected;
+        foreach (var box in new[] { TyreHardBox, TyreMediumBox, TyreSoftBox }) box.ItemsSource = TrackTuning.Compounds;
+        DownforceBox.ItemsSource = TrackTuning.DownforceLevels;
+        PerformanceBox.ItemsSource = TrackTuning.PerformanceTypes;
+        TyreWearBox.ItemsSource = TrackTuning.TyreWears;
+        ContinentBox.ItemsSource = TrackTuning.Continents;
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control && !_running)
@@ -197,8 +212,10 @@ public partial class MainWindow : Window
         _track = null;
         _trackPath = null;
         _codeLength = null;
+        _tuningWas = null;
         _pictures.Clear();
         DatabaseBox.Text = "";
+        DeleteWrapped();
         Refresh();
     }
 
@@ -206,6 +223,16 @@ public partial class MainWindow : Window
     /// Read the zip's manifest now, so a zip that isn't a track is turned away
     /// here rather than a minute into the build, and fill the form from it.
     /// </summary>
+    /// <summary>Where an addon taken out of a zip went, deleted when the track is closed or another opened.</summary>
+    private string? _wrappedDir;
+
+    private void DeleteWrapped()
+    {
+        if (_wrappedDir is null) return;
+        try { Directory.Delete(_wrappedDir, recursive: true); } catch { }
+        _wrappedDir = null;
+    }
+
     private void PickTrack(string path)
     {
         _config.LastTrackFolder = Path.GetDirectoryName(path);
@@ -213,6 +240,18 @@ public partial class MainWindow : Window
 
         try
         {
+            // An addon handed out inside a zip: an archive in an archive can't
+            // be read in place, so it's taken out to a scratch folder first.
+            if (TrackZip.WrappedAddon(path) is { } entry)
+            {
+                _previewCancel?.Cancel();
+                DeleteWrapped();
+                var dir = Path.Combine(Path.GetTempPath(), "simplified-track-manager", "wrapped", Guid.NewGuid().ToString("N"));
+                _wrappedDir = dir;
+                path = SimplifiedUi.Busy.Run(this, StatusSpinner, StatusLabel, $"Taking {Path.GetFileName(entry)} out of the zip",
+                    _ => TrackZip.ExtractWrapped(path, entry, dir));
+            }
+
             using var zip = TrackZip.Open(path);
             var baseTrack = zip.CopyFromTrack ?? zip.CopySlot
                 ?? throw new InvalidDataException("Its manifest names no base track (activation.copy_from_track).");
@@ -285,10 +324,9 @@ public partial class MainWindow : Window
             LengthBox.Text = int.TryParse(Override("length_metres"), out var metres)
                 ? (metres / 1000.0).ToString("0.000", CultureInfo.InvariantCulture) : "";
             CornersBox.Text = Override("numberOfCorners") ?? "";
-            LapsBox.Text = LapRecordBox.Text = LapRecordHolderBox.Text = "";
+            LapRecordBox.Text = LapRecordHolderBox.Text = "";
             F2LapRecordBox.Text = F2LapRecordHolderBox.Text = "";
             DifficultyBox.Text = "Medium";
-            AeroBox.Text = "Medium";
 
             if (t.Names.Count > 0) FillNames(t);
 
@@ -296,10 +334,12 @@ public partial class MainWindow : Window
             foreach (var box in new[] { LapRecordBox, LapRecordHolderBox, F2LapRecordBox, F2LapRecordHolderBox })
                 if (box.Text.Trim().Length == 0) box.Text = "-";
 
-            NationalityBox.Text = Either("nationality") ?? "";
+            Choose(NationalityBox, Either("nationality") ?? "");
             for (var i = 0; i < 3; i++)
                 _crowd[i] = _crowdOriginal[i] = int.TryParse(Either($"TrackCrowds_0.crowdColour{i + 1}"), out var colour) ? colour : null;
             PitMirroredBox.IsChecked = string.Equals(Either("pitMirrored"), "True", StringComparison.OrdinalIgnoreCase);
+
+            FillTuning(t);
 
             _pictures.Clear();
             BuildCrowd();
@@ -359,14 +399,12 @@ public partial class MainWindow : Window
         Put(GrandPrix2025Box, Name($"lng_track_{infix}_gp_title"));
         Put(GrandPrix2026Box, Name($"lng_track_{infix}_gp_title_26"));
         Put(GrandPrixPreviousBox, Name($"lng_track_{infix}_gp_title_multiline_previous"));
-        Put(LapsBox, Stat($"lng_stat_{infix}_num_laps"));
         Put(LapRecordBox, Stat($"lng_stat_{infix}_lap_record"));
         Put(LapRecordHolderBox, Stat($"lng_track_{infix}_lap_record_holder"));
         Put(F2LapRecordBox, Stat($"lng_stat_{infix}_lap_record_f2"));
         Put(F2LapRecordHolderBox, Stat($"lng_track_{infix}_lap_record_holder_f2"));
         if (Stat($"lng_stat_{infix}_corners") is { } corners && CornersBox.Text.Length == 0) CornersBox.Text = corners;
         if (Stat($"lng_stat_{infix}_difficulty") is { } difficulty) DifficultyBox.Text = difficulty;
-        if (Stat($"lng_aero_bias_{infix}") is { } aero) AeroBox.Text = aero;
     }
 
     private void GrandPrix_Changed(object sender, TextChangedEventArgs e)
@@ -384,19 +422,193 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// A nationality picked from the list names the country, so an empty
-    /// Country / title takes it — Turkey for turkey, Great Britain for
-    /// britain. Not while the form is filled from a track, and not for the
-    /// no-country one, which names nothing.
+    /// The country chosen names the track in the menus too: its title is the
+    /// country's name, Turkey for turkey, Great Britain for britain, kept in
+    /// step behind the scenes. The no-country one names nothing, and the
+    /// track's name is used instead. Not while the form is filled from a
+    /// track, which brings its own title.
     /// </summary>
     private void Nationality_Selected(object sender, SelectionChangedEventArgs e)
     {
-        if (_filling || NationalityBox.SelectedItem is not string key || key == StockGame.NoCountry) return;
-        if (CountryBox.Text.Trim().Length == 0) CountryBox.Text = GameFlags.Display(key);
+        if (_filling) return;
+        CountryBox.Text = Nationality() is { Length: > 0 } key && key != StockGame.NoCountry ? GameFlags.Display(key) : "";
+        Refresh();
+    }
+
+    /// <summary>The country chosen, by the game's key; empty when none is.</summary>
+    private string Nationality() => NationalityBox.SelectedItem as string ?? "";
+
+    // ── Race weekend, conditions, character, location ───────────────────────
+
+    /// <summary>The tuning as the track came, which only changes from it are written against.</summary>
+    private TrackTuning? _tuningWas;
+
+    /// <summary>
+    /// The race weekend, conditions, character and location as the track has
+    /// them — its author's values, else its base track's. The menus' Laps stat
+    /// starts as the race laps when the track gives none.
+    /// </summary>
+    private void FillTuning(LoadedTrack t)
+    {
+        _tuningWas = _game is null ? null
+            : TrackTuning.Current(new TrackSource(_game, t.BaseTrack, t.SlotTrack, t.TrackOverrides, t.Overrides));
+        var tuning = _tuningWas ?? new TrackTuning();
+
+        F1RaceLapsBox.Text = tuning.F1RaceLaps;
+        F1SprintLapsBox.Text = tuning.F1SprintLaps;
+        F2FeatureLapsBox.Text = tuning.F2FeatureLaps;
+        F2SprintLapsBox.Text = tuning.F2SprintLaps;
+        Choose(TyreHardBox, tuning.TyreHard);
+        Choose(TyreMediumBox, tuning.TyreMedium);
+        Choose(TyreSoftBox, tuning.TyreSoft);
+        for (var i = 0; i < SessionBoxes.Length; i++) SessionBoxes[i].Text = tuning.SessionTimes[i];
+        F1PitLimitBox.Text = tuning.F1PitLimit;
+        F2PitLimitBox.Text = tuning.F2PitLimit;
+        NightStartBox.IsChecked = tuning.NightStart;
+        WorkOutFuelBox.IsChecked = true;
+
+        for (var i = 0; i < WeatherBoxes.Length; i++) WeatherBoxes[i].Text = tuning.Weather[i];
+        TemperatureMinBox.Text = tuning.TemperatureMin;
+        TemperatureMaxBox.Text = tuning.TemperatureMax;
+        DaylightStartBox.Text = tuning.DaylightStart;
+        DaylightEndBox.Text = tuning.DaylightEnd;
+
+        Choose(DownforceBox, tuning.DownforceLevel);
+        Choose(PerformanceBox, tuning.PerformanceType);
+        Choose(TyreWearBox, tuning.TyreWear);
+        AiLapTimeBox.Text = tuning.AiLapTime;
+        F1FuelBurnBox.Text = tuning.F1FuelBurn;
+        F2FuelBurnBox.Text = tuning.F2FuelBurn;
+
+        LatitudeBox.Text = tuning.Latitude;
+        LongitudeBox.Text = tuning.Longitude;
+        Choose(ContinentBox, tuning.Continent);
+        AirPressureBox.Text = tuning.AirPressure;
+
+        NoteDerived();
+
+    }
+
+    // ── Worked out from other values ────────────────────────────────────────
+
+    /// <summary>
+    /// What each worked-out box was last set to. A box follows while it still
+    /// reads that — or is empty — and is left alone once something else is
+    /// typed, so a value the author set off the formula stays theirs.
+    /// </summary>
+    private readonly Dictionary<Control, string> _followed = [];
+
+    /// <summary>The values the boxes follow, from the length, the downforce and where the track is.</summary>
+    private IEnumerable<(Control Box, string? Value)> Derived()
+    {
+        var km = TrackTuning.Number(LengthBox.Text);
+        string? Laps(double race) => TrackTuning.LapsFor(km, race)?.ToString(CultureInfo.InvariantCulture);
+        string? Burn(double? kg) => kg?.ToString("0.00", CultureInfo.InvariantCulture);
+        var downforce = DownforceBox.SelectedItem as string ?? "";
+        yield return (F1RaceLapsBox, Laps(TrackTuning.F1RaceKm));
+        yield return (F1SprintLapsBox, Laps(TrackTuning.F1SprintKm));
+        yield return (F2FeatureLapsBox, Laps(TrackTuning.F2FeatureKm));
+        yield return (F2SprintLapsBox, Laps(TrackTuning.F2SprintKm));
+        yield return (F1FuelBurnBox, Burn(TrackTuning.F1FuelBurnFor(km, downforce)));
+        yield return (F2FuelBurnBox, Burn(TrackTuning.F2FuelBurnFor(km, downforce)));
+        yield return (ContinentBox, TrackTuning.ContinentFor(TrackTuning.Number(LatitudeBox.Text), TrackTuning.Number(LongitudeBox.Text)));
+    }
+
+    /// <summary>What the boxes follow, as a track opens: nothing changes, it is only noted.</summary>
+    private void NoteDerived()
+    {
+        _followed.Clear();
+        foreach (var (box, value) in Derived())
+            if (value is not null) _followed[box] = value;
+    }
+
+    /// <summary>Bring the following boxes up to date after the length, downforce or location changed.</summary>
+    private void FollowDerived()
+    {
+        foreach (var (box, value) in Derived())
+        {
+            if (value is null) continue;
+            var last = _followed.GetValueOrDefault(box);
+            switch (box)
+            {
+                case TextBox text when text.Text.Trim().Length == 0 || text.Text.Trim() == last:
+                    text.Text = value;
+                    break;
+                case ComboBox choice when choice.SelectedItem is null || choice.SelectedItem as string == last:
+                    Choose(choice, value);
+                    break;
+            }
+            _followed[box] = value;
+        }
+    }
+
+    private TextBox[] SessionBoxes => [SessionP1Box, SessionP2Box, SessionP3Box, SessionQualifyingBox, SessionRaceBox];
+    private TextBox[] WeatherBoxes => [WeatherClearBox, WeatherCloudyBox, WeatherOvercastBox, WeatherLightRainBox, WeatherHeavyRainBox];
+
+    /// <summary>The form's tuning, as written.</summary>
+    private TrackTuning ReadTuning() => new()
+    {
+        F1RaceLaps = F1RaceLapsBox.Text.Trim(),
+        F1SprintLaps = F1SprintLapsBox.Text.Trim(),
+        F2FeatureLaps = F2FeatureLapsBox.Text.Trim(),
+        F2SprintLaps = F2SprintLapsBox.Text.Trim(),
+        TyreHard = TyreHardBox.SelectedItem as string ?? "",
+        TyreMedium = TyreMediumBox.SelectedItem as string ?? "",
+        TyreSoft = TyreSoftBox.SelectedItem as string ?? "",
+        SessionTimes = SessionBoxes.Select(b => b.Text.Trim()).ToArray(),
+        F1PitLimit = F1PitLimitBox.Text.Trim(),
+        F2PitLimit = F2PitLimitBox.Text.Trim(),
+        NightStart = NightStartBox.IsChecked == true,
+        WorkOutFuel = WorkOutFuelBox.IsChecked == true,
+        Weather = WeatherBoxes.Select(b => b.Text.Trim()).ToArray(),
+        TemperatureMin = TemperatureMinBox.Text.Trim(),
+        TemperatureMax = TemperatureMaxBox.Text.Trim(),
+        DaylightStart = DaylightStartBox.Text.Trim(),
+        DaylightEnd = DaylightEndBox.Text.Trim(),
+        DownforceLevel = DownforceBox.SelectedItem as string ?? "",
+        PerformanceType = PerformanceBox.SelectedItem as string ?? "",
+        TyreWear = TyreWearBox.SelectedItem as string ?? "",
+        AiLapTime = AiLapTimeBox.Text.Trim(),
+        F1FuelBurn = F1FuelBurnBox.Text.Trim(),
+        F2FuelBurn = F2FuelBurnBox.Text.Trim(),
+        Latitude = LatitudeBox.Text.Trim(),
+        Longitude = LongitudeBox.Text.Trim(),
+        Continent = ContinentBox.SelectedItem as string ?? "",
+        AirPressure = AirPressureBox.Text.Trim(),
+    };
+
+    /// <summary>A drop-down's choice; a value the game has that the list lacks is added rather than lost.</summary>
+    private static void Choose(ComboBox box, string value)
+    {
+        var items = (box.ItemsSource as IEnumerable<string> ?? []).ToList();
+        if (value.Length > 0 && !items.Contains(value))
+        {
+            items.Add(value);
+            box.ItemsSource = items;
+        }
+        box.SelectedItem = value.Length > 0 ? value : null;
+    }
+
+    private void Choice_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_filling && ReferenceEquals(sender, DownforceBox)) FollowDerived();
+        if (!_filling) Refresh();
+    }
+
+    /// <summary>The weather's total under its boxes, red until it is 100%.</summary>
+    private void ShowWeatherTotal()
+    {
+        var values = WeatherBoxes.Select(b => TrackTuning.Number(b.Text)).ToList();
+        if (values.Any(v => v is null)) { Say(WeatherTotal, "Each a number, adding up to 100%", "TextMuted"); return; }
+        var total = values.Sum(v => v!.Value);
+        Say(WeatherTotal, Math.Abs(total - 100) <= 0.5 ? "Adds up to 100%" : $"Adds up to {total:0.##}%, not 100%",
+            Math.Abs(total - 100) <= 0.5 ? "TextMuted" : "Danger");
     }
 
     private void Field_Changed(object sender, TextChangedEventArgs e)
     {
+        if (!_filling && (ReferenceEquals(sender, LengthBox) || ReferenceEquals(sender, LatitudeBox) || ReferenceEquals(sender, LongitudeBox)))
+            FollowDerived();
         if (!_filling) Refresh();
     }
 
@@ -480,7 +692,7 @@ public partial class MainWindow : Window
             grid.Children.Add(text);
             grid.Children.Add(reset);
 
-            var card = new Border { Padding = new Thickness(12), Margin = new Thickness(0, 0, 10, 0), Child = grid };
+            var card = new Border { Padding = new Thickness(12), Margin = new Thickness(0, 0, 12, 12), Child = grid };
             card.SetResourceReference(StyleProperty, "Panel");
             CrowdPanel.Children.Add(card);
         }
@@ -700,7 +912,7 @@ public partial class MainWindow : Window
         var choices = new List<GameFlags.Country>(flags.Countries.Count + 1);
         if (Chequered() is { } chequered) choices.Add(chequered);
         choices.AddRange(flags.Countries);
-        if (CountryDialog.Show(this, choices, NationalityBox.Text.Trim()) is not { } country) return;
+        if (CountryDialog.Show(this, choices, Nationality()) is not { } country) return;
 
         // The round flag is the game's own where it has one, else the one the
         // app ships from flag-icons, else a cut of the large flag; the
@@ -717,8 +929,8 @@ public partial class MainWindow : Window
         _pictures["flag_rectangle_small"] = country.Small;
 
         // The chequered flag is no country's, so it means the game's own no-country nationality.
-        if (NationalityBox.Text.Trim().Length == 0)
-            NationalityBox.Text = country.Key == ChequeredKey ? StockGame.NoCountry : country.Key;
+        if (Nationality().Length == 0)
+            Choose(NationalityBox, country.Key == ChequeredKey ? StockGame.NoCountry : country.Key);
         BuildPictures(t);
     }
 
@@ -736,7 +948,7 @@ public partial class MainWindow : Window
     private sealed class NationalityLabel : System.Windows.Data.IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
-            value as string == StockGame.NoCountry ? "Default (no country)" : value;
+            value is string key ? key == StockGame.NoCountry ? "Default (no country)" : GameFlags.Display(key) : value;
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
             throw new NotSupportedException();
@@ -894,7 +1106,10 @@ public partial class MainWindow : Window
                 ? TrackSettings.SemVer(VersionBox.Text.Trim())
                 : VersionBox.Text.Trim(),
             Initials = InitialsBox.Text.Trim(),
-            Country = CountryBox.Text.Trim(),
+            // The title the country names, else the country's own name, else
+            // (left empty) the track's name.
+            Country = CountryBox.Text.Trim().Length > 0 ? CountryBox.Text.Trim()
+                : Nationality() is { Length: > 0 } nation && nation != StockGame.NoCountry ? GameFlags.Display(nation) : "",
             Circuit = CircuitBox.Text.Trim().ToUpperInvariant(),
             City = CityBox.Text.Trim(),
             GrandPrix = GrandPrixBox.Text.Trim().ToUpperInvariant(),
@@ -904,14 +1119,16 @@ public partial class MainWindow : Window
             F2Title = F2TitleBox.Text.Trim().ToUpperInvariant(),
             LengthKm = LengthBox.Text.Trim(),
             Corners = CornersBox.Text.Trim(),
-            Laps = LapsBox.Text.Trim(),
+            // The laps the menus show are the race weekend's.
+            Laps = F1RaceLapsBox.Text.Trim(),
             LapRecord = LapRecordBox.Text.Trim(),
             LapRecordHolder = LapRecordHolderBox.Text.Trim(),
             F2LapRecord = F2LapRecordBox.Text.Trim(),
             F2LapRecordHolder = F2LapRecordHolderBox.Text.Trim(),
             Difficulty = DifficultyBox.Text.Trim(),
-            AeroBias = AeroBox.Text.Trim(),
-            Nationality = NationalityBox.Text.Trim(),
+            // Not asked: the aero stat follows the downforce level.
+            AeroBias = AeroFor(DownforceBox.SelectedItem as string ?? ""),
+            Nationality = Nationality(),
             PitMirrored = PitMirroredBox.IsChecked == true,
             // Not on the form: the track's ERS goes over as the zip gave it.
             Ers = _track?.Ers.ToList() ?? [],
@@ -919,6 +1136,11 @@ public partial class MainWindow : Window
         };
         for (var i = 0; i < 3; i++) s.CrowdColours[i] = _crowd[i];
         foreach (var (key, png) in _pictures) s.Pictures[key] = png;
+        if (_tuningWas is not null)
+        {
+            s.Tuning = ReadTuning();
+            s.TuningWas = _tuningWas;
+        }
         return s;
     }
 
@@ -1020,6 +1242,7 @@ public partial class MainWindow : Window
             TrackHint.Text = $"{t.Name} {t.Version}{by}  ·  {code}  ·  built on {t.BaseTrack}  ·  " +
                              $"{t.ErpBytes / 1048576.0:N0} MB, {t.MipFiles} mip files";
             Validate();
+            ShowWeatherTotal();
             ShowDatabase(t);
         }
         else
@@ -1136,11 +1359,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The previews and the game's flags are scratch files; a job still
-        // taking previews out stops.
+        // The previews, the game's flags and an addon taken out of a zip are
+        // scratch files; a job still taking previews out stops.
         _previewCancel?.Cancel();
         DeletePreviews();
         DeleteGameFlags();
+        DeleteWrapped();
     }
 
     private void WindowMinimize_Click(object sender, RoutedEventArgs e) =>
